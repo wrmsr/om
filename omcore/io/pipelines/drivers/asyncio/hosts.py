@@ -369,10 +369,15 @@ class AsyncioHostedIoPipelineConnect(BaseIoPipelineHostHandle, IoPipelineHostedC
             try:
                 addresses = await host.resolver.resolve(tcp.host, tcp.port)
             except ConnectIoPipelineHostError as e:
-                self._deliver(self._on_failed, e)
+                # Finish before delivering on_failed so a callback closing this handle or host cannot double-deliver.
+                if not self._done:
+                    self._finish()
+                    self._deliver(self._on_failed, e)
                 return None
             except Exception as e:  # noqa
-                self._deliver(self._on_failed, ConnectIoPipelineHostError(self._endpoint, [e]))
+                if not self._done:
+                    self._finish()
+                    self._deliver(self._on_failed, ConnectIoPipelineHostError(self._endpoint, [e]))
                 return None
 
         loop = asyncio.get_running_loop()
@@ -399,10 +404,12 @@ class AsyncioHostedIoPipelineConnect(BaseIoPipelineHostHandle, IoPipelineHostedC
                 raise
             return sock
 
-        if errors and isinstance(errors[-1], TimeoutError):
-            self._deliver(self._on_failed, ConnectTimeoutIoPipelineHostError(self._endpoint, errors))
-        else:
-            self._deliver(self._on_failed, ConnectIoPipelineHostError(self._endpoint, errors))
+        if not self._done:
+            self._finish()
+            if errors and isinstance(errors[-1], TimeoutError):
+                self._deliver(self._on_failed, ConnectTimeoutIoPipelineHostError(self._endpoint, errors))
+            else:
+                self._deliver(self._on_failed, ConnectIoPipelineHostError(self._endpoint, errors))
         return None
 
     async def _main(self, host: 'AsyncioIoPipelineHost') -> None:
@@ -681,12 +688,9 @@ class AsyncioIoPipelineHost(BaseIoPipelineHost):
 
         loop = self.loop
         fds = {read_fd, write_fd}
-        original_flags = {fd: fcntl.fcntl(fd, fcntl.F_GETFL) for fd in fds}
-        # A caller-owned descriptor is served through a duplicate, which the transports own and close; an owned one is
-        # handed over as is. Either way nonblocking mode lands on the shared description, restored afterwards.
-        # One owned descriptor serving both ways gets a duplicate for its second transport, so each closes its own.
-        served_read = read_fd if owned else os.dup(read_fd)
-        served_write = write_fd if owned and write_fd != read_fd else os.dup(write_fd)
+        original_flags: ta.Dict[int, int] = {}
+        served_read: ta.Optional[int] = None
+        served_write: ta.Optional[int] = None
 
         def restore() -> None:
             if owned:
@@ -702,6 +706,14 @@ class AsyncioIoPipelineHost(BaseIoPipelineHost):
         read_file: ta.Optional[ta.BinaryIO] = None
         write_file: ta.Optional[ta.BinaryIO] = None
         try:
+            for fd in fds:
+                original_flags[fd] = fcntl.fcntl(fd, fcntl.F_GETFL)
+            # A caller-owned descriptor is served through a duplicate, which the transports own and close; an owned one
+            # is handed over as is. Either way nonblocking mode lands on the shared description, restored afterwards.
+            # One owned descriptor serving both ways gets a duplicate for its second transport, so each closes its own.
+            served_read = read_fd if owned else os.dup(read_fd)
+            served_write = write_fd if owned and write_fd != read_fd else os.dup(write_fd)
+
             reader = asyncio.StreamReader(loop=loop)
             read_protocol = asyncio.StreamReaderProtocol(reader, loop=loop)
             read_file = os.fdopen(served_read, 'rb', 0)
@@ -711,22 +723,35 @@ class AsyncioIoPipelineHost(BaseIoPipelineHost):
             write_transport, _ = await loop.connect_write_pipe(lambda: write_protocol, write_file)
             writer: ta.Any = asyncio.StreamWriter(write_transport, write_protocol, None, loop)
         except BaseException as e:  # noqa
-            # Each descriptor is closed exactly once: by its transport, which closes the file it was given (later, on
-            # the loop); else by that file; else directly, if it is a duplicate not yet wrapped. Closing a number
-            # which something else will close again later would close whatever had reused it meanwhile.
+            # Each descriptor owned by this task (every duplicate, and the caller's descriptors when owned=True) is
+            # closed exactly once: by its transport, else its file, else directly via os.close.
+            closed_fds: ta.Set[int] = set()
             for transport, file, served in (
                     (read_transport, read_file, served_read),
                     (write_transport, write_file, served_write),
             ):
                 if transport is not None:
                     transport.close()
+                    if served is not None:
+                        closed_fds.add(served)
                 elif file is not None:
                     file.close()
-                elif served not in fds:
+                    if served is not None:
+                        closed_fds.add(served)
+                elif served is not None and served not in closed_fds:
+                    closed_fds.add(served)
                     try:
                         os.close(served)
                     except OSError:
                         pass
+            if owned:
+                for fd in fds:
+                    if fd not in closed_fds:
+                        closed_fds.add(fd)
+                        try:
+                            os.close(fd)
+                        except OSError:
+                            pass
             restore()
             hosted._record_failure(e)  # noqa
             hosted._unregister()  # noqa

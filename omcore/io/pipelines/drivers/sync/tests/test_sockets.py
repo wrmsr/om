@@ -16,6 +16,7 @@ from ....core import IoPipelineHandlerRef
 from ....core import IoPipelineMessages
 from ....core import IoPipelineService
 from ....core import IoPipelineUpdate
+from ....errors import AbortedIoPipelineError
 from ....flow.stub import StubIoPipelineFlowService
 from ....flow.types import IoPipelineFlowMessages
 from ....sched.timeouts import ReadTimeoutIoPipelineHandler
@@ -920,3 +921,98 @@ class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
             drv.close()
             sock.close()
             peer.close()
+
+    def test_timer_closing_or_destroying_driver_during_wait_stops_before_io(self) -> None:
+        # In SyncIoPipelineDriver.next(), _wait_for_io_or_timer() runs due timers right after poll() returns readiness
+        # flags. If that timer calls driver.close() (restoring the socket to blocking mode) or destroys the pipeline,
+        # next() previously proceeded straight into _try_write() / _do_read() on the closed/destroyed driver (blocking
+        # indefinitely in recv_into on the restored blocking socket).
+
+        for action in ('close', 'destroy'):
+            with self.subTest(action=action):
+                sock, peer = socket.socketpair()
+                # Bound socket timeout so a regression into blocking recv_into fails fast instead of hanging.
+                sock.settimeout(.2)
+                drv_box: ta.List[SocketSyncIoPipelineDriver] = []
+
+                class _TriggerHandler(IoPipelineHandler):
+                    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+                        if msg == 'arm':
+                            def on_timer() -> None:
+                                if action == 'close':
+                                    drv_box[0].close()
+                                else:
+                                    ctx.pipeline.destroy()
+
+                            ctx.services[IoPipelineScheduling].schedule(ctx.ref, 0., on_timer)
+                            # Queue outbound bytes so _poll() returns 'write' and enters _wait_for_io_or_timer() where
+                            # poll() sees writable=True immediately and then run_due() fires the 0s timer.
+                            ctx.feed_out(b'should-not-write-after-close')
+                            return
+                        ctx.feed_in(msg)
+
+                drv = SocketSyncIoPipelineDriver(
+                    IoPipeline.Spec(
+                        [_TriggerHandler()],
+                        services=[StubIoPipelineFlowService()],
+                    ),
+                    sock,
+                )
+                drv_box.append(drv)
+                try:
+                    self.assertIsNone(drv.next(read=False))
+                    peer.sendall(b'incoming')
+                    drv.enqueue('arm')
+
+                    # Without the post-wait active/ready check, this would write b'should-not-write-after-close' and
+                    # call _do_read() on a socket already restored to blocking mode (hitting socket.timeout).
+                    self.assertIsNone(drv.next())
+                    self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
+                    self.assertFalse(drv.pipeline.is_ready)
+                    self.assertEqual(sock.gettimeout(), .2)
+
+                    peer.setblocking(False)
+                    with self.assertRaises(BlockingIOError):
+                        peer.recv(64)
+                finally:
+                    drv.close()
+                    sock.close()
+                    peer.close()
+
+    def test_graceful_close_fails_posts_queued_during_final_output_completion(self) -> None:
+        # Posts queued while FinalOutput is completing (before graceful close sets CLOSED) must be failed rather than
+        # silently dropped in _input_q with their futures never resolved.
+
+        sock, peer = socket.socketpair()
+        with sock, peer:
+            graceful_close = GracefulCloseIoPipelineHandler()
+            drv = SocketSyncIoPipelineDriver(
+                IoPipeline.Spec(
+                    [graceful_close],
+                    services=[StubIoPipelineFlowService(auto_read=False)],
+                ),
+                sock,
+            )
+            queued_posts: ta.List[ta.Any] = []
+            ran: ta.List[bool] = []
+            post_excs: ta.List[ta.Optional[BaseException]] = []
+
+            def on_final_done(_msg: ta.Any) -> None:
+                p = drv.posting.post(lambda: ran.append(True))
+                p.add_listener(lambda m: post_excs.append(m.get_exception() if m.is_failed() else None))
+                queued_posts.append(p)
+
+            graceful_close.final_output.add_listener(on_final_done)
+            try:
+                self.assertIsNone(drv.next(read=False))
+                drv.enqueue(_CLOSE)
+                self.assertIsNone(drv.next(read=False))
+
+                self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
+                self.assertEqual(ran, [])
+                self.assertEqual(len(queued_posts), 1)
+                self.assertTrue(queued_posts[0].is_failed())
+                self.assertEqual(len(post_excs), 1)
+                self.assertIsInstance(post_excs[0], AbortedIoPipelineError)
+            finally:
+                drv.close()

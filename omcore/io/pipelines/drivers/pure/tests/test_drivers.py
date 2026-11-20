@@ -536,3 +536,61 @@ class TestPureIoPipelineDriverOutputShutdown(unittest.TestCase):
         finally:
             if was_enabled:
                 gc.enable()
+
+    def test_fence_listener_destroying_pipeline_mid_drain_closes_cleanly(self) -> None:
+        # In PureIoPipelineDriver.drain_output(), completing a FlushOutput or ShutdownOutput invokes listeners
+        # synchronously. If a listener destroys the pipeline while more items or writability updates remain in the same
+        # drain_output() call, the driver previously kept calling _update_output_writability() / _gracefully_close() on
+        # the destroyed pipeline, crashing and transitioning to FAILED instead of CLOSED.
+
+        capture = CaptureIoPipelineHandler()
+        flush = IoPipelineFlowMessages.FlushOutput()
+        final = IoPipelineMessages.FinalOutput()
+        driver = self._driver(capture, write_high_watermark=4, write_low_watermark=2)
+        try:
+            self.assertIsNone(driver.next(read=False))
+            flush.add_listener(lambda _m: driver.pipeline.destroy())
+            driver.enqueue(Emit([b'abcdef', flush, final]))
+            self.assertIsNone(driver.next(read=False))
+            self.assertIs(driver.state, IoPipelineDriverState.DRAINING)
+
+            drained = driver.drain_output()
+            self.assertEqual(drained, b'abcdef')
+            self.assertTrue(flush.is_succeeded())
+            self.assertTrue(final.is_failed())
+            self.assertIs(driver.state, IoPipelineDriverState.CLOSED)
+            self.assertFalse(driver.pipeline.is_ready)
+        finally:
+            driver.close()
+
+    def test_graceful_close_fails_posts_queued_during_final_output_completion(self) -> None:
+        # Posts queued while FinalOutput is completing during _gracefully_close() must be failed rather than stranded
+        # in _input_q after the driver transitions to CLOSED.
+
+        capture = CaptureIoPipelineHandler()
+        final = IoPipelineMessages.FinalOutput()
+        driver = self._driver(capture)
+        queued_posts: ta.List[ta.Any] = []
+        ran: ta.List[bool] = []
+        post_excs: ta.List[ta.Optional[BaseException]] = []
+
+        def on_final_done(_msg: ta.Any) -> None:
+            p = driver.posting.post(lambda: ran.append(True))
+            p.add_listener(lambda m: post_excs.append(m.get_exception() if m.is_failed() else None))
+            queued_posts.append(p)
+
+        final.add_listener(on_final_done)
+        try:
+            self.assertIsNone(driver.next(read=False))
+            driver.enqueue(Emit([b'ok', final]))
+            self.assertIsNone(driver.next(read=False))
+            self.assertEqual(driver.drain_output(), b'ok')
+
+            self.assertIs(driver.state, IoPipelineDriverState.CLOSED)
+            self.assertEqual(ran, [])
+            self.assertEqual(len(queued_posts), 1)
+            self.assertTrue(queued_posts[0].is_failed())
+            self.assertEqual(len(post_excs), 1)
+            self.assertIsInstance(post_excs[0], AbortedIoPipelineError)
+        finally:
+            driver.close()

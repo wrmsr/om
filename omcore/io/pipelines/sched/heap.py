@@ -201,6 +201,8 @@ class HeapIoPipelineSchedulingService(IoPipelineScheduling, IoPipelineService):
             self._seq,
         )
         self._seq += 1
+        # Pop cancelled roots first so _pending[0] accurately reflects whether handle is the new earliest live timer.
+        self._clear_cancelled()
         heapq.heappush(self._pending, (handle._deadline, handle._seq, handle))  # noqa
         self._live.add(handle)
 

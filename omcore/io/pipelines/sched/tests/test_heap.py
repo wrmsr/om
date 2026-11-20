@@ -206,3 +206,35 @@ class TestHeapIoPipelineSchedulingService(unittest.TestCase):
             pipeline.destroy()
             if was_enabled:
                 gc.enable()
+
+    def test_on_earliest_change_fires_past_cancelled_heap_root(self) -> None:
+        # Cancelled handles remain lazily in _pending until popped. Previously _schedule() pushed the new handle and
+        # checked `self._pending[0][2] is handle` without first popping cancelled roots, so any cancelled handle with
+        # an earlier deadline suppressed on_earliest_change and prevented asyncio drivers from arming their timer.
+
+        now = [0.]
+        changes: ta.List[ta.Optional[float]] = []
+
+        def on_change() -> None:
+            changes.append(sched.next_deadline())
+
+        handler = NopIoPipelineHandler()
+        sched = HeapIoPipelineSchedulingService(lambda: now[0], on_earliest_change=on_change)
+        pipeline = IoPipeline.new([handler], services=[sched])
+        try:
+            ref = self.find_handler_ref(pipeline, handler)
+
+            h1 = sched.schedule(ref, 1., lambda: None)
+            self.assertEqual(changes, [1.])
+
+            sched.schedule(ref, 10., lambda: None)
+            self.assertEqual(changes, [1.])
+
+            # Cancel the earliest handle without calling next_deadline(); it stays at _pending[0].
+            h1.cancel()
+
+            # Scheduling a 5s timer makes 5.0 the new earliest live deadline (earlier than 10.0) and must fire callback.
+            sched.schedule(ref, 5., lambda: None)
+            self.assertEqual(changes, [1., 5.])
+        finally:
+            pipeline.destroy()

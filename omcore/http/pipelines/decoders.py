@@ -17,6 +17,7 @@ from ...io.pipelines.core import IoPipelineHandlerContext
 from ...io.streambufs.scanning import ScanningByteStreamBuffer
 from ...io.streambufs.segmented import SegmentedByteStreamBuffer
 from ...io.streambufs.segmented import SegmentedByteStreamBufferView
+from ...io.streambufs.types import ByteStreamBufferView
 from ...io.streambufs.types import MutableByteStreamBuffer
 from ...io.streambufs.utils import ByteStreamBuffers
 from ...io.streambufs.utils import CanByteStreamBuffer
@@ -105,6 +106,18 @@ class IoPipelineHttpObjectDecoder(
             head.headers,
             if_length_missing=self._if_content_length_missing,
         )
+
+    def enter_tunnel(self) -> ta.Optional[ByteStreamBufferView]:
+        """Switch immediately into tunnel mode and return any raw bytes already buffered after the last HTTP message."""
+
+        buffered: ta.Optional[ByteStreamBufferView] = None
+        if isinstance(self._state, (self._PendingUpgradeState, self._HeadState)):
+            if (buf := self._state.buf) is not None and len(buf):
+                buffered = buf.split_to(len(buf))
+
+        head = getattr(self._state, '_head', None)
+        self._state = self._TunnelState(self, head)
+        return buffered
 
     #
 
@@ -300,6 +313,10 @@ class IoPipelineHttpObjectDecoder(
                 out.append(self._d._make_end())  # noqa
                 return (self._d._TunnelState(self._d, self._head), data)  # noqa
 
+            elif te.mode == 'pending_upgrade':
+                out.append(self._d._make_end())  # noqa
+                return (self._d._PendingUpgradeState(self._d, self._head), data)  # noqa
+
             else:
                 raise RuntimeError(f'unexpected mode {te!r}')
 
@@ -338,7 +355,52 @@ class IoPipelineHttpObjectDecoder(
 
     #
 
-    class _TunnelState(_ContentState):
+    class _PendingUpgradeState(_ContentState):
+        """
+        Holds trailing raw bytes after an Upgrade request until the upgrade is either accepted (enter_tunnel) or
+        rejected (re-parsed as HTTP).
+        """
+
+        _buf: ta.Optional[MutableByteStreamBuffer] = None
+
+        @property
+        def buf(self) -> ta.Optional[MutableByteStreamBuffer]:
+            return self._buf
+
+        def decode(
+                self,
+                ctx: IoPipelineHandlerContext,
+                data: CanByteStreamBuffer,
+                out: ta.List[ta.Any],
+                *,
+                final: bool = False,
+        ) -> ta.Optional[ta.Tuple['IoPipelineHttpObjectDecoder._State', ta.Optional[CanByteStreamBuffer]]]:
+            if final:
+                return None
+
+            for mv in ByteStreamBuffers.iter_segments(data):
+                if not len(mv):
+                    continue
+                if (buf := self._buf) is None:
+                    buf = self._buf = SegmentedByteStreamBuffer(
+                        chunk_size=self._d._config.head_buffer.chunk_size,  # noqa
+                    )
+                buf.write(mv)
+
+            return None
+
+    #
+
+    class _TunnelState(_State):
+        def __init__(
+                self,
+                d: 'IoPipelineHttpObjectDecoder',
+                head: ta.Optional[IoPipelineHttpMessageHead] = None,
+        ) -> None:
+            super().__init__(d)
+
+            self._head = head
+
         def decode(
                 self,
                 ctx: IoPipelineHandlerContext,

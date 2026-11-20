@@ -12,11 +12,15 @@ from .....io.pipelines.handlers.queues import InboundQueueIoPipelineHandler
 from .....io.streambufs.utils import ByteStreamBuffers
 from .....lite.check import check
 from ....headers import HttpHeaders
+from ...requests import FullIoPipelineHttpRequest
 from ...requests import IoPipelineHttpRequestAborted
 from ...requests import IoPipelineHttpRequestBodyData
 from ...requests import IoPipelineHttpRequestEnd
 from ...requests import IoPipelineHttpRequestHead
+from ...servers.requests import IoPipelineHttpRequestDecoder
+from ...servers.requests import IoPipelineHttpRequestDecompressor
 from ..requests import IoPipelineHttpRequestCompressor
+from ..requests import IoPipelineHttpRequestEncoder
 
 
 class TestGzipCompressorSimple(unittest.TestCase):
@@ -172,3 +176,150 @@ class TestGzipCompressorSimple(unittest.TestCase):
         channel.feed_in(pause, ready)
 
         self.assertEqual(ibq.drain(), [pause, ready])
+
+
+class TestGzipCompressorRegressions(unittest.TestCase):
+    def test_outbound_aborted_resets_compressor_for_next_request(self) -> None:
+        # Regression: IoPipelineHttpObjectCompressor.outbound previously did not handle self._aborted_type, so an
+        # outbound Aborted mid-body passed through while leaving self._compressor set. Every subsequent Head then
+        # triggered 'unexpected message sequence' and wedged the handler permanently.
+        channel = IoPipeline.new([
+            IoPipelineHttpRequestCompressor(),
+            fbi := FeedbackInboundIoPipelineHandler(),
+        ])
+
+        head1 = IoPipelineHttpRequestHead(
+            method='POST',
+            target='/one',
+            headers=HttpHeaders({'content-encoding': 'gzip'}),
+        )
+        aborted = IoPipelineHttpRequestAborted('caller cancelled upload')
+        channel.feed_in(fbi.wrap(head1))
+        channel.feed_in(fbi.wrap(IoPipelineHttpRequestBodyData(b'partial')))
+        channel.feed_in(fbi.wrap(aborted))
+
+        out1 = channel.output.drain()
+        self.assertIs(out1[0], head1)
+        self.assertIs(out1[-1], aborted)
+
+        # A subsequent compressed request must compress cleanly.
+        head2 = IoPipelineHttpRequestHead(
+            method='POST',
+            target='/two',
+            headers=HttpHeaders({'content-encoding': 'gzip'}),
+        )
+        end2 = IoPipelineHttpRequestEnd()
+        channel.feed_in(fbi.wrap(head2))
+        channel.feed_in(fbi.wrap(IoPipelineHttpRequestBodyData(b'recovered payload')))
+        channel.feed_in(fbi.wrap(end2))
+
+        out2 = channel.output.drain()
+        self.assertIs(out2[0], head2)
+        self.assertIs(out2[-1], end2)
+        compressed = b''.join(
+            ByteStreamBuffers.to_bytes(check.isinstance(m, IoPipelineHttpRequestBodyData).data, strict=True)
+            for m in out2[1:-1]
+        )
+        self.assertEqual(zlib.decompress(compressed, 16 + zlib.MAX_WBITS), b'recovered payload')
+
+    def test_unexpected_second_head_resets_compressor_for_next_request(self) -> None:
+        # Regression: _on_outbound_head previously returned without calling self._reset() when self._compressor was
+        # already active, permanently wedging the compressor on all future messages.
+        channel = IoPipeline.new([
+            IoPipelineHttpRequestCompressor(),
+            fbi := FeedbackInboundIoPipelineHandler(),
+        ])
+
+        head1 = IoPipelineHttpRequestHead(
+            method='POST',
+            target='/one',
+            headers=HttpHeaders({'content-encoding': 'gzip'}),
+        )
+        head_bad = IoPipelineHttpRequestHead(
+            method='POST',
+            target='/bad',
+            headers=HttpHeaders({'content-encoding': 'gzip'}),
+        )
+        channel.feed_in(fbi.wrap(head1))
+        channel.feed_in(fbi.wrap(IoPipelineHttpRequestBodyData(b'partial')))
+        channel.feed_in(fbi.wrap(head_bad))
+
+        out1 = channel.output.drain()
+        self.assertIsInstance(out1[-1], IoPipelineHttpRequestAborted)
+
+        # After the sequence error reset the compressor, the next request must succeed.
+        head2 = IoPipelineHttpRequestHead(
+            method='POST',
+            target='/ok',
+            headers=HttpHeaders({'content-encoding': 'gzip'}),
+        )
+        end2 = IoPipelineHttpRequestEnd()
+        channel.feed_in(fbi.wrap(head2))
+        channel.feed_in(fbi.wrap(IoPipelineHttpRequestBodyData(b'after reset')))
+        channel.feed_in(fbi.wrap(end2))
+
+        out2 = channel.output.drain()
+        self.assertIs(out2[0], head2)
+        self.assertIs(out2[-1], end2)
+        compressed = b''.join(
+            ByteStreamBuffers.to_bytes(check.isinstance(m, IoPipelineHttpRequestBodyData).data, strict=True)
+            for m in out2[1:-1]
+        )
+        self.assertEqual(zlib.decompress(compressed, 16 + zlib.MAX_WBITS), b'after reset')
+
+    def test_full_request_is_compressed_updates_content_length_and_roundtrips(self) -> None:
+        # Regression: IoPipelineHttpObjectCompressor previously ignored self._full_type, forwarding
+        # FullIoPipelineHttpRequest with Content-Encoding: gzip completely uncompressed onto the wire.
+        raw_body = b'full aggregated request body ' * 20
+        trailers = HttpHeaders([('X-Checksum', 'abc123')])
+        req = FullIoPipelineHttpRequest(
+            head=IoPipelineHttpRequestHead(
+                method='POST',
+                target='/full',
+                headers=HttpHeaders([
+                    ('Host', 'example.com'),
+                    ('Content-Encoding', 'gzip'),
+                    ('Content-Length', str(len(raw_body))),
+                ]),
+            ),
+            body=raw_body,
+            trailers=trailers,
+        )
+
+        # First inspect the compressed FullIoPipelineHttpRequest directly.
+        comp_channel = IoPipeline.new([
+            IoPipelineHttpRequestCompressor(),
+            fbi := FeedbackInboundIoPipelineHandler(),
+        ])
+        comp_channel.feed_in(fbi.wrap(req))
+        [out_full] = comp_channel.output.drain()
+        self.assertIsInstance(out_full, FullIoPipelineHttpRequest)
+        compressed = ByteStreamBuffers.to_bytes(out_full.body, strict=True)
+        self.assertNotEqual(compressed, raw_body)
+        self.assertEqual(zlib.decompress(compressed, 16 + zlib.MAX_WBITS), raw_body)
+        self.assertEqual(out_full.head.headers.single['content-length'], str(len(compressed)))
+        self.assertEqual(out_full.trailers, trailers)
+
+        # Also prove real wire round-trip: Compressor -> Encoder -> Decoder -> Decompressor.
+        client_pipe = IoPipeline.new([
+            IoPipelineHttpRequestEncoder(),
+            IoPipelineHttpRequestCompressor(),
+            client_fbi := FeedbackInboundIoPipelineHandler(),
+        ])
+        client_pipe.feed_in(client_fbi.wrap(req))
+        wire = b''.join(ByteStreamBuffers.to_bytes(m, strict=True) for m in client_pipe.output.drain())
+
+        server_pipe = IoPipeline.new([
+            IoPipelineHttpRequestDecoder(),
+            IoPipelineHttpRequestDecompressor(),
+            ibq := InboundQueueIoPipelineHandler(),
+        ])
+        server_pipe.feed_in(wire)
+        msgs = ibq.drain()
+        self.assertIsInstance(msgs[0], IoPipelineHttpRequestHead)
+        self.assertIsInstance(msgs[-1], IoPipelineHttpRequestEnd)
+        decoded_body = b''.join(
+            ByteStreamBuffers.to_bytes(check.isinstance(m, IoPipelineHttpRequestBodyData).data, strict=True)
+            for m in msgs[1:-1]
+        )
+        self.assertEqual(decoded_body, raw_body)

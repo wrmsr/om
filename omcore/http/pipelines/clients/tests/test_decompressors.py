@@ -14,6 +14,7 @@ from .....io.pipelines.flow.types import IoPipelineFlowMessages
 from .....io.pipelines.handlers.queues import InboundQueueIoPipelineHandler
 from .....io.pipelines.yielding import CountingIoPipelineYieldPolicy
 from .....io.pipelines.yielding import NeverIoPipelineYieldPolicy
+from .....io.streambufs.segmented import SegmentedByteStreamBufferView
 from .....io.streambufs.utils import ByteStreamBuffers
 from .....lite.check import check
 from ....headers import HttpHeaders
@@ -1011,3 +1012,210 @@ class TestGzipDecompressorYieldPolicy(unittest.TestCase):
                 max_steps_per_call=2,
                 yield_policy=CountingIoPipelineYieldPolicy(2),
             )
+
+
+class _ReentrantReadyForInputHandler(IoPipelineHandler):
+    """Manual-read consumer that synchronously requests the next read inside inbound(BodyData)."""
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.messages: ta.List[ta.Any] = []
+
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        self.messages.append(msg)
+        if isinstance(msg, IoPipelineHttpResponseBodyData):
+            ctx.feed_out(IoPipelineFlowMessages.ReadyForInput())
+        elif isinstance(msg, IoPipelineMessages.FinalInput):
+            ctx.feed_in(msg)
+
+
+class TestGzipDecompressorRegressions(unittest.TestCase):
+    head = IoPipelineHttpResponseHead(
+        status=200,
+        reason='OK',
+        headers=HttpHeaders({'content-encoding': 'gzip'}),
+    )
+
+    def test_manual_read_drains_decompressor_tail_without_forwarding_ready_for_input(self) -> None:
+        # Regression: in manual-read mode, when a single small compressed chunk expands past max_decomp_chunk, the first
+        # pump drains _in_pending completely while zlib still retains unconsumed_tail (not z.needs_input()). Previously
+        # _on_outbound_ready_for_input only checked _out_pending, _in_pending, and _pending_end, so before End arrived
+        # it forwarded ReadyForInput straight to the transport and stalled instead of draining zlib's buffered tail.
+        raw_data = b'a' * 256
+        compressed_data = gzip_bytes(raw_data)
+        self.assertLess(len(compressed_data), 64)
+
+        handler = IoPipelineHttpResponseDecompressor(
+            config=IoPipelineHttpDecompressionConfig(
+                max_decomp_chunk=32,
+                max_steps_per_call=None,
+            ),
+        )
+        capture = CaptureReadsIoPipelineHandler()
+        channel = IoPipeline.new(
+            [handler, capture],
+            services=[StubIoPipelineFlowService(auto_read=False)],
+        )
+
+        # Feed Head and the compressed BodyData WITHOUT feeding End yet, so _pending_end is None.
+        channel.feed_in(self.head)
+        channel.feed_in(IoPipelineHttpResponseBodyData(compressed_data))
+        self.assertEqual(capture.messages, [self.head])
+
+        # Drain every 32-byte chunk via manual ReadyForInput; none of those reads may reach the transport.
+        body_parts: ta.List[bytes] = []
+        while len(b''.join(body_parts)) < len(raw_data):
+            start = len(capture.messages)
+            request_read(channel, capture)
+            self.assertEqual(channel.output.drain(), [])
+
+            delivered = capture.messages[start:]
+            self.assertEqual(len(delivered), 2)
+            self.assertIsInstance(delivered[0], IoPipelineHttpResponseBodyData)
+            self.assertIsInstance(delivered[1], IoPipelineFlowMessages.FlushInput)
+            body_parts.append(ByteStreamBuffers.to_bytes(delivered[0].data, strict=True))
+
+        self.assertEqual(b''.join(body_parts), raw_data)
+
+        # Now feed End and confirm the final read delivers End + FlushInput cleanly.
+        end = IoPipelineHttpResponseEnd()
+        channel.feed_in(end)
+        start = len(capture.messages)
+        request_read(channel, capture)
+        self.assertEqual(capture.messages[start:], [end, IoPipelineFlowMessages.FlushInput()])
+        self.assertEqual(channel.output.drain(), [])
+
+    def test_manual_read_deferral_swallows_ready_for_input_and_deduplicates_defers(self) -> None:
+        # Regression: in manual-read mode with a step yield budget (max_steps_per_call=1), when step 1 consumes a chunk
+        # that produces no output (e.g. gzip header bytes) and step 2 hits should_yield(), _pump defers and returns
+        # False. Previously _on_outbound_ready_for_input then forwarded a spurious ReadyForInput to the transport AND
+        # repeated reads/flushes could stack duplicate Defer callbacks. Conversely, if the deferred pump later exhausts
+        # all buffered compressed input without producing output, it must forward ReadyForInput so the reader cannot
+        # stall.
+        raw_data = b'deferred manual read decompression test payload!'
+        compressed_data = gzip_bytes(raw_data)
+        gzip_header_only = compressed_data[:10]
+        gzip_rest = compressed_data[10:]
+
+        handler = IoPipelineHttpResponseDecompressor(
+            config=IoPipelineHttpDecompressionConfig(
+                max_decomp_chunk=16,
+                max_steps_per_call=1,
+            ),
+        )
+        capture = CaptureReadsIoPipelineHandler()
+        channel = IoPipeline.new(
+            [handler, capture],
+            services=[StubIoPipelineFlowService(auto_read=False)],
+        )
+
+        # Case 1: header-only + rest fed as two segments in one BodyData. Step 1 consumes the header (producing no
+        # output, so _out_pending stays empty), and step 2 hits the step budget and defers. ReadyForInput must be
+        # swallowed while deferred, and at most one Defer may be queued.
+        channel.feed_in(self.head)
+        channel.feed_in(IoPipelineHttpResponseBodyData(
+            SegmentedByteStreamBufferView([memoryview(gzip_header_only), memoryview(gzip_rest)]),
+        ))
+
+        out0 = channel.output.drain()
+        self.assertEqual([type(m) for m in out0], [IoPipelineMessages.Defer])
+        self.assertEqual(capture.messages, [self.head])
+
+        request_read(channel, capture)
+        request_read(channel, capture)
+        self.assertEqual(channel.output.drain(), [])
+        self.assertEqual(capture.messages, [self.head])
+
+        # Running the single deferred callback satisfies the pending read with BodyData + FlushInput.
+        start = len(capture.messages)
+        channel.run_deferred(check.isinstance(out0[0], IoPipelineMessages.Defer))
+        delivered = capture.messages[start:]
+        self.assertEqual(len(delivered), 2)
+        self.assertIsInstance(delivered[0], IoPipelineHttpResponseBodyData)
+        self.assertIsInstance(delivered[1], IoPipelineFlowMessages.FlushInput)
+        self.assertEqual(channel.output.drain(), [])
+
+        # Drain the remainder of the first message.
+        body_parts = [ByteStreamBuffers.to_bytes(delivered[0].data, strict=True)]
+        end = IoPipelineHttpResponseEnd()
+        channel.feed_in(end)
+        for _ in range(100):
+            start = len(capture.messages)
+            request_read(channel, capture)
+            for dfl in channel.output.drain():
+                self.assertIsInstance(dfl, IoPipelineMessages.Defer)
+                channel.run_deferred(dfl)
+            delivered = capture.messages[start:]
+            self.assertEqual(len(delivered), 2)
+            self.assertIsInstance(delivered[1], IoPipelineFlowMessages.FlushInput)
+            if isinstance(delivered[0], IoPipelineHttpResponseBodyData):
+                body_parts.append(ByteStreamBuffers.to_bytes(delivered[0].data, strict=True))
+            else:
+                self.assertIs(delivered[0], end)
+                break
+        else:
+            self.fail('Decompressor did not deliver End')
+        self.assertEqual(b''.join(body_parts), raw_data)
+
+        # Case 2: a deferred pump that exhausts buffered input without producing output must then forward
+        # ReadyForInput so the transport supplies more bytes instead of stalling.
+        channel.feed_in(self.head)
+        channel.feed_in(IoPipelineHttpResponseBodyData(
+            SegmentedByteStreamBufferView([memoryview(gzip_header_only[:5]), memoryview(gzip_header_only[5:])]),
+        ))
+        out1 = channel.output.drain()
+        self.assertEqual([type(m) for m in out1], [IoPipelineMessages.Defer])
+
+        request_read(channel, capture)
+        self.assertEqual(channel.output.drain(), [])
+
+        channel.run_deferred(check.isinstance(out1[0], IoPipelineMessages.Defer))
+        out2 = channel.output.drain()
+        self.assertEqual([type(m) for m in out2], [IoPipelineFlowMessages.ReadyForInput])
+
+    def test_manual_read_synchronous_reentrant_ready_for_input_preserves_flush_order(self) -> None:
+        # Regression: in manual-read mode, a consumer that synchronously sends ReadyForInput from inside
+        # inbound(BodyData) previously reentered _pump/_on_outbound_ready_for_input while the outer pump was still
+        # running, scrambling BodyData/FlushInput ordering and corrupting state if the inner call reached End.
+        raw_data = b'0123456789abcdef' * 8
+        compressed_data = gzip_bytes(raw_data)
+
+        handler = IoPipelineHttpResponseDecompressor(
+            config=IoPipelineHttpDecompressionConfig(
+                max_decomp_chunk=16,
+                max_steps_per_call=None,
+            ),
+        )
+        consumer = _ReentrantReadyForInputHandler()
+        channel = IoPipeline.new(
+            [handler, consumer],
+            services=[StubIoPipelineFlowService(auto_read=False)],
+        )
+        end = IoPipelineHttpResponseEnd()
+
+        channel.feed_in(self.head)
+        channel.feed_in(IoPipelineHttpResponseBodyData(compressed_data))
+        channel.feed_in(end)
+
+        # One initial ReadyForInput cascades synchronously across all chunks and End.
+        ref = check.not_none(channel.find_handler(consumer))
+        with channel.enter():
+            ref._context.feed_out(IoPipelineFlowMessages.ReadyForInput())  # noqa
+
+        msgs = consumer.messages
+        self.assertIs(msgs[0], self.head)
+
+        # Every BodyData and the final End must be strictly paired with its own trailing FlushInput.
+        rest = msgs[1:]
+        self.assertEqual(len(rest) % 2, 0)
+        body_parts: ta.List[bytes] = []
+        for idx in range(0, len(rest) - 2, 2):
+            self.assertIsInstance(rest[idx], IoPipelineHttpResponseBodyData)
+            self.assertIsInstance(rest[idx + 1], IoPipelineFlowMessages.FlushInput)
+            body_parts.append(ByteStreamBuffers.to_bytes(rest[idx].data, strict=True))
+
+        self.assertIs(rest[-2], end)
+        self.assertIsInstance(rest[-1], IoPipelineFlowMessages.FlushInput)
+        self.assertEqual(b''.join(body_parts), raw_data)
+        self.assertEqual(channel.output.drain(), [])

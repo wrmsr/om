@@ -359,7 +359,11 @@ class IoPipelineFdioDriver(IoPipelinePostingTarget):
         try:
             self._close_transport()
             self._complete_transport_final_output()
-            pipeline.destroy()
+            if pipeline.is_ready:
+                pipeline.destroy()
+            self._state = IoPipelineDriverState.CLOSED
+            # Fail any posts still queued (e.g. posted during FinalOutput completion or destroy).
+            self._fail_queued_posts()
 
         except BaseException:
             try:
@@ -367,12 +371,14 @@ class IoPipelineFdioDriver(IoPipelinePostingTarget):
                     pipeline.destroy()
             finally:
                 self._state = IoPipelineDriverState.FAILED
+                try:
+                    self._fail_queued_posts()
+                except Exception:  # noqa
+                    pass
             raise
 
-        else:
-            self._state = IoPipelineDriverState.CLOSED
-
         finally:
+            self._input_q.clear()
             self._write_q.clear()
             self._write_q_bytes = 0
             self._transport_final_output = None
@@ -475,6 +481,12 @@ class IoPipelineFdioDriver(IoPipelinePostingTarget):
 
     def _try_flush_write_q(self) -> None:
         while self._write_q:
+            # A fence listener may have closed the driver or destroyed its pipeline mid-drain.
+            if (
+                    self._state in (IoPipelineDriverState.CLOSED, IoPipelineDriverState.FAILED) or
+                    ((pipeline := self._opt_pipeline()) is not None and not pipeline.is_ready)
+            ):
+                return
             head = self._write_q[0]
             if isinstance(head, IoPipelineFlowMessages.FlushOutput):
                 self._write_q.popleft()
@@ -528,9 +540,13 @@ class IoPipelineFdioDriver(IoPipelinePostingTarget):
                 self._output_writable = False
                 self._pipeline.feed_in(IoPipelineFlowMessages.PauseOutput())
 
-        elif self._write_q_bytes <= self._config.write_low_watermark and not self._pipeline.saw_shutdown_output:
-            # Never announced once ShutdownOutput reached the terminal - not just once the transport performed it -
-            # since from then on nothing may produce ordinary output.
+        elif (
+                self._write_q_bytes <= self._config.write_low_watermark and
+                not self._pipeline.saw_shutdown_output and
+                not self._pipeline.saw_final_output
+        ):
+            # Never announced once ShutdownOutput or FinalOutput reached the terminal - not just once the transport
+            # performed it - since from then on nothing may produce ordinary output.
             self._output_writable = True
             self._pipeline.feed_in(IoPipelineFlowMessages.ReadyForOutput())
 
@@ -806,6 +822,14 @@ class IoPipelineFdioDriver(IoPipelinePostingTarget):
             return
         self._step_unhandled(read=True, on_unhandled=on_unhandled)
 
+    def _ensure_active_after_callback(self) -> bool:
+        if not self.is_active:
+            return False
+        if not self._pipeline.is_ready:
+            self.close()
+            return False
+        return True
+
     def on_writable(
             self,
             *,
@@ -813,14 +837,26 @@ class IoPipelineFdioDriver(IoPipelinePostingTarget):
     ) -> None:
         check.not_empty(self._write_q)
 
-        self._try_flush_write_q()
+        try:
+            self._try_flush_write_q()
 
-        if self._state is IoPipelineDriverState.DRAINING and not self._write_q:
-            self._gracefully_close()
+            # A fence listener may have closed the driver or destroyed its pipeline during flush.
+            if not self._ensure_active_after_callback():
+                return
 
-        elif self._state is IoPipelineDriverState.RUNNING:
-            self._update_output_writability()
-            self._step_unhandled(read=False, on_unhandled=on_unhandled)
+            if self._state is IoPipelineDriverState.DRAINING and not self._write_q:
+                self._gracefully_close()
+
+            elif self._state is IoPipelineDriverState.RUNNING:
+                self._update_output_writability()
+                if not self._ensure_active_after_callback():
+                    return
+                self._step_unhandled(read=False, on_unhandled=on_unhandled)
+
+        except BaseException:
+            if self._state not in (IoPipelineDriverState.CLOSED, IoPipelineDriverState.FAILED):
+                self._fail()
+            raise
 
     def on_timeout(
             self,

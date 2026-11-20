@@ -53,6 +53,7 @@ class IoPipelineHttpServerKeepAliveHandler(IoPipelineHandler):
         self._keep_alive = True
         self._idle = True
         self._closing = False
+        self._upgraded = False
 
         self._request_version: HttpVersion = HttpVersions.HTTP_1_1
         self._response_is_final = True
@@ -67,7 +68,7 @@ class IoPipelineHttpServerKeepAliveHandler(IoPipelineHandler):
             handle.cancel()
 
     def _arm(self, ctx: IoPipelineHandlerContext) -> None:
-        if self._idle_timeout_s is None or not self._idle or self._closing:
+        if self._idle_timeout_s is None or not self._idle or self._closing or self._upgraded:
             return
 
         self._cancel()
@@ -76,6 +77,13 @@ class IoPipelineHttpServerKeepAliveHandler(IoPipelineHandler):
             self._idle_timeout_s,
             lambda ctx2: check.isinstance(ctx2.handler, IoPipelineHttpServerKeepAliveHandler)._on_timeout(ctx2),  # noqa
         )
+
+    def _enter_upgraded(self) -> None:
+        # 101 Switching Protocols hands the connection to another protocol; stop HTTP keep-alive and idle timeouts.
+        self._upgraded = True
+        self._idle = False
+        self._response_is_final = False
+        self._cancel()
 
     def _close_output(self, ctx: IoPipelineHandlerContext) -> None:
         if self._closing:
@@ -87,7 +95,7 @@ class IoPipelineHttpServerKeepAliveHandler(IoPipelineHandler):
 
     def _on_timeout(self, ctx: IoPipelineHandlerContext) -> None:
         self._handle = None
-        if not self._idle or self._closing:
+        if not self._idle or self._closing or self._upgraded:
             return
 
         self._close_output(ctx)
@@ -109,6 +117,7 @@ class IoPipelineHttpServerKeepAliveHandler(IoPipelineHandler):
             self._keep_alive = True
             self._idle = True
             self._closing = False
+            self._upgraded = False
             self._request_version = HttpVersions.HTTP_1_1
             self._response_is_final = True
             self._cancel()
@@ -139,8 +148,13 @@ class IoPipelineHttpServerKeepAliveHandler(IoPipelineHandler):
             self,
             head: IoPipelineHttpResponseHead,
     ) -> IoPipelineHttpResponseHead:
-        # Interim (1xx) responses do not end the exchange and carry no connection-persistence semantics.
-        if head.is_interim:
+        # Interim (1xx) and 101 upgrade responses do not end an HTTP/1.x keep-alive exchange.
+        if head.is_interim or head.status == 101:
+            return head
+
+        # Honor an application-supplied Connection: close so the connection actually closes after the response.
+        if head.headers.contains_list_value('connection', 'close', ignore_case=True):
+            self._keep_alive = False
             return head
 
         # Only set if the response doesn't already have a Connection header.
@@ -171,6 +185,10 @@ class IoPipelineHttpServerKeepAliveHandler(IoPipelineHandler):
     #
 
     def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if self._upgraded:
+            ctx.feed_in(msg)
+            return
+
         if isinstance(msg, IoPipelineMessages.InitialInput):
             ctx.feed_in(msg)
             self._arm(ctx)
@@ -209,17 +227,38 @@ class IoPipelineHttpServerKeepAliveHandler(IoPipelineHandler):
         ctx.feed_in(msg)
 
     def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if self._upgraded:
+            if isinstance(msg, IoPipelineMessages.FinalOutput):
+                self._closing = True
+                self._cancel()
+            ctx.feed_out(msg)
+            return
+
         if isinstance(msg, FullIoPipelineHttpResponse):
-            msg = FullIoPipelineHttpResponse(
-                head=self._set_response_connection_header(msg.head),
-                body=msg.body,
-            )
+            if msg.head.status == 101:
+                self._enter_upgraded()
+                ctx.feed_out(msg)
+                return
+
+            new_head = self._set_response_connection_header(msg.head)
+            if new_head is not msg.head:
+                # Preserve trailers when rebuilding the Full response with an updated Connection header.
+                msg = FullIoPipelineHttpResponse(
+                    head=new_head,
+                    body=msg.body,
+                    trailers=msg.trailers,
+                )
             ctx.feed_out(msg)
             if not msg.head.is_interim:
                 self._complete_response(ctx)
             return
 
         if isinstance(msg, IoPipelineHttpResponseHead):
+            if msg.status == 101:
+                self._enter_upgraded()
+                ctx.feed_out(msg)
+                return
+
             self._response_is_final = not msg.is_interim
             msg = self._set_response_connection_header(msg)
             ctx.feed_out(msg)

@@ -949,6 +949,30 @@ class TestWriteTimeoutIoPipelineHandler(unittest.TestCase):
         finally:
             pipeline.destroy()
 
+    def test_duplicate_final_output_does_not_cancel_live_first_final_output_timer(self) -> None:
+        # When a first FinalOutput is still pending in output and a duplicate FinalOutput is fed outbound, the pipeline
+        # terminal synchronously fails the duplicate with SawFinalOutputIoPipelineError. Previously WriteTimeout tracked
+        # the duplicate with final_output=True, so its immediate failure callback deactivated the handler and cancelled
+        # the live first FinalOutput's timeout.
+
+        first_final = IoPipelineMessages.FinalOutput()
+        dup_final = IoPipelineMessages.FinalOutput()
+        timeout = WriteTimeoutIoPipelineHandler(1.)
+        app = WriteTimeoutTestIoPipelineHandler([first_final, dup_final])
+        pipeline, scheduling = make_write_timeout_pipeline(timeout, app)
+        try:
+            pipeline.feed_in(_EMIT_OUTPUT)
+            self.assertEqual(pipeline.output.drain(), [first_final])
+            self.assertFalse(first_final.is_done())
+            self.assertTrue(dup_final.is_failed())
+            self.assertTrue(timeout._active)
+            self.assertEqual(len(scheduling.live_handles()), 1)
+
+            check.single(scheduling.live_handles()).run(pipeline)
+            self.assertTrue(any(isinstance(e.exc, TimeoutIoPipelineError) for e in app.errors))
+        finally:
+            pipeline.destroy()
+
     def test_pending_fence_does_not_retain_removed_handler(self) -> None:
         was_enabled = gc.isenabled()
         gc.disable()

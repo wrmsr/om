@@ -141,6 +141,11 @@ class IoPipelineHttpObjectDecompressor(
 
         # Flow Control and Deferral State
         self._read_requested = False
+        self._defer_pending = False
+        self._deferred_read_pending = False
+        self._in_pump = False
+        self._in_service_ready = False
+        self._reentrant_ready_for_input: ta.Optional[IoPipelineFlowMessages.ReadyForInput] = None
         self._pending_end: ta.Optional[IoPipelineHttpMessageEnd] = None
         self._pending_final_input: ta.Optional[IoPipelineMessages.FinalInput] = None
 
@@ -168,6 +173,7 @@ class IoPipelineHttpObjectDecompressor(
         self._out_pending_bytes = 0
 
         self._read_requested = False
+        self._deferred_read_pending = False
         self._pending_end = None
         if not preserve_pending_final_input:
             self._pending_final_input = None
@@ -232,9 +238,11 @@ class IoPipelineHttpObjectDecompressor(
     def _pump(self, ctx: IoPipelineHandlerContext) -> bool:
         """Returns True if it effectively satisfied a read request."""
 
-        if self._decompressor is None:
+        if self._decompressor is None or self._in_pump:
             return False
 
+        # Guard against synchronous reentrancy (e.g. a BodyData consumer sending ReadyForInput immediately).
+        self._in_pump = True
         try:
             return self._pump_decompressor(ctx)
 
@@ -246,6 +254,9 @@ class IoPipelineHttpObjectDecompressor(
 
             return self._abort(ctx, e)
 
+        finally:
+            self._in_pump = False
+
     def _pump_decompressor(self, ctx: IoPipelineHandlerContext) -> bool:
         z = check.not_none(self._decompressor)
 
@@ -255,6 +266,8 @@ class IoPipelineHttpObjectDecompressor(
         if self._emit_out_pending(ctx):
             if not self._is_auto_read(ctx):
                 return True
+            if self._decompressor is not z:
+                return False
 
         # 2. If blocked by downstream, we can't satisfy anything.
         if self._out_pending:
@@ -310,6 +323,8 @@ class IoPipelineHttpObjectDecompressor(
                 if self._emit_out_pending(ctx):
                     if not self._is_auto_read(ctx):
                         return True  # Satisfied!
+                    if self._decompressor is not z:
+                        return False
 
             elif not chunk and not z.eof() and not z.needs_input():
                 raise RuntimeError('decompressor coding made no progress')
@@ -339,19 +354,95 @@ class IoPipelineHttpObjectDecompressor(
 
         return False
 
+    def _has_buffered_work(self) -> bool:
+        return bool(
+            self._out_pending or
+            (
+                self._decompressor is not None and
+                (
+                    self._in_pending or
+                    self._pending_end is not None or
+                    # A coding with unconsumed_tail has work ready even after _in_pending is drained.
+                    not self._decompressor.needs_input()
+                )
+            ),
+        )
+
+    @staticmethod
+    def _on_deferred_resume(ctx: IoPipelineHandlerContext) -> None:
+        self = check.isinstance(ctx.handler, IoPipelineHttpObjectDecompressor)
+        self._defer_pending = False
+
+        if self._pump(ctx):
+            self._deferred_read_pending = False
+
+            # If a deferred pump satisfies a read, it must provide the FlushInput
+            if not self._is_auto_read(ctx):
+                ctx.feed_in(IoPipelineFlowMessages.FlushInput())
+
+            # A parked FinalInput has had its must-propagate tracking disarmed - if it is not released here the
+            # connection's eof is simply lost. This is reached in auto-read too, where the pump only completes via
+            # deferral.
+            self._release_pending_final_input(ctx)
+
+        elif self._deferred_read_pending and not self._defer_pending:
+            # Deferred pump drained buffered input without producing output - now ask upstream for more bytes.
+            self._deferred_read_pending = False
+            if not self._is_auto_read(ctx) and self._read_requested:
+                ctx.feed_out(IoPipelineFlowMessages.ReadyForInput())
+
+        self._drain_reentrant_ready_for_input(ctx)
+
     def _defer_resume(self, ctx: IoPipelineHandlerContext) -> None:
-        def resume(c: IoPipelineHandlerContext) -> None:
-            if self._pump(c):
-                # If a deferred pump satisfies a read, it must provide the FlushInput
-                if not self._is_auto_read(c):
-                    c.feed_in(IoPipelineFlowMessages.FlushInput())
+        # Deduplicate pending defers and avoid capturing self in a closure (prevents ref cycles).
+        if self._defer_pending:
+            return
+        self._defer_pending = True
+        ctx.defer(IoPipelineHttpObjectDecompressor._on_deferred_resume)
 
-                # A parked FinalInput has had its must-propagate tracking disarmed - if it is not released here the
-                # connection's eof is simply lost. This is reached in auto-read too, where the pump only completes via
-                # deferral.
-                self._release_pending_final_input(c)
+    def _service_ready_for_input(
+            self,
+            ctx: IoPipelineHandlerContext,
+            msg: IoPipelineFlowMessages.ReadyForInput,
+    ) -> None:
+        self._in_service_ready = True
+        try:
+            cur: ta.Optional[IoPipelineFlowMessages.ReadyForInput] = msg
+            while cur is not None:
+                self._read_requested = True
 
-        ctx.defer(resume)
+                if self._has_buffered_work():
+                    # If already deferred with no ready output, swallow ReadyForInput until the deferred turn runs.
+                    if self._defer_pending and not self._out_pending:
+                        self._deferred_read_pending = True
+                        return
+
+                    if self._pump(ctx):
+                        if not self._is_auto_read(ctx):
+                            ctx.feed_in(IoPipelineFlowMessages.FlushInput())
+                            self._release_pending_final_input(ctx)
+
+                        cur = self._reentrant_ready_for_input
+                        self._reentrant_ready_for_input = None
+                        continue
+
+                    if self._defer_pending:
+                        # Do not forward ReadyForInput while decompression is still deferred on buffered work.
+                        self._deferred_read_pending = True
+                        return
+
+                ctx.feed_out(cur)
+                cur = self._reentrant_ready_for_input
+                self._reentrant_ready_for_input = None
+        finally:
+            self._in_service_ready = False
+
+    def _drain_reentrant_ready_for_input(self, ctx: IoPipelineHandlerContext) -> None:
+        if self._in_service_ready or self._in_pump:
+            return
+        if (rfi := self._reentrant_ready_for_input) is not None:
+            self._reentrant_ready_for_input = None
+            self._service_ready_for_input(ctx, rfi)
 
     #
 
@@ -383,6 +474,7 @@ class IoPipelineHttpObjectDecompressor(
     def _on_inbound_flush_input(self, ctx: IoPipelineHandlerContext, msg: IoPipelineFlowMessages.FlushInput) -> None:
         self._pump(ctx)
         ctx.feed_in(msg)
+        self._drain_reentrant_ready_for_input(ctx)
 
     def _on_inbound_head(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageHead) -> None:
         enc = msg.headers.lower.get('content-encoding', ())
@@ -413,6 +505,7 @@ class IoPipelineHttpObjectDecompressor(
             self._in_pending_bytes += mvl
 
         self._pump(ctx)
+        self._drain_reentrant_ready_for_input(ctx)
 
     def _on_inbound_end(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageEnd) -> None:
         if self._decompressor is None:
@@ -421,6 +514,7 @@ class IoPipelineHttpObjectDecompressor(
 
         self._pending_end = msg
         self._pump(ctx)
+        self._drain_reentrant_ready_for_input(ctx)
 
     def _on_inbound_aborted(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageAborted) -> None:
         # Upstream gave up on the message partway: whatever was decoded of it so far is moot.
@@ -463,23 +557,13 @@ class IoPipelineHttpObjectDecompressor(
     #
 
     def _on_outbound_ready_for_input(self, ctx: IoPipelineHandlerContext, msg: IoPipelineFlowMessages.ReadyForInput) -> None:  # Noqa
-        self._read_requested = True
+        if self._in_pump or self._in_service_ready:
+            # Defer reentrant ReadyForInput to the active pump/service loop so FlushInput ordering stays intact.
+            self._read_requested = True
+            self._reentrant_ready_for_input = msg
+            return
 
-        if (
-                self._out_pending or
-                (
-                    self._decompressor is not None and
-                    (self._in_pending or self._pending_end is not None)
-                )
-        ):
-            if self._pump(ctx):
-                if not self._is_auto_read(ctx):
-                    ctx.feed_in(IoPipelineFlowMessages.FlushInput())
-                    self._release_pending_final_input(ctx)
-
-                return  # Swallow since we satisfied it
-
-        ctx.feed_out(msg)
+        self._service_ready_for_input(ctx, msg)
 
     def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if isinstance(msg, IoPipelineFlowMessages.ReadyForInput):

@@ -17,7 +17,7 @@ class IoPipelineHttpBodyModeError(Exception):
 @ta.final
 @dc.dataclass(frozen=True)
 class IoPipelineHttpBodyMode:
-    mode: ta.Literal['empty', 'eof', 'cl', 'chunked', 'tunnel']
+    mode: ta.Literal['empty', 'eof', 'cl', 'chunked', 'tunnel', 'pending_upgrade']
     length: ta.Optional[int]
 
     @classmethod

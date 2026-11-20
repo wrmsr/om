@@ -94,6 +94,7 @@ class _IoPipelineWsgiResponseStream:
         self._head_sent = False
         self._it: ta.Optional[ta.Iterator[ta.Any]] = None
         self._exhausted = False
+        self._defer_pending = False
         self._ret: ta.Any = None
 
         self._ret = app(self._build_environ(req), self._start_response)
@@ -312,14 +313,25 @@ class _IoPipelineWsgiResponseStream:
         finally:
             self._feed_out(out)
 
-        # After the data, so the driver hands this turn's bytes to the transport before resuming us.
-        if want_defer:
+        # After the data, so the driver hands this turn's bytes to the transport before resuming us. Deduplicate
+        # pending defers and skip if _feed_out paused writability.
+        if (
+                want_defer and
+                not self._defer_pending and
+                self._output_writable and
+                self._state is _IoPipelineWsgiResponseStream.State.STREAMING and
+                not ctx.invalidated
+        ):
+            self._defer_pending = True
             ctx.defer(self._on_deferred)
 
         if finished:
             self.close()
 
     def _on_deferred(self, ctx: IoPipelineHandlerContext) -> None:
+        self._defer_pending = False
+        if not self._output_writable:
+            return
         self.pump(ctx)
 
     #
@@ -331,6 +343,7 @@ class _IoPipelineWsgiResponseStream:
         if (
                 self._output_writable and
                 not was_writable and
+                not self._defer_pending and
                 self._state is _IoPipelineWsgiResponseStream.State.STREAMING
         ):
             self.pump(ctx)
@@ -419,9 +432,14 @@ class WsgiIoPipelineHandler(IoPipelineHandler):
 
             return
 
-        if isinstance(msg, IoPipelineMessages.FinalInput):
-            # The peer is gone; whatever the app has left to say has nowhere to go.
+        if isinstance(msg, IoPipelineMessages.Error):
             self._close_stream()
+            ctx.feed_in(msg)
+            return
+
+        if isinstance(msg, IoPipelineMessages.FinalInput):
+            # FinalInput is peer output half-close (SHUT_WR); the full request is already in hand, so let any in-flight
+            # response stream finish and emit FinalOutput rather than truncating and hanging the connection.
             ctx.feed_in(msg)
             return
 

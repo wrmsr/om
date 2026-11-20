@@ -77,7 +77,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = 'f6a45f723927a1f415a6d2cb0ca5ff2b5c8446f5'
+__om_amalg_sha1__ = 'a0c34ca9fa7757b2fc0d47b5c4ade9b61885dd2b'
 
 
 def __om_amalg__():  # noqa
@@ -140,7 +140,7 @@ def __om_amalg__():  # noqa
             dict(sha1='12bfc2431807b0fd93d337f9e6372ef7f66bb5d6', mod='omxtra.systevisor.runtime.clocks', path='runtime/clocks.py'),  # noqa
             dict(sha1='b0707d98865d269785703cae4186d38d52d0414d', mod='omcore.configs.formats', path='../../omcore/configs/formats.py'),  # noqa
             dict(sha1='3c3cb038c1008425577157906ec0ccce4b5ce14d', mod='omcore.formats.yaml.goyaml.tokens', path='../../omcore/formats/yaml/goyaml/tokens.py'),  # noqa
-            dict(sha1='fa4169dd860a83c00cf13f6f48583fffd3c2bcf5', mod='omcore.http.pipelines.bodymodes', path='../../omcore/http/pipelines/bodymodes.py'),  # noqa
+            dict(sha1='801c6f1495ff1e48229427752df356c2d1c10bb7', mod='omcore.http.pipelines.bodymodes', path='../../omcore/http/pipelines/bodymodes.py'),  # noqa
             dict(sha1='0a4c1e2b846ac4a32afab4ff8814ea9d9f526905', mod='omcore.io.fdio.kqueue', path='../../omcore/io/fdio/kqueue.py'),  # noqa
             dict(sha1='8304ca98bfebd17f95d18bcaedfbc4ccdbac9d04', mod='omcore.io.fdio.manager', path='../../omcore/io/fdio/manager.py'),  # noqa
             dict(sha1='bf1d8923427f11b35a9ebde1e10944786c81262f', mod='omcore.io.pipelines.bytes.buffering', path='../../omcore/io/pipelines/bytes/buffering.py'),  # noqa
@@ -163,7 +163,7 @@ def __om_amalg__():  # noqa
             dict(sha1='58956f9159780d5532d2d61fb6f11c8ac946003d', mod='omcore.formats.yaml.goyaml.scanning', path='../../omcore/formats/yaml/goyaml/scanning.py'),  # noqa
             dict(sha1='dea84909a01d0b532ec2c7173f13f9674dc486bd', mod='omcore.http.pipelines.objects', path='../../omcore/http/pipelines/objects.py'),  # noqa
             dict(sha1='79e73945acbb2eb6c19543950f572bcb51387d72', mod='omcore.io.pipelines.handlers.decoders', path='../../omcore/io/pipelines/handlers/decoders.py'),  # noqa
-            dict(sha1='db882a29d87bd38eb59c00140174a8af5e6325d1', mod='omcore.io.pipelines.sched.heap', path='../../omcore/io/pipelines/sched/heap.py'),  # noqa
+            dict(sha1='20f697a8c0e99b63fb730c96cd1790221233b833', mod='omcore.io.pipelines.sched.heap', path='../../omcore/io/pipelines/sched/heap.py'),  # noqa
             dict(sha1='417d6f20e64dc1088a4a065a549b532bd9be389c', mod='omcore.io.streambufs.direct', path='../../omcore/io/streambufs/direct.py'),  # noqa
             dict(sha1='5189edf484ef79bcea92069a55e0aafbdcff83bf', mod='omcore.io.streambufs.scanning', path='../../omcore/io/streambufs/scanning.py'),  # noqa
             dict(sha1='9ee00768f53de350ac8d1f2b98917a9afcf885f5', mod='omcore.logs.base', path='../../omcore/logs/base.py'),  # noqa
@@ -171,8 +171,8 @@ def __om_amalg__():  # noqa
             dict(sha1='223e3cba0f2854c5093fb60d6cef2f27b80c193c', mod='omcore.logs.std.standard', path='../../omcore/logs/std/standard.py'),  # noqa
             dict(sha1='46c0a4008cdbce7493f2358eb9541a48adacf64e', mod='omcore.formats.yaml.goyaml.parsing', path='../../omcore/formats/yaml/goyaml/parsing.py'),  # noqa
             dict(sha1='06a58986cd080c3f94434e717bc71b46b904345e', mod='omcore.http.pipelines.chunking', path='../../omcore/http/pipelines/chunking.py'),  # noqa
-            dict(sha1='f8a54befb79fb058b811b2248f63315a36bb6bbb', mod='omcore.http.pipelines.compression.compressors', path='../../omcore/http/pipelines/compression/compressors.py'),  # noqa
-            dict(sha1='e6490c3dd0a6707a7d099a7391a0df3b8d81da6b', mod='omcore.http.pipelines.compression.decompressors', path='../../omcore/http/pipelines/compression/decompressors.py'),  # noqa
+            dict(sha1='e0aad49964caf7da565a491985ad33df2329c0b5', mod='omcore.http.pipelines.compression.compressors', path='../../omcore/http/pipelines/compression/compressors.py'),  # noqa
+            dict(sha1='a908181843fa77f0e02c8c535b90941eb53e04f1', mod='omcore.http.pipelines.compression.decompressors', path='../../omcore/http/pipelines/compression/decompressors.py'),  # noqa
             dict(sha1='28131f0adea16efe9d6b3168d8d6275a7f9cf21b', mod='omcore.http.pipelines.encoders', path='../../omcore/http/pipelines/encoders.py'),  # noqa
             dict(sha1='e354039d5c8bfa424cd0e3aa92c04d732c54d488', mod='omcore.http.pipelines.requests', path='../../omcore/http/pipelines/requests.py'),  # noqa
             dict(sha1='ae664753451a32b654f52a51101e177d339a3064', mod='omcore.http.pipelines.responses', path='../../omcore/http/pipelines/responses.py'),  # noqa
@@ -182,19 +182,19 @@ def __om_amalg__():  # noqa
             dict(sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9', mod='omcore.logs.std.loggers', path='../../omcore/logs/std/loggers.py'),  # noqa
             dict(sha1='cfdec5d83d2b074b71b3d8119c11bd2a24443197', mod='omxtra.systevisor.platforms.runtime', path='platforms/runtime.py'),  # noqa
             dict(sha1='73e387af353d56ed6c3f817e490038aa1ba940c8', mod='omcore.formats.yaml.goyaml.decoding', path='../../omcore/formats/yaml/goyaml/decoding.py'),  # noqa
-            dict(sha1='cfa48ef16b9356e86d74b98f51da81836c3d6ae1', mod='omcore.http.pipelines.aggregators', path='../../omcore/http/pipelines/aggregators.py'),  # noqa
+            dict(sha1='4bd192db347f15e6ec0b578a19a417ebd9da1644', mod='omcore.http.pipelines.aggregators', path='../../omcore/http/pipelines/aggregators.py'),  # noqa
             dict(sha1='60607306046abc3d5bb0c2e0b40e61251151ae13', mod='omcore.http.pipelines.clients.requests', path='../../omcore/http/pipelines/clients/requests.py'),  # noqa
             dict(sha1='cbc4f27579b5867b9ac51f7d2148715f835c4be5', mod='omcore.http.pipelines.servers.responses', path='../../omcore/http/pipelines/servers/responses.py'),  # noqa
             dict(sha1='44f0ed191a654bf66dcb03b99bf81b4dbb680ef3', mod='omcore.io.pipelines.bytes.decoders', path='../../omcore/io/pipelines/bytes/decoders.py'),  # noqa
-            dict(sha1='e248f6d9b6fd38ce330e39a45dc7ae0285fb7bc7', mod='omcore.io.pipelines.drivers.fdio.core', path='../../omcore/io/pipelines/drivers/fdio/core.py'),  # noqa
+            dict(sha1='f068edf3b25a5e18747b172dc1a5b5a4cd9f749d', mod='omcore.io.pipelines.drivers.fdio.core', path='../../omcore/io/pipelines/drivers/fdio/core.py'),  # noqa
             dict(sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2', mod='omcore.logs.modules', path='../../omcore/logs/modules.py'),  # noqa
             dict(sha1='89ea3048c6ee58d40e3a5835cb85c7757591a12d', mod='omxtra.systevisor.platforms.inject', path='platforms/inject.py'),  # noqa
             dict(sha1='465f043f9e1def50013a414abdbec1c37436790d', mod='omcore.formats.yaml.goyaml.backend', path='../../omcore/formats/yaml/goyaml/backend.py'),  # noqa
-            dict(sha1='00a5a981594b5f6133b6daec746f75b30da88fd9', mod='omcore.http.pipelines.decoders', path='../../omcore/http/pipelines/decoders.py'),  # noqa
+            dict(sha1='dbfe2554d5bfdb679caf4006509c9b6d4a4363b9', mod='omcore.http.pipelines.decoders', path='../../omcore/http/pipelines/decoders.py'),  # noqa
             dict(sha1='d6de09d6ebaa1ab0f52091d46235f259209845f8', mod='omcore.io.pipelines.drivers.fdio.sockets', path='../../omcore/io/pipelines/drivers/fdio/sockets.py'),  # noqa
-            dict(sha1='00f4dac1554aee42d50383c0b84c57b54918d254', mod='omcore.io.pipelines.drivers.sync.core', path='../../omcore/io/pipelines/drivers/sync/core.py'),  # noqa
-            dict(sha1='dfb8a7c3006b80a5114eac4d0b36cda68b1cb4e7', mod='omcore.http.pipelines.clients.responses', path='../../omcore/http/pipelines/clients/responses.py'),  # noqa
-            dict(sha1='2258c98399fd861ca308ff1ef498513d435f6fbb', mod='omcore.http.pipelines.servers.requests', path='../../omcore/http/pipelines/servers/requests.py'),  # noqa
+            dict(sha1='da416c4fd04349fbe7dee6eea9cdfc62aac8ce7b', mod='omcore.io.pipelines.drivers.sync.core', path='../../omcore/io/pipelines/drivers/sync/core.py'),  # noqa
+            dict(sha1='16427fdafb6f0efc5843238780b1fb05284223e2', mod='omcore.http.pipelines.clients.responses', path='../../omcore/http/pipelines/clients/responses.py'),  # noqa
+            dict(sha1='6c018b566d22c889818aa03f1368126def6f8b4e', mod='omcore.http.pipelines.servers.requests', path='../../omcore/http/pipelines/servers/requests.py'),  # noqa
             dict(sha1='1f23513095e091895162e4c9668cd1194fc2c80e', mod='omcore.io.pipelines.drivers.sync.sockets', path='../../omcore/io/pipelines/drivers/sync/sockets.py'),  # noqa
             dict(sha1='e97b968cb81f2f9deb973d162f8a69b772209ded', mod='omxtra.systevisor.configs.sources', path='configs/sources.py'),  # noqa
             dict(sha1='4dc9bbfab25739ea07b2a44ac7737b8218615ab0', mod='omxtra.systevisor.configs.snapshots', path='configs/snapshots.py'),  # noqa
@@ -17143,7 +17143,7 @@ class IoPipelineHttpBodyModeError(Exception):
 @ta.final
 @dc.dataclass(frozen=True)
 class IoPipelineHttpBodyMode:
-    mode: ta.Literal['empty', 'eof', 'cl', 'chunked', 'tunnel']
+    mode: ta.Literal['empty', 'eof', 'cl', 'chunked', 'tunnel', 'pending_upgrade']
     length: ta.Optional[int]
 
     @classmethod
@@ -25307,6 +25307,8 @@ class HeapIoPipelineSchedulingService(IoPipelineScheduling, IoPipelineService):
             self._seq,
         )
         self._seq += 1
+        # Pop cancelled roots first so _pending[0] accurately reflects whether handle is the new earliest live timer.
+        self._clear_cancelled()
         heapq.heappush(self._pending, (handle._deadline, handle._seq, handle))  # noqa
         self._live.add(handle)
 
@@ -29501,19 +29503,62 @@ class IoPipelineHttpObjectCompressor(
         ctx.feed_out(self._make_aborted('eof before end of message'))
         ctx.feed_out(msg)
 
-    def _on_outbound_head(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageHead) -> None:
-        if self._compressor is not None:
-            ctx.feed_out(self._make_aborted('unexpected message sequence'))
-            return
-
-        enc = msg.headers.lower.get('content-encoding', ())
+    def _find_coding(
+            self,
+            headers: HttpHeaders,
+    ) -> ta.Optional[ta.Callable[[], IoPiplineHttpCompressorCoding]]:
+        enc = headers.lower.get('content-encoding', ())
 
         for coding_name, coding in self._codings.items():
             if coding_name.lower() in enc:
-                self._compressor = coding()
-                break
+                return coding
+
+        return None
+
+    def _on_outbound_head(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageHead) -> None:
+        if self._compressor is not None:
+            # Reset on protocol sequence error so subsequent messages are not permanently wedged.
+            self._reset()
+            ctx.feed_out(self._make_aborted('unexpected message sequence'))
+            return
+
+        if (coding := self._find_coding(msg.headers)) is not None:
+            self._compressor = coding()
 
         ctx.feed_out(msg)
+
+    def _on_outbound_full(self, ctx: IoPipelineHandlerContext, msg: FullIoPipelineHttpMessage) -> None:
+        if self._compressor is not None:
+            self._reset()
+            ctx.feed_out(self._make_aborted('unexpected message sequence'))
+            return
+
+        if (coding := self._find_coding(msg.head.headers)) is None:
+            ctx.feed_out(msg)
+            return
+
+        # Compress aggregated Full messages as well and keep any declared Content-Length accurate.
+        z = coding()
+        parts: ta.List[bytes] = []
+        for mv in ByteStreamBuffers.iter_segments(msg.body):
+            if out := z.compress(mv):
+                parts.append(bytes(out))
+        if out := z.finish():
+            parts.append(bytes(out))
+        compressed = b''.join(parts)
+
+        head = msg.head
+        if 'content-length' in head.headers:
+            head = dc.replace(
+                ta.cast(ta.Any, head),
+                headers=head.headers.update(('Content-Length', str(len(compressed))), if_present='override'),
+            )
+
+        ctx.feed_out(self._make_full(
+            head,
+            DirectByteStreamBufferView(compressed) if compressed else b'',
+            msg.trailers or None,
+        ))
 
     def _on_outbound_body_data(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageBodyData) -> None:
         if (z := self._compressor) is None:
@@ -29555,6 +29600,9 @@ class IoPipelineHttpObjectCompressor(
         elif isinstance(msg, self._head_type):
             self._on_outbound_head(ctx, msg)
 
+        elif isinstance(msg, self._full_type):
+            self._on_outbound_full(ctx, msg)
+
         elif isinstance(msg, self._body_data_type):
             self._on_outbound_body_data(ctx, msg)
 
@@ -29563,6 +29611,11 @@ class IoPipelineHttpObjectCompressor(
 
         elif isinstance(msg, self._end_type):
             self._on_outbound_end(ctx, msg)
+
+        elif isinstance(msg, self._aborted_type):
+            # Upstream aborted mid-body: drop compressor state so later messages can proceed.
+            self._reset()
+            ctx.feed_out(msg)
 
         else:
             ctx.feed_out(msg)
@@ -29684,6 +29737,11 @@ class IoPipelineHttpObjectDecompressor(
 
         # Flow Control and Deferral State
         self._read_requested = False
+        self._defer_pending = False
+        self._deferred_read_pending = False
+        self._in_pump = False
+        self._in_service_ready = False
+        self._reentrant_ready_for_input: ta.Optional[IoPipelineFlowMessages.ReadyForInput] = None
         self._pending_end: ta.Optional[IoPipelineHttpMessageEnd] = None
         self._pending_final_input: ta.Optional[IoPipelineMessages.FinalInput] = None
 
@@ -29711,6 +29769,7 @@ class IoPipelineHttpObjectDecompressor(
         self._out_pending_bytes = 0
 
         self._read_requested = False
+        self._deferred_read_pending = False
         self._pending_end = None
         if not preserve_pending_final_input:
             self._pending_final_input = None
@@ -29775,9 +29834,11 @@ class IoPipelineHttpObjectDecompressor(
     def _pump(self, ctx: IoPipelineHandlerContext) -> bool:
         """Returns True if it effectively satisfied a read request."""
 
-        if self._decompressor is None:
+        if self._decompressor is None or self._in_pump:
             return False
 
+        # Guard against synchronous reentrancy (e.g. a BodyData consumer sending ReadyForInput immediately).
+        self._in_pump = True
         try:
             return self._pump_decompressor(ctx)
 
@@ -29789,6 +29850,9 @@ class IoPipelineHttpObjectDecompressor(
 
             return self._abort(ctx, e)
 
+        finally:
+            self._in_pump = False
+
     def _pump_decompressor(self, ctx: IoPipelineHandlerContext) -> bool:
         z = check.not_none(self._decompressor)
 
@@ -29798,6 +29862,8 @@ class IoPipelineHttpObjectDecompressor(
         if self._emit_out_pending(ctx):
             if not self._is_auto_read(ctx):
                 return True
+            if self._decompressor is not z:
+                return False
 
         # 2. If blocked by downstream, we can't satisfy anything.
         if self._out_pending:
@@ -29853,6 +29919,8 @@ class IoPipelineHttpObjectDecompressor(
                 if self._emit_out_pending(ctx):
                     if not self._is_auto_read(ctx):
                         return True  # Satisfied!
+                    if self._decompressor is not z:
+                        return False
 
             elif not chunk and not z.eof() and not z.needs_input():
                 raise RuntimeError('decompressor coding made no progress')
@@ -29882,19 +29950,95 @@ class IoPipelineHttpObjectDecompressor(
 
         return False
 
+    def _has_buffered_work(self) -> bool:
+        return bool(
+            self._out_pending or
+            (
+                self._decompressor is not None and
+                (
+                    self._in_pending or
+                    self._pending_end is not None or
+                    # A coding with unconsumed_tail has work ready even after _in_pending is drained.
+                    not self._decompressor.needs_input()
+                )
+            ),
+        )
+
+    @staticmethod
+    def _on_deferred_resume(ctx: IoPipelineHandlerContext) -> None:
+        self = check.isinstance(ctx.handler, IoPipelineHttpObjectDecompressor)
+        self._defer_pending = False
+
+        if self._pump(ctx):
+            self._deferred_read_pending = False
+
+            # If a deferred pump satisfies a read, it must provide the FlushInput
+            if not self._is_auto_read(ctx):
+                ctx.feed_in(IoPipelineFlowMessages.FlushInput())
+
+            # A parked FinalInput has had its must-propagate tracking disarmed - if it is not released here the
+            # connection's eof is simply lost. This is reached in auto-read too, where the pump only completes via
+            # deferral.
+            self._release_pending_final_input(ctx)
+
+        elif self._deferred_read_pending and not self._defer_pending:
+            # Deferred pump drained buffered input without producing output - now ask upstream for more bytes.
+            self._deferred_read_pending = False
+            if not self._is_auto_read(ctx) and self._read_requested:
+                ctx.feed_out(IoPipelineFlowMessages.ReadyForInput())
+
+        self._drain_reentrant_ready_for_input(ctx)
+
     def _defer_resume(self, ctx: IoPipelineHandlerContext) -> None:
-        def resume(c: IoPipelineHandlerContext) -> None:
-            if self._pump(c):
-                # If a deferred pump satisfies a read, it must provide the FlushInput
-                if not self._is_auto_read(c):
-                    c.feed_in(IoPipelineFlowMessages.FlushInput())
+        # Deduplicate pending defers and avoid capturing self in a closure (prevents ref cycles).
+        if self._defer_pending:
+            return
+        self._defer_pending = True
+        ctx.defer(IoPipelineHttpObjectDecompressor._on_deferred_resume)
 
-                # A parked FinalInput has had its must-propagate tracking disarmed - if it is not released here the
-                # connection's eof is simply lost. This is reached in auto-read too, where the pump only completes via
-                # deferral.
-                self._release_pending_final_input(c)
+    def _service_ready_for_input(
+            self,
+            ctx: IoPipelineHandlerContext,
+            msg: IoPipelineFlowMessages.ReadyForInput,
+    ) -> None:
+        self._in_service_ready = True
+        try:
+            cur: ta.Optional[IoPipelineFlowMessages.ReadyForInput] = msg
+            while cur is not None:
+                self._read_requested = True
 
-        ctx.defer(resume)
+                if self._has_buffered_work():
+                    # If already deferred with no ready output, swallow ReadyForInput until the deferred turn runs.
+                    if self._defer_pending and not self._out_pending:
+                        self._deferred_read_pending = True
+                        return
+
+                    if self._pump(ctx):
+                        if not self._is_auto_read(ctx):
+                            ctx.feed_in(IoPipelineFlowMessages.FlushInput())
+                            self._release_pending_final_input(ctx)
+
+                        cur = self._reentrant_ready_for_input
+                        self._reentrant_ready_for_input = None
+                        continue
+
+                    if self._defer_pending:
+                        # Do not forward ReadyForInput while decompression is still deferred on buffered work.
+                        self._deferred_read_pending = True
+                        return
+
+                ctx.feed_out(cur)
+                cur = self._reentrant_ready_for_input
+                self._reentrant_ready_for_input = None
+        finally:
+            self._in_service_ready = False
+
+    def _drain_reentrant_ready_for_input(self, ctx: IoPipelineHandlerContext) -> None:
+        if self._in_service_ready or self._in_pump:
+            return
+        if (rfi := self._reentrant_ready_for_input) is not None:
+            self._reentrant_ready_for_input = None
+            self._service_ready_for_input(ctx, rfi)
 
     #
 
@@ -29926,6 +30070,7 @@ class IoPipelineHttpObjectDecompressor(
     def _on_inbound_flush_input(self, ctx: IoPipelineHandlerContext, msg: IoPipelineFlowMessages.FlushInput) -> None:
         self._pump(ctx)
         ctx.feed_in(msg)
+        self._drain_reentrant_ready_for_input(ctx)
 
     def _on_inbound_head(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageHead) -> None:
         enc = msg.headers.lower.get('content-encoding', ())
@@ -29956,6 +30101,7 @@ class IoPipelineHttpObjectDecompressor(
             self._in_pending_bytes += mvl
 
         self._pump(ctx)
+        self._drain_reentrant_ready_for_input(ctx)
 
     def _on_inbound_end(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageEnd) -> None:
         if self._decompressor is None:
@@ -29964,6 +30110,7 @@ class IoPipelineHttpObjectDecompressor(
 
         self._pending_end = msg
         self._pump(ctx)
+        self._drain_reentrant_ready_for_input(ctx)
 
     def _on_inbound_aborted(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageAborted) -> None:
         # Upstream gave up on the message partway: whatever was decoded of it so far is moot.
@@ -30006,23 +30153,13 @@ class IoPipelineHttpObjectDecompressor(
     #
 
     def _on_outbound_ready_for_input(self, ctx: IoPipelineHandlerContext, msg: IoPipelineFlowMessages.ReadyForInput) -> None:  # Noqa
-        self._read_requested = True
+        if self._in_pump or self._in_service_ready:
+            # Defer reentrant ReadyForInput to the active pump/service loop so FlushInput ordering stays intact.
+            self._read_requested = True
+            self._reentrant_ready_for_input = msg
+            return
 
-        if (
-                self._out_pending or
-                (
-                    self._decompressor is not None and
-                    (self._in_pending or self._pending_end is not None)
-                )
-        ):
-            if self._pump(ctx):
-                if not self._is_auto_read(ctx):
-                    ctx.feed_in(IoPipelineFlowMessages.FlushInput())
-                    self._release_pending_final_input(ctx)
-
-                return  # Swallow since we satisfied it
-
-        ctx.feed_out(msg)
+        self._service_ready_for_input(ctx, msg)
 
     def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if isinstance(msg, IoPipelineFlowMessages.ReadyForInput):
@@ -33670,6 +33807,16 @@ class IoPipelineHttpObjectAggregator(
     def _final_type(self) -> type:
         raise NotImplementedError
 
+    # Whether _HeadState aborts immediately when Content-Length exceeds max_size. Responses disable this because a HEAD
+    # response carries the target's Content-Length with no body bytes; _BodyState still aborts on the first BodyData.
+    _eager_content_length_check: ta.ClassVar[bool] = True
+
+    def _select_body_mode(self, head: IoPipelineHttpMessageHead) -> IoPipelineHttpBodyMode:
+        return IoPipelineHttpBodyMode.select(
+            head.headers,
+            if_length_missing=self._if_content_length_missing,
+        )
+
     #
 
     def buffered_bytes(self) -> int:
@@ -33758,10 +33905,7 @@ class IoPipelineHttpObjectAggregator(
         ) -> ta.Optional[ta.Tuple['IoPipelineHttpObjectAggregator._State', ta.Optional[ta.Any]]]:
             if isinstance(msg, self._a._head_type):  # noqa
                 try:
-                    te = IoPipelineHttpBodyMode.select(
-                        msg.headers,
-                        if_length_missing=self._a._if_content_length_missing,  # noqa
-                    )
+                    te = self._a._select_body_mode(msg)  # noqa
                 except IoPipelineHttpBodyModeError as e:
                     return self._abort(out, f'Invalid Transfer-Encoding: {e.reason}')
 
@@ -33769,13 +33913,14 @@ class IoPipelineHttpObjectAggregator(
                     return (self._a._EndState(self._a, msg, b''), None)  # noqa
 
                 if (
+                        self._a._eager_content_length_check and  # noqa
                         te.length is not None and
                         (max_body := self._a._config.body_buffer.max_size) is not None and  # noqa
                         te.length > max_body
                 ):
                     return self._abort(out, FrameTooLargeByteStreamBufferError('aggregation body exceeded max_body'))
 
-                return (self._a._BodyState(self._a, msg), None)  # noqa
+                return (self._a._BodyState(self._a, msg, expected_length=te.length), None)  # noqa
 
             elif isinstance(msg, self._a._final_type):  # noqa
                 out.append(msg)
@@ -33791,10 +33936,13 @@ class IoPipelineHttpObjectAggregator(
                 self,
                 a: 'IoPipelineHttpObjectAggregator',
                 head: IoPipelineHttpMessageHead,
+                *,
+                expected_length: ta.Optional[int] = None,
         ) -> None:
             super().__init__(a)
 
             self._head = head
+            self._expected_length = expected_length
 
         _buf: ta.Optional[MutableByteStreamBuffer] = None
 
@@ -33811,15 +33959,24 @@ class IoPipelineHttpObjectAggregator(
                 out: ta.List[ta.Any],
         ) -> ta.Optional[ta.Tuple['IoPipelineHttpObjectAggregator._State', ta.Optional[ta.Any]]]:
             if isinstance(msg, self._a._body_data_type):  # noqa
+                # Check declared Content-Length before allocating a buffer (handles responses whose eager check was
+                # deferred for HEAD, while still rejecting oversized GET bodies on the first BodyData).
+                if (max_body := self._a._config.body_buffer.max_size) is not None:  # noqa
+                    if self._expected_length is not None and self._expected_length > max_body:
+                        self._buf = None
+                        return self._abort(
+                            out,
+                            FrameTooLargeByteStreamBufferError('aggregation body exceeded max_body'),
+                        )
+
                 if (buf := self._buf) is None:
                     buf = self._buf = SegmentedByteStreamBuffer(
                         max_size=self._a._config.body_buffer.max_size,  # noqa
                         chunk_size=self._a._config.body_buffer.chunk_size,  # noqa
                     )
 
-                # Only Content-Length bodies are pre-checked against max_size in _HeadState - a chunked (or eof-framed)
-                # body must be checked as it arrives, and must abort rather than let buf.write raise and leave a
-                # partial body behind to be emitted as a truncated Full message.
+                # Chunked (or eof-framed) bodies must be checked as they arrive, aborting rather than letting
+                # buf.write raise and leave a partial body behind to be emitted as a truncated Full message.
                 if (max_body := self._a._config.body_buffer.max_size) is not None:  # noqa
                     if len(buf) + len(msg.data) > max_body:
                         self._buf = None
@@ -33905,10 +34062,7 @@ class IoPipelineHttpObjectAggregator(
         ) -> ta.Optional[ta.Tuple['IoPipelineHttpObjectAggregator._State', ta.Optional[ta.Any]]]:
             if isinstance(msg, self._a._head_type):  # noqa
                 try:
-                    te = IoPipelineHttpBodyMode.select(
-                        msg.headers,
-                        if_length_missing=self._a._if_content_length_missing,  # noqa
-                    )
+                    te = self._a._select_body_mode(msg)  # noqa
                 except IoPipelineHttpBodyModeError as e:
                     return self._abort(out, f'Invalid Transfer-Encoding: {e.reason}')
 
@@ -34861,7 +35015,11 @@ class IoPipelineFdioDriver(IoPipelinePostingTarget):
         try:
             self._close_transport()
             self._complete_transport_final_output()
-            pipeline.destroy()
+            if pipeline.is_ready:
+                pipeline.destroy()
+            self._state = IoPipelineDriverState.CLOSED
+            # Fail any posts still queued (e.g. posted during FinalOutput completion or destroy).
+            self._fail_queued_posts()
 
         except BaseException:
             try:
@@ -34869,12 +35027,14 @@ class IoPipelineFdioDriver(IoPipelinePostingTarget):
                     pipeline.destroy()
             finally:
                 self._state = IoPipelineDriverState.FAILED
+                try:
+                    self._fail_queued_posts()
+                except Exception:  # noqa
+                    pass
             raise
 
-        else:
-            self._state = IoPipelineDriverState.CLOSED
-
         finally:
+            self._input_q.clear()
             self._write_q.clear()
             self._write_q_bytes = 0
             self._transport_final_output = None
@@ -34977,6 +35137,12 @@ class IoPipelineFdioDriver(IoPipelinePostingTarget):
 
     def _try_flush_write_q(self) -> None:
         while self._write_q:
+            # A fence listener may have closed the driver or destroyed its pipeline mid-drain.
+            if (
+                    self._state in (IoPipelineDriverState.CLOSED, IoPipelineDriverState.FAILED) or
+                    ((pipeline := self._opt_pipeline()) is not None and not pipeline.is_ready)
+            ):
+                return
             head = self._write_q[0]
             if isinstance(head, IoPipelineFlowMessages.FlushOutput):
                 self._write_q.popleft()
@@ -35030,9 +35196,13 @@ class IoPipelineFdioDriver(IoPipelinePostingTarget):
                 self._output_writable = False
                 self._pipeline.feed_in(IoPipelineFlowMessages.PauseOutput())
 
-        elif self._write_q_bytes <= self._config.write_low_watermark and not self._pipeline.saw_shutdown_output:
-            # Never announced once ShutdownOutput reached the terminal - not just once the transport performed it -
-            # since from then on nothing may produce ordinary output.
+        elif (
+                self._write_q_bytes <= self._config.write_low_watermark and
+                not self._pipeline.saw_shutdown_output and
+                not self._pipeline.saw_final_output
+        ):
+            # Never announced once ShutdownOutput or FinalOutput reached the terminal - not just once the transport
+            # performed it - since from then on nothing may produce ordinary output.
             self._output_writable = True
             self._pipeline.feed_in(IoPipelineFlowMessages.ReadyForOutput())
 
@@ -35308,6 +35478,14 @@ class IoPipelineFdioDriver(IoPipelinePostingTarget):
             return
         self._step_unhandled(read=True, on_unhandled=on_unhandled)
 
+    def _ensure_active_after_callback(self) -> bool:
+        if not self.is_active:
+            return False
+        if not self._pipeline.is_ready:
+            self.close()
+            return False
+        return True
+
     def on_writable(
             self,
             *,
@@ -35315,14 +35493,26 @@ class IoPipelineFdioDriver(IoPipelinePostingTarget):
     ) -> None:
         check.not_empty(self._write_q)
 
-        self._try_flush_write_q()
+        try:
+            self._try_flush_write_q()
 
-        if self._state is IoPipelineDriverState.DRAINING and not self._write_q:
-            self._gracefully_close()
+            # A fence listener may have closed the driver or destroyed its pipeline during flush.
+            if not self._ensure_active_after_callback():
+                return
 
-        elif self._state is IoPipelineDriverState.RUNNING:
-            self._update_output_writability()
-            self._step_unhandled(read=False, on_unhandled=on_unhandled)
+            if self._state is IoPipelineDriverState.DRAINING and not self._write_q:
+                self._gracefully_close()
+
+            elif self._state is IoPipelineDriverState.RUNNING:
+                self._update_output_writability()
+                if not self._ensure_active_after_callback():
+                    return
+                self._step_unhandled(read=False, on_unhandled=on_unhandled)
+
+        except BaseException:
+            if self._state not in (IoPipelineDriverState.CLOSED, IoPipelineDriverState.FAILED):
+                self._fail()
+            raise
 
     def on_timeout(
             self,
@@ -35478,6 +35668,18 @@ class IoPipelineHttpObjectDecoder(
             head.headers,
             if_length_missing=self._if_content_length_missing,
         )
+
+    def enter_tunnel(self) -> ta.Optional[ByteStreamBufferView]:
+        """Switch immediately into tunnel mode and return any raw bytes already buffered after the last HTTP message."""
+
+        buffered: ta.Optional[ByteStreamBufferView] = None
+        if isinstance(self._state, (self._PendingUpgradeState, self._HeadState)):
+            if (buf := self._state.buf) is not None and len(buf):
+                buffered = buf.split_to(len(buf))
+
+        head = getattr(self._state, '_head', None)
+        self._state = self._TunnelState(self, head)
+        return buffered
 
     #
 
@@ -35673,6 +35875,10 @@ class IoPipelineHttpObjectDecoder(
                 out.append(self._d._make_end())  # noqa
                 return (self._d._TunnelState(self._d, self._head), data)  # noqa
 
+            elif te.mode == 'pending_upgrade':
+                out.append(self._d._make_end())  # noqa
+                return (self._d._PendingUpgradeState(self._d, self._head), data)  # noqa
+
             else:
                 raise RuntimeError(f'unexpected mode {te!r}')
 
@@ -35711,7 +35917,52 @@ class IoPipelineHttpObjectDecoder(
 
     #
 
-    class _TunnelState(_ContentState):
+    class _PendingUpgradeState(_ContentState):
+        """
+        Holds trailing raw bytes after an Upgrade request until the upgrade is either accepted (enter_tunnel) or
+        rejected (re-parsed as HTTP).
+        """
+
+        _buf: ta.Optional[MutableByteStreamBuffer] = None
+
+        @property
+        def buf(self) -> ta.Optional[MutableByteStreamBuffer]:
+            return self._buf
+
+        def decode(
+                self,
+                ctx: IoPipelineHandlerContext,
+                data: CanByteStreamBuffer,
+                out: ta.List[ta.Any],
+                *,
+                final: bool = False,
+        ) -> ta.Optional[ta.Tuple['IoPipelineHttpObjectDecoder._State', ta.Optional[CanByteStreamBuffer]]]:
+            if final:
+                return None
+
+            for mv in ByteStreamBuffers.iter_segments(data):
+                if not len(mv):
+                    continue
+                if (buf := self._buf) is None:
+                    buf = self._buf = SegmentedByteStreamBuffer(
+                        chunk_size=self._d._config.head_buffer.chunk_size,  # noqa
+                    )
+                buf.write(mv)
+
+            return None
+
+    #
+
+    class _TunnelState(_State):
+        def __init__(
+                self,
+                d: 'IoPipelineHttpObjectDecoder',
+                head: ta.Optional[IoPipelineHttpMessageHead] = None,
+        ) -> None:
+            super().__init__(d)
+
+            self._head = head
+
         def decode(
                 self,
                 ctx: IoPipelineHandlerContext,
@@ -36803,9 +37054,13 @@ class SyncIoPipelineDriver(IoPipelinePostingTarget, Abstract):
                 self._output_writable = False
                 self._pipeline.feed_in(IoPipelineFlowMessages.PauseOutput())
 
-        elif self._write_q_bytes <= self._config.write_low_watermark and not self._pipeline.saw_shutdown_output:
-            # Never announced once ShutdownOutput reached the terminal - not just once the transport performed it -
-            # since from then on nothing may produce ordinary output.
+        elif (
+                self._write_q_bytes <= self._config.write_low_watermark and
+                not self._pipeline.saw_shutdown_output and
+                not self._pipeline.saw_final_output
+        ):
+            # Never announced once ShutdownOutput or FinalOutput reached the terminal - not just once the transport
+            # performed it - since from then on nothing may produce ordinary output.
             self._output_writable = True
             self._pipeline.feed_in(IoPipelineFlowMessages.ReadyForOutput())
 
@@ -37018,6 +37273,14 @@ class SyncIoPipelineDriver(IoPipelinePostingTarget, Abstract):
 
             return None
 
+    def _ensure_active_after_callback(self, pipeline: IoPipeline) -> bool:
+        if self._state not in (IoPipelineDriverState.RUNNING, IoPipelineDriverState.DRAINING):
+            return False
+        if not pipeline.is_ready:
+            self.close()
+            return False
+        return True
+
     def next(
             self,
             *,
@@ -37063,13 +37326,20 @@ class SyncIoPipelineDriver(IoPipelinePostingTarget, Abstract):
                 try:
                     self._restore_transport_if_prepared()
                     self._complete_transport_final_output()
-                    pipeline.destroy()
+                    if pipeline.is_ready:
+                        pipeline.destroy()
+                    self._state = IoPipelineDriverState.CLOSED
+                    # Fail any posts still queued (e.g. posted during FinalOutput completion or destroy).
+                    self._fail_queued_posts()
                 except BaseException:
                     self._state = IoPipelineDriverState.FAILED
+                    try:
+                        self._fail_queued_posts()
+                    except Exception:  # noqa
+                        pass
                     raise
-                else:
-                    self._state = IoPipelineDriverState.CLOSED
                 finally:
+                    self._input_q.clear()
                     self._restore_transport_if_prepared()
 
                 return None
@@ -37090,12 +37360,20 @@ class SyncIoPipelineDriver(IoPipelinePostingTarget, Abstract):
             want_write = bool(self._write_q)
 
             if not read:
-                while self._write_q and self._try_write():
-                    pass
-                # Writing completes fences, whose listeners may have produced more output to process now.
+                try:
+                    while self.is_running and self._write_q and self._try_write():
+                        pass
+                except BaseException:
+                    if self._state is not IoPipelineDriverState.FAILED:
+                        self._fail()
+                    raise
+                if not self._ensure_active_after_callback(pipeline):
+                    return None
+                # Writing completes fences, whose listeners may have produced more output or boundary input now.
                 if (
                         (self._transport_final_output is not None and not self._write_q) or
-                        pipeline.output.peek() is not None
+                        pipeline.output.peek() is not None or
+                        self._input_q
                 ):
                     continue
                 return None
@@ -37110,15 +37388,28 @@ class SyncIoPipelineDriver(IoPipelinePostingTarget, Abstract):
                 want_write=want_write,
             )
 
+            # A due timer inside _wait_for_io_or_timer may have closed the driver (restoring blocking mode on the
+            # transport) or destroyed its pipeline; stop before attempting any I/O.
+            if not self._ensure_active_after_callback(pipeline):
+                return None
+
             progressed = False
-            if writable:
-                progressed |= self._try_write()
-            if readable:
-                if draining:
-                    progressed |= self._discard_input()
-                else:
-                    self._input_q.extend(self._do_read())
-                    progressed = True
+            try:
+                if writable:
+                    progressed |= self._try_write()
+                if readable and self.is_running:
+                    if draining:
+                        progressed |= self._discard_input()
+                    else:
+                        self._input_q.extend(self._do_read())
+                        progressed = True
+            except BaseException:
+                if self._state is not IoPipelineDriverState.FAILED:
+                    self._fail()
+                raise
+
+            if not self._ensure_active_after_callback(pipeline):
+                return None
 
             if not (progressed or ran_timer):
                 return None
@@ -37237,6 +37528,18 @@ class IoPipelineHttpResponseAggregatorDecoder(
 ):
     _if_content_length_missing: ta.Final = 'eof'
 
+    # HEAD responses carry Content-Length for a body that is never sent; defer the limit check until BodyData arrives.
+    _eager_content_length_check: ta.ClassVar[bool] = False
+
+    def _select_body_mode(self, head: IoPipelineHttpMessageHead) -> IoPipelineHttpBodyMode:
+        head = check.isinstance(head, IoPipelineHttpResponseHead)
+
+        # Match IoPipelineHttpResponseDecoder: 1xx, 204, and 304 responses never carry a body regardless of headers.
+        if 100 <= head.status < 200 or head.status in (204, 304):
+            return IoPipelineHttpBodyMode('empty', None)
+
+        return super()._select_body_mode(head)
+
 
 ##
 
@@ -37262,6 +37565,41 @@ class IoPipelineHttpResponseDecompressor(IoPipelineHttpResponseObjects, IoPipeli
 class IoPipelineHttpRequestDecoder(IoPipelineHttpRequestObjects, IoPipelineHttpObjectDecoder):
     _parse_mode: ta.Final = HttpParser.Mode.REQUEST
     _if_content_length_missing: ta.Final = 'empty'
+
+    def _select_body_mode(self, head: IoPipelineHttpMessageHead) -> IoPipelineHttpBodyMode:
+        mode = super()._select_body_mode(head)
+        # Park trailing bytes after an Upgrade request instead of parsing them as a second HTTP request, so coalesced
+        # upgraded-protocol frames (e.g. WebSocket) survive until the upgrade handler accepts or rejects.
+        if (
+                mode.mode == 'empty' and
+                head.headers.contains_list_value('connection', 'upgrade', ignore_case=True) and
+                bool(head.headers.lower.get('upgrade'))
+        ):
+            return IoPipelineHttpBodyMode('pending_upgrade', None)
+        return mode
+
+    def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(self._state, self._PendingUpgradeState):
+            resp_head: ta.Optional[IoPipelineHttpResponseHead] = None
+            if isinstance(msg, IoPipelineHttpResponseHead):
+                resp_head = msg
+            elif isinstance(msg, FullIoPipelineHttpResponse):
+                resp_head = msg.head
+
+            if resp_head is not None and not resp_head.is_interim and resp_head.status != 101:
+                # Upgrade was rejected; resume HTTP decoding on any parked bytes after forwarding the response.
+                buf = self._state.buf
+                trailing = buf.split_to(len(buf)) if buf is not None and len(buf) else None
+                self._state = self._HeadState(self)
+                ctx.feed_out(msg)
+                if trailing is not None:
+                    out: ta.List[ta.Any] = []
+                    self._decode(ctx, trailing, out)
+                    for o in out:
+                        ctx.feed_in(o)
+                return
+
+        ctx.feed_out(msg)
 
 
 ##

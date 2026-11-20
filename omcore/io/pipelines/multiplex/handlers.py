@@ -28,6 +28,7 @@ import collections
 import contextlib
 import dataclasses as dc
 import functools
+import inspect
 import typing as ta
 import weakref
 
@@ -577,12 +578,13 @@ class MultiplexIoPipelineHandler(IoPipelineMultiplexChildHost, IoPipelineHandler
             recv_window=params.recv_window,
         )
         self._scheduler.add(stream.key, weight=params.weight)
-        self._control_q.extend(self._guard(self._adapter.encode_open, stream, default=()))
-
+        # Register the OpenStream before encode_open so a connection failure inside encode_open fails msg via reset.
         if params.explicit:
             self._pending_opens[stream.key] = msg
         else:
             self._pending_establish[stream.key] = (msg.spec, msg)
+
+        self._control_q.extend(self._guard(self._adapter.encode_open, stream, default=()))
 
     def _open_remote(
             self,
@@ -815,6 +817,9 @@ class MultiplexIoPipelineHandler(IoPipelineMultiplexChildHost, IoPipelineHandler
         self._remote_closed.clear()
         self._control_q.clear()
         self._goodbye_q.clear()
+        for _, cawt in self._child_awaits:
+            if inspect.iscoroutine(cawt.obj):
+                cawt.obj.close()
         self._child_awaits.clear()
         self._flush_fences.clear()
         self._finished_hooks.clear()
@@ -1104,6 +1109,10 @@ class MultiplexIoPipelineHandler(IoPipelineMultiplexChildHost, IoPipelineHandler
         # A method, not the attribute, as feeding can remove this handler between checks.
         return self._removed
 
+    def _is_failed(self) -> bool:
+        # A method, not the attribute, as _guard() can fail the connection between checks.
+        return self._failed is not None
+
     def _emit(self, ctx: IoPipelineHandlerContext) -> None:
         # Anything fed - including completing an open, whose listener may react - can remove this handler, after which
         # nothing more may be fed: every step checks.
@@ -1147,8 +1156,14 @@ class MultiplexIoPipelineHandler(IoPipelineMultiplexChildHost, IoPipelineHandler
             if self._is_removed():
                 return
             child, cawt = self._child_awaits.popleft()
-            pawt: AsyncIoPipelineMessages.Await = AsyncIoPipelineMessages.Await(cawt.obj)
             key = child.stream.key
+            stream = self._table.get(key)
+            if cawt.is_done() or not child.is_running or stream is None or stream.is_terminal:
+                # Stream or child ended earlier in the turn; close any unawaited coroutine instead of forwarding.
+                if inspect.iscoroutine(cawt.obj):
+                    cawt.obj.close()
+                continue
+            pawt: AsyncIoPipelineMessages.Await = AsyncIoPipelineMessages.Await(cawt.obj)
             pawt.add_listener(functools.partial(
                 MultiplexIoPipelineHandler._on_parent_await_done,
                 weakref.ref(ctx),
@@ -1245,12 +1260,17 @@ class MultiplexIoPipelineHandler(IoPipelineMultiplexChildHost, IoPipelineHandler
             cost = head.cost
             if cost > 0:
                 limit = min(self._credit.send_available(key), self._guard(adapter.max_data_unit, stream, default=0))
+                if self._is_failed() or stream.is_terminal:
+                    return 0
                 if cost > limit:
                     if (split := self._guard(adapter.split_message, stream, msg, limit, default=None)) is None:
                         self._scheduler.set_ready(key, False)
                         return 0
                     msg, tail = split
                     head_cost = self._guard(adapter.message_cost, stream, msg, default=0)
+                    # Stop before validating head_cost if adapter.message_cost failed the connection and returned 0.
+                    if self._is_failed() or stream.is_terminal:
+                        return 0
                     check.state(0 < head_cost <= limit)
                     stream.replace_out_head_message(tail, cost - head_cost)
                     self._credit.consume_send(key, head_cost)
@@ -1268,10 +1288,15 @@ class MultiplexIoPipelineHandler(IoPipelineMultiplexChildHost, IoPipelineHandler
             self._feed_frames(ctx, self._guard(adapter.encode_end, stream, default=()))
         elif fence.kind == 'final':
             outs = self._guard(adapter.encode_finish, stream, default=())
+            # encode_finish may have failed the connection and already reset this stream to terminal.
+            if self._is_failed() or stream.is_terminal:
+                return 0
             stream.finish_local()
             self._feed_frames(ctx, outs)
             self._finished_hooks.append(key)
             self._dirty = True
+        if self._is_failed() or self._is_removed():
+            return 0
         self._flush_fences.append((child, fence.msg, fence.kind))
         return 0
 

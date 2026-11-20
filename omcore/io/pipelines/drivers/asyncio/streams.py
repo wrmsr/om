@@ -951,6 +951,9 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
                 cmd.msg.set_succeeded(result)
 
     async def _handle_command_await_failed(self, cmd: _AwaitFailedCommand) -> None:
+        if cmd.msg.is_done():
+            # Already completed/aborted by its producer while the failure command was queued.
+            return
         with self._pipeline.enter():
             cmd.msg.set_failed(cmd.exc)
 
@@ -958,6 +961,12 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
             self,
             msg: AsyncIoPipelineMessages.Await,
     ) -> ta.Optional[str]:
+        if msg.is_done():
+            # Producer already completed/aborted this Await before the driver polled it; close any unawaited coroutine.
+            if asyncio.iscoroutine(msg.obj):
+                msg.obj.close()
+            return None
+
         loop = asyncio.get_running_loop()
 
         # A coroutine becomes a task the driver creates, and so owns: it is cancelled if the Await is failed by its
@@ -1075,7 +1084,7 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
 
         if self._writer is None or self._drainer_task is None:
             await self._complete_graceful_close()
-            return None
+            return 'stop'
 
         # A drain still pending completes first, on its own; the drainer task then performs the close.
         self._request_close()
@@ -1163,9 +1172,10 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
                     size <= self._config.write_low_watermark or
                     (drained and size <= self._config.write_high_watermark)
                 ) and
-                # Never announced once ShutdownOutput reached the terminal - not just once the transport performed it -
-                # since from then on nothing may produce ordinary output.
-                not self._pipeline.saw_shutdown_output
+                # Never announced once ShutdownOutput or FinalOutput reached the terminal - not just once the transport
+                # performed it - since from then on nothing may produce ordinary output.
+                not self._pipeline.saw_shutdown_output and
+                not self._pipeline.saw_final_output
         ):
             self._output_writable = True
             self._pipeline.feed_in(IoPipelineFlowMessages.ReadyForOutput())
@@ -1322,6 +1332,10 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
             # loop timer is (re)armed for the earliest deadline before any wait.
             self._arm_timer()
 
+            # Stop immediately once graceful close finished rather than executing commands queued ahead of shutdown.
+            if self._shutdown_event.is_set():
+                break
+
             try:
                 cmd = self._command_queue.get_nowait()
             except asyncio.QueueEmpty:
@@ -1343,14 +1357,27 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
                 break
 
             await self._handle_command(cmd)
+            if self._shutdown_event.is_set():
+                break
 
         try:
-            pipeline.destroy()
+            if pipeline.is_ready:
+                pipeline.destroy()
+            self._state = IoPipelineDriverState.CLOSED
+            self._disarm_timer()
+            # Fail any queued posts or pending feed_in futures that did not run before graceful close.
+            self._drain_command_queue(AbortedIoPipelineError('Driver closed'))
         except BaseException:
             await self._fail()
             raise
 
-        self._state = IoPipelineDriverState.CLOSED
+        tasks = [
+            *self._cancel_tasks_now(self._read_task, self._drainer_task),
+            *self._cancel_created_awaits_now(),
+        ]
+        if tasks:
+            await self._wait_cancelled(tasks)
+
         return None
 
     @async_exception_logging(alog)

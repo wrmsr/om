@@ -18,12 +18,14 @@ from ....headers import HttpHeaders
 from ....versions import HttpVersions
 from ...requests import FullIoPipelineHttpRequest
 from ...requests import IoPipelineHttpRequestBodyData
+from ...requests import IoPipelineHttpRequestEnd
 from ...requests import IoPipelineHttpRequestHead
 from ...responses import IoPipelineHttpResponseBodyData
 from ...responses import IoPipelineHttpResponseEnd
 from ...responses import IoPipelineHttpResponseHead
 from ..apps.asgi import AsgiIoPipelineHandler
 from ..requests import IoPipelineHttpRequestAggregatorDecoder
+from ..requests import IoPipelineHttpRequestDechunker
 from ..requests import IoPipelineHttpRequestDecoder
 from ..responses import IoPipelineHttpResponseEncoder
 
@@ -759,6 +761,8 @@ class TestAsgiIoPipelineDriverBackpressure(AsyncioIsolatedAsyncTestCase):
 
             self.assertTrue(writer.closed)
             self.assertEqual(completed, ['start', 'a', 'b'])
+            # Per DESIGN 6, ReadyForOutput is never announced again once FinalOutput has passed through output
+            # buffering / reached the terminal - even as the final drain completes.
             self.assertEqual(
                 [type(event) for event in capture.events],
                 [
@@ -767,7 +771,6 @@ class TestAsgiIoPipelineDriverBackpressure(AsyncioIsolatedAsyncTestCase):
                     IoPipelineFlowMessages.PauseOutput,
                     IoPipelineFlowMessages.ReadyForOutput,
                     IoPipelineFlowMessages.PauseOutput,
-                    IoPipelineFlowMessages.ReadyForOutput,
                 ],
             )
             self.assertEqual(
@@ -788,3 +791,168 @@ class TestAsgiIoPipelineDriverBackpressure(AsyncioIsolatedAsyncTestCase):
                 task.cancel()
             await asyncio.gather(task, return_exceptions=True)
             await driver.close()
+
+
+class TestAsgiStreamingReceiveAndAbortedRegressions(unittest.TestCase):
+    @staticmethod
+    def _drain(channel: IoPipeline) -> ta.List[ta.Any]:
+        out: ta.List[ta.Any] = []
+        while True:
+            msgs = channel.output.drain()
+            if not msgs:
+                return out
+            for msg in msgs:
+                if isinstance(msg, IoPipelineMessages.Defer):
+                    channel.run_deferred(msg)
+                else:
+                    out.append(msg)
+
+    def test_receive_after_response_start_streams_request_body_and_disconnect(self) -> None:
+        # Regression: _IoPipelineAsgiDriver._step_one only accepted Receive in State.RUNNING, raising RuntimeError if
+        # an app called `await receive()` after sending `http.response.start` (a standard full-duplex / SSE pattern).
+        # In addition, _resume_receive hardcoded State.RUNNING, which clobbered State.RESPONSE_STARTED and broke
+        # subsequent `http.response.body` sends.
+        events: ta.List[ta.Tuple[str, ta.Optional[bytes], ta.Optional[bool]]] = []
+
+        async def app(scope, receive, send):  # noqa
+            await send({
+                'type': 'http.response.start',
+                'status': 200,
+                'headers': [(b'Content-Type', b'text/plain')],
+            })
+
+            while True:
+                ev = await receive()
+                events.append((ev['type'], ev.get('body'), ev.get('more_body')))
+                if ev['type'] == 'http.disconnect':
+                    break
+                if ev['body']:
+                    await send({
+                        'type': 'http.response.body',
+                        'body': ev['body'].upper(),
+                        'more_body': True,
+                    })
+                if not ev.get('more_body', False):
+                    # Also verify waiting for http.disconnect while still in RESPONSE_STARTED works cleanly.
+                    disc = await receive()
+                    events.append((disc['type'], disc.get('body'), disc.get('more_body')))
+                    break
+
+            await send({
+                'type': 'http.response.body',
+                'body': b'!',
+                'more_body': False,
+            })
+
+        channel = IoPipeline.new(
+            [AsgiIoPipelineHandler(app)],
+            services=[StubIoPipelineFlowService()],
+        )
+        try:
+            channel.feed_in(IoPipelineHttpRequestHead(
+                method='POST',
+                target='/duplex',
+                headers=HttpHeaders([('Host', 'test'), ('Transfer-Encoding', 'chunked')]),
+            ))
+            out0 = self._drain(channel)
+            self.assertEqual([type(m) for m in out0], [IoPipelineHttpResponseHead, IoPipelineFlowMessages.FlushOutput])
+
+            channel.feed_in(IoPipelineHttpRequestBodyData(b'hi'))
+            out1 = self._drain(channel)
+            self.assertEqual(
+                [type(m) for m in out1],
+                [IoPipelineHttpResponseBodyData, IoPipelineFlowMessages.FlushOutput],
+            )
+            self.assertEqual(out1[0].data, b'HI')
+
+            channel.feed_in(IoPipelineHttpRequestBodyData(b'ya'))
+            out2 = self._drain(channel)
+            self.assertEqual(
+                [type(m) for m in out2],
+                [IoPipelineHttpResponseBodyData, IoPipelineFlowMessages.FlushOutput],
+            )
+            self.assertEqual(out2[0].data, b'YA')
+
+            channel.feed_in(IoPipelineHttpRequestEnd())
+            self.assertEqual(self._drain(channel), [])
+
+            channel.feed_final_input()
+            out3 = self._drain(channel)
+            self.assertEqual(
+                [type(m) for m in out3],
+                [
+                    IoPipelineHttpResponseBodyData,
+                    IoPipelineHttpResponseEnd,
+                    IoPipelineFlowMessages.FlushOutput,
+                    IoPipelineMessages.FinalOutput,
+                ],
+            )
+            self.assertEqual(out3[0].data, b'!')
+            self.assertEqual(
+                events,
+                [
+                    ('http.request', b'hi', True),
+                    ('http.request', b'ya', True),
+                    ('http.request', b'', False),
+                    ('http.disconnect', None, None),
+                ],
+            )
+        finally:
+            channel.destroy()
+
+    def test_request_aborted_idle_and_mid_request_do_not_crash_at_terminal(self) -> None:
+        # Regression: neither AsgiIoPipelineHandler nor _IoPipelineAsgiDriver handled IoPipelineHttpRequestAborted, so
+        # malformed HTTP heads or malformed chunked request bodies emitted by IoPipelineHttpRequestDecoder fell through
+        # to _Innermost and crashed with MessageReachedTerminalIoPipelineError.
+        received_events: ta.List[str] = []
+
+        async def streaming_app(scope, receive, send):  # noqa
+            while True:
+                ev = await receive()
+                received_events.append(ev['type'])
+                if ev['type'] == 'http.disconnect' or not ev.get('more_body', False):
+                    return
+
+        # Case 1: malformed HTTP head while idle (self._drv is None).
+        idle_channel = IoPipeline.new(
+            [
+                IoPipelineHttpResponseEncoder(),
+                IoPipelineHttpRequestDecoder(),
+                AsgiIoPipelineHandler(streaming_app),
+            ],
+            services=[StubIoPipelineFlowService()],
+        )
+        try:
+            idle_channel.feed_in(b'NOT A VALID REQUEST\r\n\r\n')
+            out_idle = self._drain(idle_channel)
+            self.assertEqual([type(m) for m in out_idle], [IoPipelineMessages.FinalOutput])
+            self.assertEqual(received_events, [])
+        finally:
+            idle_channel.destroy()
+
+        # Case 2: malformed chunk header mid-body after the ASGI app is already running and awaiting receive().
+        mid_channel = IoPipeline.new(
+            [
+                IoPipelineHttpResponseEncoder(),
+                IoPipelineHttpRequestDecoder(),
+                IoPipelineHttpRequestDechunker(),
+                AsgiIoPipelineHandler(streaming_app),
+            ],
+            services=[StubIoPipelineFlowService()],
+        )
+        try:
+            mid_channel.feed_in(
+                b'POST /upload HTTP/1.1\r\n'
+                b'Host: test\r\n'
+                b'Transfer-Encoding: chunked\r\n\r\n'
+                b'4\r\ngood\r\n',
+            )
+            self.assertEqual(self._drain(mid_channel), [])
+            self.assertEqual(received_events, ['http.request'])
+
+            mid_channel.feed_in(b'NOT_HEX\r\n')
+            out_mid = self._drain(mid_channel)
+            self.assertEqual(received_events, ['http.request', 'http.disconnect'])
+            self.assertEqual([type(m) for m in out_mid], [IoPipelineMessages.FinalOutput])
+        finally:
+            mid_channel.destroy()

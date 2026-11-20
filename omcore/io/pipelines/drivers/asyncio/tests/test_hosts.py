@@ -437,6 +437,84 @@ class TestAsyncioIoPipelineHostFailures(AsyncioIsolatedAsyncTestCase):
             os.close(r)
             os.close(w)
 
+    async def test_connect_failure_callback_closing_handle_or_host_does_not_double_deliver(self) -> None:
+        # AsyncioHostedIoPipelineConnect._connect() previously invoked _deliver(on_failed, ...) before _finish() set
+        # _done = True and unregistered the handle. If on_failed closed the connect handle or the host synchronously,
+        # handle.close() fired a second on_failed(ClosedIoPipelineHostError) callback.
+
+        for close_target in ('handle', 'host'):
+            with self.subTest(close_target=close_target):
+                # Allocate an unbound port by binding and closing a real TCP socket.
+                probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                probe.bind(('127.0.0.1', 0))
+                unused_port = probe.getsockname()[1]
+                probe.close()
+
+                host = AsyncioIoPipelineHost()
+                failed: ta.List[BaseException] = []
+                handle_box: ta.List[ta.Any] = []
+
+                def on_failed(_ctx: ta.Any, exc: BaseException) -> None:
+                    failed.append(exc)
+                    if close_target == 'handle':
+                        handle_box[0].close()
+                    else:
+                        host.close()
+
+                try:
+                    handle = host.connect(
+                        TcpSocketEndpoint('127.0.0.1', unused_port),
+                        lambda info: IoPipeline.Spec([_UpperEchoApp()]),
+                        on_connected=lambda c, h: None,
+                        on_failed=on_failed,
+                        timeout_s=5.,
+                    )
+                    handle_box.append(handle)
+                    await _until(lambda: bool(failed))
+                    await asyncio.sleep(0)
+
+                    self.assertEqual(len(failed), 1, f'on_failed delivered twice when closing {close_target}')
+                    self.assertTrue(handle.closed)
+                finally:
+                    host.close()
+                    await host.wait_closed()
+
+    async def test_failed_owned_descriptor_start_closes_both_owned_descriptors(self) -> None:
+        # In AsyncioIoPipelineHost._serve_fds(), when owned=True, served_read == read_fd and served_write == write_fd
+        # (both in `fds`). Previously the exception cleanup had `elif served not in fds: os.close(served)`, which
+        # skipped closing an owned descriptor not yet wrapped by a file/transport (e.g. write_fd when connect_read_pipe
+        # failed on read_fd), leaking the owned descriptor.
+
+        host = AsyncioIoPipelineHost()
+        r, w = os.pipe()
+        try:
+            with tempfile.TemporaryFile() as f:
+                owned_bad_read_fd = os.dup(f.fileno())
+            hosted = ta.cast(
+                AsyncioHostedIoPipelineDriver,
+                host.adopt((owned_bad_read_fd, w), IoPipeline.Spec(), owned=True),
+            )
+            with self.assertRaises(ValueError):
+                await hosted.wait_started()
+            await hosted.wait_closed()
+            await host.wait_closed()
+
+            for _ in range(5):
+                await asyncio.sleep(0)
+
+            for fd in (owned_bad_read_fd, w):
+                with self.assertRaises(OSError):
+                    os.fstat(fd)
+        finally:
+            host.close()
+            await host.wait_closed()
+            os.close(r)
+            for fd in (w,):
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
+
 
 class TestAsyncioIoPipelineHostTasks(AsyncioIsolatedAsyncTestCase):
     async def test_one_task_per_hosted_pipeline(self) -> None:

@@ -6,6 +6,8 @@ import unittest
 
 from .....io.pipelines.core import IoPipeline
 from .....io.pipelines.core import IoPipelineMessages
+from .....io.pipelines.drivers.pure.drivers import PureIoPipelineDriver
+from .....io.pipelines.drivers.types import IoPipelineDriverState
 from .....io.pipelines.flow.stub import StubIoPipelineFlowService
 from .....io.pipelines.flow.types import IoPipelineFlowMessages
 from .....io.pipelines.yielding import CountingIoPipelineYieldPolicy
@@ -19,6 +21,9 @@ from ...responses import IoPipelineHttpResponseEnd
 from ...responses import IoPipelineHttpResponseHead
 from ..apps.wsgi import IoPipelineWsgiConfig
 from ..apps.wsgi import WsgiIoPipelineHandler
+from ..requests import IoPipelineHttpRequestAggregatorDecoder
+from ..requests import IoPipelineHttpRequestDecoder
+from ..responses import IoPipelineHttpResponseEncoder
 from .demos.http_server_wsgi import ping_app
 
 
@@ -562,7 +567,11 @@ class TestWsgiStreamingLifecycle(unittest.TestCase):
 
         self.assertTrue(closing.closed)
 
-    def test_final_input_abandons_an_in_flight_app(self) -> None:
+    def test_final_input_lets_in_flight_app_finish_half_close(self) -> None:
+        # Regression: FinalInput represents peer output half-close (SHUT_WR), not a transport abort. Because
+        # WsgiIoPipelineHandler only starts after receiving the complete FullIoPipelineHttpRequest, closing the stream
+        # on FinalInput truncated responses from half-closing clients and never emitted FinalOutput (hanging drivers).
+        # Transport aborts/teardown close the iterable via Error or Removed instead.
         closing = _ClosingIterable([b'a', b'b', b'c'])
 
         def app(environ, start_response):  # noqa
@@ -571,8 +580,99 @@ class TestWsgiStreamingLifecycle(unittest.TestCase):
 
         channel, _ = _new_streaming_pipeline(app)
         channel.feed_in(FullIoPipelineHttpRequest.simple('test', '/x'))
-        channel.output.drain()
+        first_turn = channel.output.drain()
+        self.assertIsInstance(first_turn[0], IoPipelineHttpResponseHead)
+        self.assertFalse(closing.closed)
 
+        # Peer half-closes its write side right after sending the request.
         channel.feed_final_input()
+        self.assertFalse(closing.closed)
 
+        # Resume the deferred stream; the response must finish completely and emit FinalOutput, then close iterable.
+        rest: ta.List[ta.Any] = []
+        for msg in first_turn:
+            if isinstance(msg, IoPipelineMessages.Defer):
+                channel.run_deferred(msg)
+        rest.extend(drain_wsgi(channel))
+
+        all_msgs = [m for m in first_turn if not isinstance(m, IoPipelineMessages.Defer)] + rest
+        resp = reassemble_wsgi_response(all_msgs)
+        self.assertEqual(resp.body, b'abc')
         self.assertTrue(closing.closed)
+
+    def test_half_closed_client_receives_complete_streamed_wsgi_response(self) -> None:
+        # End-to-end PureIoPipelineDriver reproduction of a client sending a request + SHUT_WR (feed_eof) in one go.
+        def app(environ, start_response):  # noqa
+            start_response('200 OK', [('Content-Length', '9')])
+            return iter([b'one', b'two', b'end'])
+
+        drv = PureIoPipelineDriver(IoPipeline.Spec(
+            [
+                IoPipelineHttpResponseEncoder(),
+                IoPipelineHttpRequestDecoder(),
+                IoPipelineHttpRequestAggregatorDecoder(),
+                WsgiIoPipelineHandler(app),
+            ],
+            services=[StubIoPipelineFlowService()],
+        ))
+        try:
+            self.assertIsNone(drv.next(read=False))
+            drv.feed_input(b'GET /stream HTTP/1.1\r\nHost: test\r\n\r\n')
+            drv.feed_eof()
+
+            wire_parts: ta.List[bytes] = []
+            while drv.state in (IoPipelineDriverState.RUNNING, IoPipelineDriverState.DRAINING):
+                drv.next(read=True, raise_on_stall=False)
+                if drv.state in (IoPipelineDriverState.RUNNING, IoPipelineDriverState.DRAINING):
+                    wire_parts.append(drv.drain_output())
+            wire = b''.join(wire_parts)
+            self.assertIn(b'HTTP/1.1 200 OK\r\n', wire)
+            self.assertTrue(wire.endswith(b'\r\n\r\nonetwoend'))
+            self.assertTrue(drv.pipeline.saw_final_output)
+        finally:
+            drv.close()
+
+    def test_pause_and_ready_while_defer_pending_does_not_stack_duplicate_defers(self) -> None:
+        # Regression: if PauseOutput followed by ReadyForOutput arrived while a Defer from the previous chunk was
+        # already queued, on_output_writability called pump() directly and scheduled a second Defer. Every overlapping
+        # pause/resume cycle doubled the number of in-flight Defers.
+        channel, _ = _new_streaming_pipeline(
+            _framed_app(b'c1', b'c2', b'c3', b'c4', b'c5'),
+            flow=True,
+        )
+        channel.feed_in(FullIoPipelineHttpRequest.simple('test', '/x'))
+
+        first = channel.output.drain()
+        first_defers = [m for m in first if isinstance(m, IoPipelineMessages.Defer)]
+        self.assertEqual(len(first_defers), 1)
+
+        # Toggle PauseOutput -> ReadyForOutput repeatedly while that single Defer has not yet run.
+        for _ in range(3):
+            channel.feed_in(IoPipelineFlowMessages.PauseOutput())
+            channel.feed_in(IoPipelineFlowMessages.ReadyForOutput())
+            self.assertEqual(channel.output.drain(), [])
+
+        # Stepping turn-by-turn must see at most 1 Defer per turn and deliver all 5 chunks in order.
+        delivered_bodies: ta.List[bytes] = [
+            ByteStreamBuffers.to_bytes(m.data, strict=True)
+            for m in first
+            if isinstance(m, IoPipelineHttpResponseBodyData)
+        ]
+        pending_defers = list(first_defers)
+        saw_final = False
+        for _ in range(20):
+            if not pending_defers:
+                break
+            self.assertEqual(len(pending_defers), 1)
+            channel.run_deferred(pending_defers.pop(0))
+            turn = channel.output.drain()
+            for m in turn:
+                if isinstance(m, IoPipelineMessages.Defer):
+                    pending_defers.append(m)
+                elif isinstance(m, IoPipelineHttpResponseBodyData):
+                    delivered_bodies.append(ByteStreamBuffers.to_bytes(m.data, strict=True))
+                elif isinstance(m, IoPipelineMessages.FinalOutput):
+                    saw_final = True
+
+        self.assertTrue(saw_final)
+        self.assertEqual(delivered_bodies, [b'c1', b'c2', b'c3', b'c4', b'c5'])

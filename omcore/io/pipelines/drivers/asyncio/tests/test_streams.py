@@ -14,6 +14,7 @@ from ....core import IoPipelineHandlerRef
 from ....core import IoPipelineMessages
 from ....core import IoPipelineService
 from ....core import IoPipelineUpdate
+from ....errors import AbortedIoPipelineError
 from ....flow.stub import StubIoPipelineFlowService
 from ....flow.types import IoPipelineFlowMessages
 from ....sched.types import IoPipelineScheduling
@@ -1378,3 +1379,137 @@ class TestPollAsyncioStreamIoPipelineDriverOutputShutdown(AsyncioIsolatedAsyncTe
         finally:
             server.close()
             await server.wait_closed()
+
+
+class TestPollAsyncioStreamIoPipelineDriverRegressions(AsyncioIsolatedAsyncTestCase):
+    async def test_already_done_await_is_skipped_and_closes_coroutine(self) -> None:
+        # If a producer emits an AsyncIoPipelineMessages.Await and completes/fails it before the driver polls it from
+        # pipeline.output (for example, a child stream aborting in the same turn), _handle_output_await previously
+        # scheduled the coroutine and called msg.add_listener(...) on the already-done Completable, raising
+        # StateIoPipelineError and failing the entire driver.
+
+        started: ta.List[bool] = []
+
+        async def should_not_run() -> None:
+            started.append(True)
+
+        coro = should_not_run()
+        awt: AsyncIoPipelineMessages.Await = AsyncIoPipelineMessages.Await(coro)
+
+        class _EmitAndFailAwaitHandler(IoPipelineHandler):
+            def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+                if msg == 'go':
+                    ctx.feed_out(awt)
+                    awt.set_failed(AbortedIoPipelineError('already aborted'))
+                    return
+                ctx.feed_in(msg)
+
+        drv = PollAsyncioStreamIoPipelineDriver(
+            IoPipeline.Spec(
+                [_EmitAndFailAwaitHandler()],
+                services=[StubIoPipelineFlowService(auto_read=False)],
+            ),
+            asyncio.StreamReader(),
+        )
+        try:
+            self.assertIsNone(await drv.next(read=False))
+            drv.enqueue('go')
+            self.assertIsNone(await drv.next(read=False))
+
+            self.assertIs(drv.state, IoPipelineDriverState.RUNNING)
+            self.assertTrue(drv.pipeline.is_ready)
+            self.assertEqual(started, [])
+            # Coroutine was closed cleanly without ever running.
+            self.assertIsNone(getattr(coro, 'cr_frame'))
+        finally:
+            await drv.close()
+
+    async def test_graceful_close_stops_before_queued_commands_and_fails_queued_posts(self) -> None:
+        # Previously _complete_graceful_close() pushed _ShutdownCommand to the tail of _command_queue, so commands
+        # queued before or during FinalOutput completion kept executing on the pipeline after graceful close finished;
+        # and once _ShutdownCommand broke the loop, remaining queued posts and feed_in futures were never drained and
+        # failed.
+
+        ran: ta.List[str] = []
+        post_excs: ta.List[ta.Optional[BaseException]] = []
+        late_futs: ta.List[asyncio.Future] = []
+        late_posts: ta.List[ta.Any] = []
+
+        class _ObserveHandler(IoPipelineHandler):
+            def __init__(self) -> None:
+                super().__init__()
+
+                self.final_output = IoPipelineMessages.FinalOutput()
+                self.seen_late: ta.List[ta.Any] = []
+
+            def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+                if msg == 'close':
+                    ctx.feed_out(b'bye')
+                    ctx.feed_out(self.final_output)
+                    return
+                if msg == 'late-input':
+                    self.seen_late.append(msg)
+                    return
+                ctx.feed_in(msg)
+
+        import socket
+
+        for with_writer in (False, True):
+            with self.subTest(with_writer=with_writer):
+                ran.clear()
+                post_excs.clear()
+                late_futs.clear()
+                late_posts.clear()
+                handler = _ObserveHandler()
+                sock: ta.Optional[socket.socket] = None
+                peer: ta.Optional[socket.socket] = None
+                writer: ta.Optional[asyncio.StreamWriter] = None
+                if with_writer:
+                    sock, peer = socket.socketpair()
+                    reader, writer = await asyncio.open_connection(sock=sock)
+                else:
+                    reader = asyncio.StreamReader()
+
+                drv = PollAsyncioStreamIoPipelineDriver(
+                    IoPipeline.Spec(
+                        [handler],
+                        services=[StubIoPipelineFlowService(auto_read=False)],
+                    ),
+                    reader,
+                    writer,
+                )
+
+                def on_final_done(_msg: ta.Any) -> None:
+                    p = drv.posting.post(lambda: ran.append('post'))
+                    p.add_listener(lambda m: post_excs.append(m.get_exception() if m.is_failed() else None))
+                    late_posts.append(p)
+
+                handler.final_output.add_listener(on_final_done)
+                try:
+                    self.assertIsNone(await drv.next(read=False))
+                    drv.enqueue('close')
+                    if not with_writer:
+                        # Without a writer, FinalOutput completes synchronously during 'close'; a command already queued
+                        # behind it must not execute after graceful close and its future must fail instead of hanging.
+                        late_futs.append(drv.enqueue_waitable('late-input'))
+                    self.assertIsNone(await asyncio.wait_for(drv.next(read=False), 5.))
+
+                    self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
+                    self.assertFalse(drv.pipeline.is_ready)
+                    self.assertEqual(ran, [])
+                    self.assertEqual(handler.seen_late, [])
+                    self.assertEqual(len(late_posts), 1)
+                    self.assertTrue(late_posts[0].is_failed())
+                    self.assertEqual(len(post_excs), 1)
+                    self.assertIsInstance(post_excs[0], AbortedIoPipelineError)
+                    if not with_writer:
+                        self.assertEqual(len(late_futs), 1)
+                        self.assertTrue(late_futs[0].done())
+                        with self.assertRaises(AbortedIoPipelineError):
+                            late_futs[0].result()
+                finally:
+                    await drv.close()
+                    if sock is not None:
+                        sock.close()
+                    if peer is not None:
+                        peer.close()

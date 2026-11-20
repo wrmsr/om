@@ -96,6 +96,16 @@ class IoPipelineHttpObjectAggregator(
     def _final_type(self) -> type:
         raise NotImplementedError
 
+    # Whether _HeadState aborts immediately when Content-Length exceeds max_size. Responses disable this because a HEAD
+    # response carries the target's Content-Length with no body bytes; _BodyState still aborts on the first BodyData.
+    _eager_content_length_check: ta.ClassVar[bool] = True
+
+    def _select_body_mode(self, head: IoPipelineHttpMessageHead) -> IoPipelineHttpBodyMode:
+        return IoPipelineHttpBodyMode.select(
+            head.headers,
+            if_length_missing=self._if_content_length_missing,
+        )
+
     #
 
     def buffered_bytes(self) -> int:
@@ -184,10 +194,7 @@ class IoPipelineHttpObjectAggregator(
         ) -> ta.Optional[ta.Tuple['IoPipelineHttpObjectAggregator._State', ta.Optional[ta.Any]]]:
             if isinstance(msg, self._a._head_type):  # noqa
                 try:
-                    te = IoPipelineHttpBodyMode.select(
-                        msg.headers,
-                        if_length_missing=self._a._if_content_length_missing,  # noqa
-                    )
+                    te = self._a._select_body_mode(msg)  # noqa
                 except IoPipelineHttpBodyModeError as e:
                     return self._abort(out, f'Invalid Transfer-Encoding: {e.reason}')
 
@@ -195,13 +202,14 @@ class IoPipelineHttpObjectAggregator(
                     return (self._a._EndState(self._a, msg, b''), None)  # noqa
 
                 if (
+                        self._a._eager_content_length_check and  # noqa
                         te.length is not None and
                         (max_body := self._a._config.body_buffer.max_size) is not None and  # noqa
                         te.length > max_body
                 ):
                     return self._abort(out, FrameTooLargeByteStreamBufferError('aggregation body exceeded max_body'))
 
-                return (self._a._BodyState(self._a, msg), None)  # noqa
+                return (self._a._BodyState(self._a, msg, expected_length=te.length), None)  # noqa
 
             elif isinstance(msg, self._a._final_type):  # noqa
                 out.append(msg)
@@ -217,10 +225,13 @@ class IoPipelineHttpObjectAggregator(
                 self,
                 a: 'IoPipelineHttpObjectAggregator',
                 head: IoPipelineHttpMessageHead,
+                *,
+                expected_length: ta.Optional[int] = None,
         ) -> None:
             super().__init__(a)
 
             self._head = head
+            self._expected_length = expected_length
 
         _buf: ta.Optional[MutableByteStreamBuffer] = None
 
@@ -237,15 +248,24 @@ class IoPipelineHttpObjectAggregator(
                 out: ta.List[ta.Any],
         ) -> ta.Optional[ta.Tuple['IoPipelineHttpObjectAggregator._State', ta.Optional[ta.Any]]]:
             if isinstance(msg, self._a._body_data_type):  # noqa
+                # Check declared Content-Length before allocating a buffer (handles responses whose eager check was
+                # deferred for HEAD, while still rejecting oversized GET bodies on the first BodyData).
+                if (max_body := self._a._config.body_buffer.max_size) is not None:  # noqa
+                    if self._expected_length is not None and self._expected_length > max_body:
+                        self._buf = None
+                        return self._abort(
+                            out,
+                            FrameTooLargeByteStreamBufferError('aggregation body exceeded max_body'),
+                        )
+
                 if (buf := self._buf) is None:
                     buf = self._buf = SegmentedByteStreamBuffer(
                         max_size=self._a._config.body_buffer.max_size,  # noqa
                         chunk_size=self._a._config.body_buffer.chunk_size,  # noqa
                     )
 
-                # Only Content-Length bodies are pre-checked against max_size in _HeadState - a chunked (or eof-framed)
-                # body must be checked as it arrives, and must abort rather than let buf.write raise and leave a
-                # partial body behind to be emitted as a truncated Full message.
+                # Chunked (or eof-framed) bodies must be checked as they arrive, aborting rather than letting
+                # buf.write raise and leave a partial body behind to be emitted as a truncated Full message.
                 if (max_body := self._a._config.body_buffer.max_size) is not None:  # noqa
                     if len(buf) + len(msg.data) > max_body:
                         self._buf = None
@@ -331,10 +351,7 @@ class IoPipelineHttpObjectAggregator(
         ) -> ta.Optional[ta.Tuple['IoPipelineHttpObjectAggregator._State', ta.Optional[ta.Any]]]:
             if isinstance(msg, self._a._head_type):  # noqa
                 try:
-                    te = IoPipelineHttpBodyMode.select(
-                        msg.headers,
-                        if_length_missing=self._a._if_content_length_missing,  # noqa
-                    )
+                    te = self._a._select_body_mode(msg)  # noqa
                 except IoPipelineHttpBodyModeError as e:
                     return self._abort(out, f'Invalid Transfer-Encoding: {e.reason}')
 

@@ -10,6 +10,8 @@ from ....io.pipelines.flow.types import IoPipelineFlowMessages
 from ....io.streambufs.direct import DirectByteStreamBufferView
 from ....io.streambufs.utils import ByteStreamBuffers
 from ....lite.abstract import Abstract
+from ...headers import HttpHeaders
+from ..objects import FullIoPipelineHttpMessage
 from ..objects import IoPipelineHttpMessageBodyData
 from ..objects import IoPipelineHttpMessageEnd
 from ..objects import IoPipelineHttpMessageHead
@@ -73,19 +75,62 @@ class IoPipelineHttpObjectCompressor(
         ctx.feed_out(self._make_aborted('eof before end of message'))
         ctx.feed_out(msg)
 
-    def _on_outbound_head(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageHead) -> None:
-        if self._compressor is not None:
-            ctx.feed_out(self._make_aborted('unexpected message sequence'))
-            return
-
-        enc = msg.headers.lower.get('content-encoding', ())
+    def _find_coding(
+            self,
+            headers: HttpHeaders,
+    ) -> ta.Optional[ta.Callable[[], IoPiplineHttpCompressorCoding]]:
+        enc = headers.lower.get('content-encoding', ())
 
         for coding_name, coding in self._codings.items():
             if coding_name.lower() in enc:
-                self._compressor = coding()
-                break
+                return coding
+
+        return None
+
+    def _on_outbound_head(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageHead) -> None:
+        if self._compressor is not None:
+            # Reset on protocol sequence error so subsequent messages are not permanently wedged.
+            self._reset()
+            ctx.feed_out(self._make_aborted('unexpected message sequence'))
+            return
+
+        if (coding := self._find_coding(msg.headers)) is not None:
+            self._compressor = coding()
 
         ctx.feed_out(msg)
+
+    def _on_outbound_full(self, ctx: IoPipelineHandlerContext, msg: FullIoPipelineHttpMessage) -> None:
+        if self._compressor is not None:
+            self._reset()
+            ctx.feed_out(self._make_aborted('unexpected message sequence'))
+            return
+
+        if (coding := self._find_coding(msg.head.headers)) is None:
+            ctx.feed_out(msg)
+            return
+
+        # Compress aggregated Full messages as well and keep any declared Content-Length accurate.
+        z = coding()
+        parts: ta.List[bytes] = []
+        for mv in ByteStreamBuffers.iter_segments(msg.body):
+            if out := z.compress(mv):
+                parts.append(bytes(out))
+        if out := z.finish():
+            parts.append(bytes(out))
+        compressed = b''.join(parts)
+
+        head = msg.head
+        if 'content-length' in head.headers:
+            head = dc.replace(
+                ta.cast(ta.Any, head),
+                headers=head.headers.update(('Content-Length', str(len(compressed))), if_present='override'),
+            )
+
+        ctx.feed_out(self._make_full(
+            head,
+            DirectByteStreamBufferView(compressed) if compressed else b'',
+            msg.trailers or None,
+        ))
 
     def _on_outbound_body_data(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageBodyData) -> None:
         if (z := self._compressor) is None:
@@ -127,6 +172,9 @@ class IoPipelineHttpObjectCompressor(
         elif isinstance(msg, self._head_type):
             self._on_outbound_head(ctx, msg)
 
+        elif isinstance(msg, self._full_type):
+            self._on_outbound_full(ctx, msg)
+
         elif isinstance(msg, self._body_data_type):
             self._on_outbound_body_data(ctx, msg)
 
@@ -135,6 +183,11 @@ class IoPipelineHttpObjectCompressor(
 
         elif isinstance(msg, self._end_type):
             self._on_outbound_end(ctx, msg)
+
+        elif isinstance(msg, self._aborted_type):
+            # Upstream aborted mid-body: drop compressor state so later messages can proceed.
+            self._reset()
+            ctx.feed_out(msg)
 
         else:
             ctx.feed_out(msg)

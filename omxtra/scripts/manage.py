@@ -75,7 +75,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '27f874f7cd1cca8fd0592dbab1ff82032a1fcad5'
+__om_amalg_sha1__ = '4df30c25c531078c65c9b4e3c397f1ea89df61ad'
 
 
 def __om_amalg__():  # noqa
@@ -175,8 +175,8 @@ def __om_amalg__():  # noqa
             dict(sha1='ff50841e3d4ffa489e490d3403edd10b28485bff', mod='omcore.asyncs.asynclite.asyncio.events', path='../../omcore/asyncs/asynclite/asyncio/events.py'),  # noqa
             dict(sha1='17452fd7825201c915b8df4114941d283de54d2d', mod='omcore.asyncs.asynclite.eventpromises', path='../../omcore/asyncs/asynclite/eventpromises.py'),  # noqa
             dict(sha1='a68c9f698b62e02157af6864bfb14cdd5f22bc21', mod='omcore.io.pipelines.flow.stub', path='../../omcore/io/pipelines/flow/stub.py'),  # noqa
-            dict(sha1='db882a29d87bd38eb59c00140174a8af5e6325d1', mod='omcore.io.pipelines.sched.heap', path='../../omcore/io/pipelines/sched/heap.py'),  # noqa
-            dict(sha1='b3dff93590f5122ab3de67fc5ba0866d261ff9cf', mod='omcore.io.pipelines.sched.timeouts', path='../../omcore/io/pipelines/sched/timeouts.py'),  # noqa
+            dict(sha1='20f697a8c0e99b63fb730c96cd1790221233b833', mod='omcore.io.pipelines.sched.heap', path='../../omcore/io/pipelines/sched/heap.py'),  # noqa
+            dict(sha1='51d1c8e1754976d973564d6adeaeb9b33331c793', mod='omcore.io.pipelines.sched.timeouts', path='../../omcore/io/pipelines/sched/timeouts.py'),  # noqa
             dict(sha1='417d6f20e64dc1088a4a065a549b532bd9be389c', mod='omcore.io.streambufs.direct', path='../../omcore/io/streambufs/direct.py'),  # noqa
             dict(sha1='5189edf484ef79bcea92069a55e0aafbdcff83bf', mod='omcore.io.streambufs.scanning', path='../../omcore/io/streambufs/scanning.py'),  # noqa
             dict(sha1='c8602e0e197ef1133e7e8e248935ac745bfd46cb', mod='omcore.lite.configs', path='../../omcore/lite/configs.py'),  # noqa
@@ -205,14 +205,14 @@ def __om_amalg__():  # noqa
             dict(sha1='549a442c70a77204df4572bfbc8c26fe1e851164', mod='omxtra.manage.deploy.conf.manager', path='deploy/conf/manager.py'),  # noqa
             dict(sha1='231b79c72d13d8b9c625f26811cb23eacd940376', mod='omxtra.manage.deploy.paths.owners', path='deploy/paths/owners.py'),  # noqa
             dict(sha1='901e82ac03fb6ce967728a715f1785e6e591ff8b', mod='omcore.asyncs.asyncio.subprocesses', path='../../omcore/asyncs/asyncio/subprocesses.py'),  # noqa
-            dict(sha1='9f1d9c52817a484d62eee8ec49b2b5abaa14e3e6', mod='omcore.io.pipelines.bytes.buffers', path='../../omcore/io/pipelines/bytes/buffers.py'),  # noqa
+            dict(sha1='b1da16d8f85300b61efa8fbac40dcb881babd019', mod='omcore.io.pipelines.bytes.buffers', path='../../omcore/io/pipelines/bytes/buffers.py'),  # noqa
             dict(sha1='44f0ed191a654bf66dcb03b99bf81b4dbb680ef3', mod='omcore.io.pipelines.bytes.decoders', path='../../omcore/io/pipelines/bytes/decoders.py'),  # noqa
             dict(sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2', mod='omcore.logs.modules', path='../../omcore/logs/modules.py'),  # noqa
             dict(sha1='79bc16aced5f2d06988c2e67e37af14e06dd6c7a', mod='omdev.git.shallow', path='../../omdev/git/shallow.py'),  # noqa
             dict(sha1='a68c7e724c79f61cd693cab76b19babfb8c77165', mod='omxtra.manage.deploy.injection', path='deploy/injection.py'),  # noqa
             dict(sha1='bd2173801ead972fb58909eaa7468cf5a542a25c', mod='omxtra.manage.deploy.paths.manager', path='deploy/paths/manager.py'),  # noqa
             dict(sha1='50082ad6ff12d053f772f5b7554247a205922dc2', mod='omxtra.manage.deploy.tmp', path='deploy/tmp.py'),  # noqa
-            dict(sha1='6f1c8fc23d5b5cb8c80cddc0cc0190fab6e44712', mod='omcore.io.pipelines.drivers.asyncio.streams', path='../../omcore/io/pipelines/drivers/asyncio/streams.py'),  # noqa
+            dict(sha1='b3324b3c984b20f20af7b22a2d5512f7106f7651', mod='omcore.io.pipelines.drivers.asyncio.streams', path='../../omcore/io/pipelines/drivers/asyncio/streams.py'),  # noqa
             dict(sha1='aeac0f77a018bb20d9dfbdc8ecd5538da333e3d2', mod='omcore.rpc.dispatch', path='../../omcore/rpc/dispatch.py'),  # noqa
             dict(sha1='06854fb803e6ec9cbf87d4d76f44bccd180b5a54', mod='omcore.rpc.framing', path='../../omcore/rpc/framing.py'),  # noqa
             dict(sha1='e93a3ce2e3c836ca431ec638faa921a22b94aad8', mod='omcore.rpc.session', path='../../omcore/rpc/session.py'),  # noqa
@@ -17791,6 +17791,8 @@ class HeapIoPipelineSchedulingService(IoPipelineScheduling, IoPipelineService):
             self._seq,
         )
         self._seq += 1
+        # Pop cancelled roots first so _pending[0] accurately reflects whether handle is the new earliest live timer.
+        self._clear_cancelled()
         heapq.heappush(self._pending, (handle._deadline, handle._seq, handle))  # noqa
         self._live.add(handle)
 
@@ -18174,6 +18176,7 @@ class WriteTimeoutIoPipelineHandler(IoPipelineHandler):
         self._timeout_s = timeout_s
 
         self._handles: ta.Dict[int, IoPipelineScheduling.Handle] = {}
+        self._final_output_token: ta.Optional[int] = None
         self._active = False
         self._timed_out = False
 
@@ -18245,10 +18248,12 @@ class WriteTimeoutIoPipelineHandler(IoPipelineHandler):
 
             self._active = False
             self._timed_out = False
+            self._final_output_token = None
             self._cancel()
 
         elif isinstance(no, IoPipelineHandlerNotifications.Removed):
             self._active = False
+            self._final_output_token = None
             self._cancel()
 
     def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
@@ -18256,6 +18261,7 @@ class WriteTimeoutIoPipelineHandler(IoPipelineHandler):
             self._cancel()
             self._active = True
             self._timed_out = False
+            self._final_output_token = None
 
         ctx.feed_in(msg)
 
@@ -18269,11 +18275,17 @@ class WriteTimeoutIoPipelineHandler(IoPipelineHandler):
                     IoPipelineMessages.FinalOutput,
                 ))
         ):
-            self._track_fence(
-                ctx,
-                msg,
-                final_output=isinstance(msg, IoPipelineMessages.FinalOutput),
-            )
+            is_final = isinstance(msg, IoPipelineMessages.FinalOutput)
+            # Only the first FinalOutput owns the active write-timeout lifetime; a duplicate rejected synchronously by
+            # the terminal must not deactivate the handler or cancel the live first FinalOutput's timer.
+            if not is_final or self._final_output_token is None:
+                if is_final:
+                    self._final_output_token = id(msg)
+                self._track_fence(
+                    ctx,
+                    msg,
+                    final_output=is_final,
+                )
 
         ctx.feed_out(msg)
 
@@ -23293,6 +23305,7 @@ class OutboundBytesBufferIoPipelineHandler(OutboundBytesBufferingIoPipelineHandl
         self._downstream_writable = True
         self._self_writable = True
         self._announced_writable = True
+        self._output_ended = False
 
     #
 
@@ -23329,6 +23342,9 @@ class OutboundBytesBufferIoPipelineHandler(OutboundBytesBufferingIoPipelineHandl
 
         effective = self._downstream_writable and self._self_writable
         if effective != self._announced_writable:
+            if effective and self._output_ended:
+                # Never announce ReadyForOutput once ShutdownOutput or FinalOutput has ended ordinary output.
+                return
             self._announced_writable = effective
             ctx.feed_in(
                 IoPipelineFlowMessages.ReadyForOutput() if effective
@@ -23366,6 +23382,7 @@ class OutboundBytesBufferIoPipelineHandler(OutboundBytesBufferingIoPipelineHandl
         if isinstance(msg, (IoPipelineMessages.FinalOutput, IoPipelineMessages.ShutdownOutput)):
             # Draining here can leave us writable again, but announcing that would invite a reentrant write which
             # could only land after the fence - and be rejected, since no ordinary output may follow either.
+            self._output_ended = True
             self._flush(ctx, no_announce_writability=True)
             ctx.feed_out(msg)
 
@@ -24983,6 +25000,9 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
                 cmd.msg.set_succeeded(result)
 
     async def _handle_command_await_failed(self, cmd: _AwaitFailedCommand) -> None:
+        if cmd.msg.is_done():
+            # Already completed/aborted by its producer while the failure command was queued.
+            return
         with self._pipeline.enter():
             cmd.msg.set_failed(cmd.exc)
 
@@ -24990,6 +25010,12 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
             self,
             msg: AsyncIoPipelineMessages.Await,
     ) -> ta.Optional[str]:
+        if msg.is_done():
+            # Producer already completed/aborted this Await before the driver polled it; close any unawaited coroutine.
+            if asyncio.iscoroutine(msg.obj):
+                msg.obj.close()
+            return None
+
         loop = asyncio.get_running_loop()
 
         # A coroutine becomes a task the driver creates, and so owns: it is cancelled if the Await is failed by its
@@ -25107,7 +25133,7 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
 
         if self._writer is None or self._drainer_task is None:
             await self._complete_graceful_close()
-            return None
+            return 'stop'
 
         # A drain still pending completes first, on its own; the drainer task then performs the close.
         self._request_close()
@@ -25195,9 +25221,10 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
                     size <= self._config.write_low_watermark or
                     (drained and size <= self._config.write_high_watermark)
                 ) and
-                # Never announced once ShutdownOutput reached the terminal - not just once the transport performed it -
-                # since from then on nothing may produce ordinary output.
-                not self._pipeline.saw_shutdown_output
+                # Never announced once ShutdownOutput or FinalOutput reached the terminal - not just once the transport
+                # performed it - since from then on nothing may produce ordinary output.
+                not self._pipeline.saw_shutdown_output and
+                not self._pipeline.saw_final_output
         ):
             self._output_writable = True
             self._pipeline.feed_in(IoPipelineFlowMessages.ReadyForOutput())
@@ -25354,6 +25381,10 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
             # loop timer is (re)armed for the earliest deadline before any wait.
             self._arm_timer()
 
+            # Stop immediately once graceful close finished rather than executing commands queued ahead of shutdown.
+            if self._shutdown_event.is_set():
+                break
+
             try:
                 cmd = self._command_queue.get_nowait()
             except asyncio.QueueEmpty:
@@ -25375,14 +25406,27 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
                 break
 
             await self._handle_command(cmd)
+            if self._shutdown_event.is_set():
+                break
 
         try:
-            pipeline.destroy()
+            if pipeline.is_ready:
+                pipeline.destroy()
+            self._state = IoPipelineDriverState.CLOSED
+            self._disarm_timer()
+            # Fail any queued posts or pending feed_in futures that did not run before graceful close.
+            self._drain_command_queue(AbortedIoPipelineError('Driver closed'))
         except BaseException:
             await self._fail()
             raise
 
-        self._state = IoPipelineDriverState.CLOSED
+        tasks = [
+            *self._cancel_tasks_now(self._read_task, self._drainer_task),
+            *self._cancel_created_awaits_now(),
+        ]
+        if tasks:
+            await self._wait_cancelled(tasks)
+
         return None
 
     @async_exception_logging(alog)

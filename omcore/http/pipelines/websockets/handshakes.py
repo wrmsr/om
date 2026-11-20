@@ -97,8 +97,16 @@ class IoPipelineWebsocketServerUpgradeHandler(IoPipelineHandler):
             ctx.feed_out(resp)
 
             self._upgraded = True
-            ctx.defer_no_context(lambda: self._remove_http_handlers(ctx))
+            # Use a staticmethod callback to avoid capturing ctx in a closure (ref cycle).
+            ctx.defer(IoPipelineWebsocketServerUpgradeHandler._remove_http_handlers)
             ctx.feed_in(IoPipelineWebsocketOpen(subprotocol=chosen_proto))
+
+            # Switch any request decoder directly into tunnel mode and flush bytes coalesced behind the upgrade request
+            # (or arriving before deferred handler removal runs) straight to the WebSocket frame decoder.
+            for ref in ctx.pipeline.find_handlers_of_type(IoPipelineHttpRequestDecoder):
+                if (trailing := ref.handler.enter_tunnel()) is not None:
+                    ctx.feed_in(trailing)
+
             return
 
         elif isinstance(msg, FullIoPipelineHttpRequest):
@@ -126,7 +134,8 @@ class IoPipelineWebsocketServerUpgradeHandler(IoPipelineHandler):
             return False
         return True
 
-    def _remove_http_handlers(self, ctx: IoPipelineHandlerContext) -> None:
+    @staticmethod
+    def _remove_http_handlers(ctx: IoPipelineHandlerContext) -> None:
         for ty in (
                 IoPipelineHttpRequestDecoder,
                 IoPipelineHttpResponseEncoder,
@@ -194,7 +203,8 @@ class IoPipelineWebsocketClientUpgradeHandler(IoPipelineHandler):
 
             self._upgraded = True
             self._awaiting_upgrade_end = True
-            ctx.defer_no_context(lambda: self._remove_http_handlers(ctx))
+            # Use a staticmethod callback to avoid capturing ctx in a closure (ref cycle).
+            ctx.defer(IoPipelineWebsocketClientUpgradeHandler._remove_http_handlers)
             ctx.feed_in(IoPipelineWebsocketOpen(subprotocol=chosen_proto))
             return
 
@@ -240,7 +250,8 @@ class IoPipelineWebsocketClientUpgradeHandler(IoPipelineHandler):
             version=head.version,
         )
 
-    def _remove_http_handlers(self, ctx: IoPipelineHandlerContext) -> None:
+    @staticmethod
+    def _remove_http_handlers(ctx: IoPipelineHandlerContext) -> None:
         for ty in (
                 IoPipelineHttpResponseDecoder,
                 IoPipelineHttpRequestEncoder,

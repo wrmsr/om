@@ -119,6 +119,18 @@ class IoPipelineHttpResponseAggregatorDecoder(
 ):
     _if_content_length_missing: ta.Final = 'eof'
 
+    # HEAD responses carry Content-Length for a body that is never sent; defer the limit check until BodyData arrives.
+    _eager_content_length_check: ta.ClassVar[bool] = False
+
+    def _select_body_mode(self, head: IoPipelineHttpMessageHead) -> IoPipelineHttpBodyMode:
+        head = check.isinstance(head, IoPipelineHttpResponseHead)
+
+        # Match IoPipelineHttpResponseDecoder: 1xx, 204, and 304 responses never carry a body regardless of headers.
+        if 100 <= head.status < 200 or head.status in (204, 304):
+            return IoPipelineHttpBodyMode('empty', None)
+
+        return super()._select_body_mode(head)
+
 
 ##
 

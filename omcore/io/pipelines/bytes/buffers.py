@@ -51,6 +51,7 @@ class OutboundBytesBufferIoPipelineHandler(OutboundBytesBufferingIoPipelineHandl
         self._downstream_writable = True
         self._self_writable = True
         self._announced_writable = True
+        self._output_ended = False
 
     #
 
@@ -87,6 +88,9 @@ class OutboundBytesBufferIoPipelineHandler(OutboundBytesBufferingIoPipelineHandl
 
         effective = self._downstream_writable and self._self_writable
         if effective != self._announced_writable:
+            if effective and self._output_ended:
+                # Never announce ReadyForOutput once ShutdownOutput or FinalOutput has ended ordinary output.
+                return
             self._announced_writable = effective
             ctx.feed_in(
                 IoPipelineFlowMessages.ReadyForOutput() if effective
@@ -124,6 +128,7 @@ class OutboundBytesBufferIoPipelineHandler(OutboundBytesBufferingIoPipelineHandl
         if isinstance(msg, (IoPipelineMessages.FinalOutput, IoPipelineMessages.ShutdownOutput)):
             # Draining here can leave us writable again, but announcing that would invite a reentrant write which
             # could only land after the fence - and be rejected, since no ordinary output may follow either.
+            self._output_ended = True
             self._flush(ctx, no_announce_writability=True)
             ctx.feed_out(msg)
 

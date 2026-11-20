@@ -24,6 +24,7 @@ from .....lite.namespaces import NamespaceClass
 from .....logs.modules import get_module_logger
 from ....headers import HttpHeaders
 from ...requests import FullIoPipelineHttpRequest
+from ...requests import IoPipelineHttpRequestAborted
 from ...requests import IoPipelineHttpRequestBodyData
 from ...requests import IoPipelineHttpRequestEnd
 from ...requests import IoPipelineHttpRequestHead
@@ -150,8 +151,9 @@ class _IoPipelineAsgiDriver:
         self._server = server
         self._client = client
 
-        self._read_q: collections.deque[BytesLike] = collections.deque()
+        self._read_q: collections.deque[ta.Tuple[BytesLike, bool]] = collections.deque()
         self._receiving_fut: ta.Optional[_IoPipelineAsgiFuture] = None
+        self._pre_receive_state: _IoPipelineAsgiDriver.State = _IoPipelineAsgiDriver.State.RUNNING
         self._disconnected = False
 
         self._output_writable = output_writable
@@ -161,7 +163,7 @@ class _IoPipelineAsgiDriver:
         if isinstance(req, FullIoPipelineHttpRequest):
             self._head = req.head
             self._is_full_req = True
-            self._read_q.append(ByteStreamBuffers.to_bytes(req.body))
+            self._read_q.append((ByteStreamBuffers.to_bytes(req.body), False))
         elif isinstance(req, IoPipelineHttpRequestHead):
             self._head = req
             self._is_full_req = False
@@ -378,7 +380,8 @@ class _IoPipelineAsgiDriver:
         f.result = event
         f.done = True
 
-        self._state = _IoPipelineAsgiDriver.State.RUNNING
+        # Restore the pre-receive state (RUNNING or RESPONSE_STARTED) so receive() after response.start works cleanly.
+        self._state = self._pre_receive_state
 
         self._ctx.defer_no_context(self.step)
 
@@ -399,25 +402,35 @@ class _IoPipelineAsgiDriver:
 
             return
 
+        if isinstance(msg, IoPipelineHttpRequestAborted):
+            # Treat a mid-request abort like peer disconnect so it does not fall through to the terminal.
+            self._disconnected = True
+
+            if self._state == _IoPipelineAsgiDriver.State.RECEIVING:
+                self._resume_receive(self._disconnect_event())
+
+            return
+
         if isinstance(msg, (IoPipelineHttpRequestBodyData, IoPipelineHttpRequestEnd)):
             check.state(not self._is_full_req)
 
-            d: BytesLike
+            item: ta.Tuple[BytesLike, bool]
             if isinstance(msg, IoPipelineHttpRequestBodyData):
-                d = ByteStreamBuffers.to_bytes(msg.data)
+                item = (ByteStreamBuffers.to_bytes(msg.data), True)
             else:
-                d = b''
+                item = (b'', False)
 
             if self._state == _IoPipelineAsgiDriver.State.RECEIVING:
+                body, more_body = item
                 self._resume_receive({
                     'type': 'http.request',
-                    'body': d,
-                    'more_body': len(d) > 0,
+                    'body': body,
+                    'more_body': more_body,
                 })
 
             else:
                 # raise RuntimeError(f'Invalid state: {self._state!r}')
-                self._read_q.append(d)
+                self._read_q.append(item)
 
             return
 
@@ -495,13 +508,17 @@ class _IoPipelineAsgiDriver:
                 raise RuntimeError(f'ASGI app returned without completing a response: {self._state!r}')
             check.state(gv.v is None)
 
-            out.append(IoPipelineMessages.FinalOutput())
+            if not self._ctx.pipeline.saw_final_output:
+                out.append(IoPipelineMessages.FinalOutput())
 
             self.close()
 
             return 'stop'
 
-        if self._state == _IoPipelineAsgiDriver.State.RUNNING:
+        if self._state in (
+                _IoPipelineAsgiDriver.State.RUNNING,
+                _IoPipelineAsgiDriver.State.RESPONSE_STARTED,
+        ):
             check.state(gv.k == 'y')
             f = check.isinstance(gv.v, _IoPipelineAsgiFuture)
 
@@ -509,12 +526,12 @@ class _IoPipelineAsgiDriver:
                 check.none(self._receiving_fut)
 
                 if len(self._read_q):
-                    d = self._read_q.popleft()
+                    body, more_body = self._read_q.popleft()
 
                     f.result = {
                         'type': 'http.request',
-                        'body': d,
-                        'more_body': len(d) > 0 and not self._is_full_req,
+                        'body': body,
+                        'more_body': more_body,
                     }
                     f.done = True
 
@@ -529,6 +546,8 @@ class _IoPipelineAsgiDriver:
                 else:
                     self._receiving_fut = f
 
+                    # Preserve RUNNING vs RESPONSE_STARTED across the wait for input/disconnect.
+                    self._pre_receive_state = self._state
                     self._state = _IoPipelineAsgiDriver.State.RECEIVING
 
                     IoPipelineFlow.maybe_ready_for_input(self._ctx)
@@ -639,6 +658,12 @@ class AsgiIoPipelineHandler(IoPipelineHandler):
         if isinstance(msg, IoPipelineMessages.InitialInput):
             ctx.feed_in(msg)
             IoPipelineFlow.maybe_ready_for_input(ctx)
+            return
+
+        if isinstance(msg, IoPipelineHttpRequestAborted):
+            # Consume aborted requests instead of letting them hit the terminal; close output if still open.
+            if not ctx.pipeline.saw_final_output:
+                ctx.feed_final_output()
             return
 
         if isinstance(msg, (FullIoPipelineHttpRequest, IoPipelineHttpRequestHead)):

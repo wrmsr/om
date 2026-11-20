@@ -364,6 +364,7 @@ class WriteTimeoutIoPipelineHandler(IoPipelineHandler):
         self._timeout_s = timeout_s
 
         self._handles: ta.Dict[int, IoPipelineScheduling.Handle] = {}
+        self._final_output_token: ta.Optional[int] = None
         self._active = False
         self._timed_out = False
 
@@ -435,10 +436,12 @@ class WriteTimeoutIoPipelineHandler(IoPipelineHandler):
 
             self._active = False
             self._timed_out = False
+            self._final_output_token = None
             self._cancel()
 
         elif isinstance(no, IoPipelineHandlerNotifications.Removed):
             self._active = False
+            self._final_output_token = None
             self._cancel()
 
     def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
@@ -446,6 +449,7 @@ class WriteTimeoutIoPipelineHandler(IoPipelineHandler):
             self._cancel()
             self._active = True
             self._timed_out = False
+            self._final_output_token = None
 
         ctx.feed_in(msg)
 
@@ -459,10 +463,16 @@ class WriteTimeoutIoPipelineHandler(IoPipelineHandler):
                     IoPipelineMessages.FinalOutput,
                 ))
         ):
-            self._track_fence(
-                ctx,
-                msg,
-                final_output=isinstance(msg, IoPipelineMessages.FinalOutput),
-            )
+            is_final = isinstance(msg, IoPipelineMessages.FinalOutput)
+            # Only the first FinalOutput owns the active write-timeout lifetime; a duplicate rejected synchronously by
+            # the terminal must not deactivate the handler or cancel the live first FinalOutput's timer.
+            if not is_final or self._final_output_token is None:
+                if is_final:
+                    self._final_output_token = id(msg)
+                self._track_fence(
+                    ctx,
+                    msg,
+                    final_output=is_final,
+                )
 
         ctx.feed_out(msg)

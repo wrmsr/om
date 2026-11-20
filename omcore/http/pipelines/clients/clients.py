@@ -12,6 +12,7 @@ from ....lite.check import check
 from ....lite.namespaces import NamespaceClass
 from ..requests import FullIoPipelineHttpRequest
 from ..responses import FullIoPipelineHttpResponse
+from ..responses import IoPipelineHttpResponseAborted
 from ..responses import IoPipelineHttpResponseEnd
 from ..responses import IoPipelineHttpResponseHead
 from ..responses import IoPipelineHttpResponseObject
@@ -59,8 +60,10 @@ class IoPipelineHttpClientHandler(IoPipelineHandler):
             self._request = None
             self._response_is_final = True
 
-            ctx.feed_out(msg.exc)
-            ctx.feed_final_output()
+            # Guard outbound emission: FinalOutput may already have passed on an earlier error or close.
+            if not ctx.pipeline.saw_final_output:
+                ctx.feed_out(msg.exc)
+                ctx.feed_final_output()
 
             return
 
@@ -100,6 +103,11 @@ class IoPipelineHttpClientHandler(IoPipelineHandler):
                 else:
                     self._response_is_final = True
 
+            elif isinstance(msg, IoPipelineHttpResponseAborted):
+                # An aborted response terminates the exchange just like a final End.
+                self._request = None
+                self._response_is_final = True
+
             return
 
         if isinstance(msg, IoPipelineFlowMessages.FlushInput):
@@ -107,15 +115,17 @@ class IoPipelineHttpClientHandler(IoPipelineHandler):
                 ctx.defer(IoPipelineFlow.maybe_ready_for_input)
 
         if isinstance(msg, (IoPipelineMessages.FinalInput, IoPipelineHttpClientMessages.Close)):
-            ctx.feed_out(IoPipelineHttpClientMessages.Output(msg, request=self._request))
-
+            req = self._request
             self._request = None
             self._response_is_final = True
 
+            # Always propagate FinalInput, even if an earlier Error/Close already emitted FinalOutput.
             if isinstance(msg, IoPipelineMessages.FinalInput):
                 ctx.feed_in(msg)
 
-            ctx.feed_out(IoPipelineMessages.FinalOutput())
+            if not ctx.pipeline.saw_final_output:
+                ctx.feed_out(IoPipelineHttpClientMessages.Output(msg, request=req))
+                ctx.feed_final_output()
 
             return
 

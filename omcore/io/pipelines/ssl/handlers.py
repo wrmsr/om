@@ -282,7 +282,11 @@ class SslIoPipelineHandler(
     _shutdown_output_requested = False  # app ShutdownOutput received
     _pending_shutdown_output: ta.Any = None
     _shutdown_output_sent = False
+    _shutdown_output_abandoned = False
     _close_notify_sent = False    # unwrap() has generated our close_notify
+    _shutdown_timed_out = False
+    _dropped_output_bytes = False
+    _closed_error: ta.Optional[BaseException] = None
 
     # Fences arriving behind a retained ShutdownOutput / FinalOutput, released right after it. Holding rather than
     # rejecting them here keeps outbound order intact, so the pipeline terminal applies its usual rules to them (a
@@ -417,6 +421,18 @@ class SslIoPipelineHandler(
         self._after_shutdown_output = None
         self._after_final_output = None
 
+    def _fail_fences(self, fences: ta.Sequence[ta.Any], exc: BaseException) -> None:
+        first_exc: ta.Optional[BaseException] = None
+        for fence in fences:
+            if isinstance(fence, IoPipelineMessages.Completable) and not fence.is_done():
+                try:
+                    fence.set_failed(exc)
+                except BaseException as e:  # noqa
+                    if first_exc is None:
+                        first_exc = e
+        if first_exc is not None:
+            raise first_exc
+
     def _abandon_output(self, exc: BaseException) -> None:
         """
         Fails the fences whose output can no longer be performed - the plaintext queued ahead of them was discarded
@@ -434,26 +450,41 @@ class SslIoPipelineHandler(
         if (so := self._pending_shutdown_output) is not None:
             self._pending_shutdown_output = None
             self._shutdown_output_sent = True  # Disposed of: later fences are no longer held behind it.
+            self._shutdown_output_abandoned = True
             fences.append(so)
 
         held, self._after_shutdown_output = self._after_shutdown_output, None
         fences.extend(held or ())
 
-        first_exc: ta.Optional[BaseException] = None
-        for fence in fences:
-            if isinstance(fence, IoPipelineMessages.Completable) and not fence.is_done():
-                try:
-                    fence.set_failed(exc)
-                except BaseException as e:  # noqa
-                    if first_exc is None:
-                        first_exc = e
-        if first_exc is not None:
-            raise first_exc
+        self._fail_fences(fences, exc)
+
+    def _abandon_shutdown_output(self, exc: BaseException) -> None:
+        # Half-close failed without emitting close_notify; fail ShutdownOutput and fences held behind it locally.
+        fences: ta.List[ta.Any] = []
+        if (so := self._pending_shutdown_output) is not None:
+            self._pending_shutdown_output = None
+            self._shutdown_output_sent = True
+            self._shutdown_output_abandoned = True
+            fences.append(so)
+
+        held, self._after_shutdown_output = self._after_shutdown_output, None
+        fences.extend(held or ())
+
+        self._fail_fences(fences, exc)
 
     def _shutdown_timeout_active(self) -> bool:
         # A half-closed session may legitimately keep receiving for a long time; only an app close bounds the wait for
-        # the peer's close_notify.
-        return self._state == self.State.SHUTTING_DOWN and self._close_requested
+        # the peer's close_notify or for an unread shutdown backlog still holding FinalOutput.
+        if not self._close_requested or self._final_output_sent or self._shutdown_timed_out:
+            return False
+        return (
+            self._state == self.State.SHUTTING_DOWN or
+            (
+                self._state == self.State.CLOSED and
+                self._pending_final_output is not None and
+                bool(self._plaintext_backlog)
+            )
+        )
 
     def _sync_state_timeouts(self, ctx: IoPipelineHandlerContext) -> None:
         if self._state == self.State.HANDSHAKE and self._config.handshake_timeout_s is not None:
@@ -489,43 +520,56 @@ class SslIoPipelineHandler(
             self._handshake_timeout_handle = None
             operation = 'handshake'
             timeout_s = check.not_none(self._config.handshake_timeout_s)
+            if self._state != self.State.HANDSHAKE:
+                return
 
         elif state == self.State.SHUTTING_DOWN:
             self._shutdown_timeout_handle = None
             operation = 'shutdown'
             timeout_s = check.not_none(self._config.shutdown_timeout_s)
+            if not self._shutdown_timeout_active():
+                return
+            self._shutdown_timed_out = True
 
         else:  # pragma: no cover
             raise ValueError(state)
 
-        if self._state != state:
-            return
-
+        exc = TimeoutIoPipelineError(f'TLS {operation} timed out after {timeout_s:g} seconds')
         self._state = self.State.CLOSED
+        if self._closed_error is None:
+            self._closed_error = exc
         self._write_q.clear()
         self._write_q_bytes = 0
-        self._sync_state_timeouts(ctx)
+        self._cancel_timeouts()
 
-        exc = TimeoutIoPipelineError(f'TLS {operation} timed out after {timeout_s:g} seconds')
+        abandon_exc: ta.Optional[BaseException] = None
+        if state == self.State.HANDSHAKE:
+            # Abandon pending fences before delivering Error so a reentrant FinalOutput cannot forward discarded
+            # FlushOutput or ShutdownOutput messages as succeeded.
+            try:
+                self._abandon_output(exc)
+            except BaseException as e:  # noqa
+                abandon_exc = e
+
         try:
-            ctx.feed_in(IoPipelineMessages.Error(exc, handler=ctx.ref))
+            if not self._is_removed():
+                ctx.feed_in(IoPipelineMessages.Error(exc, handler=ctx.ref))
 
         finally:
             try:
-                if state == self.State.HANDSHAKE:
-                    # No session was established: the plaintext queued ahead of the fences was discarded and there is
-                    # nothing to half-close, so they report that rather than success.
-                    self._abandon_output(exc)
-
-                elif self._pending_shutdown_output is not None:
+                if (
+                        state != self.State.HANDSHAKE and
+                        not self._is_removed() and
+                        self._pending_shutdown_output is not None
+                ):
                     # A half-close still waiting on the peer's close_notify is released ahead of the close, so it is
                     # not stranded.
                     self._send_shutdown_output(ctx)
 
             finally:
-                # An inbound error handler may synchronously close the pipeline. Prefer that FinalOutput when it did;
-                # otherwise release the one already owned by shutdown, or synthesize a close for a failed handshake.
-                if not self._final_output_sent:
+                # An inbound error handler may synchronously close or remove/destroy the pipeline. Skip outbound
+                # teardown once removed; otherwise release the owned close or synthesize one for a failed handshake.
+                if not self._is_removed() and not self._final_output_sent:
                     if self._pending_final_output is not None:
                         fo = self._pending_final_output
                         self._pending_final_output = None
@@ -533,6 +577,9 @@ class SslIoPipelineHandler(
                         fo = IoPipelineMessages.FinalOutput()
                     self._close_requested = True
                     self._send_final_output(ctx, fo)
+
+        if abandon_exc is not None:
+            raise abandon_exc
 
     ##
     # Phase 1: APPLY - entry points classify, mutate, and call _turn(). Nothing else.
@@ -617,6 +664,11 @@ class SslIoPipelineHandler(
                 return
             if self._hold_behind_retained_fence(ctx, msg):
                 return
+            if self._state == self.State.CLOSED and (self._closed_error is not None or self._dropped_output_bytes):
+                # Session failed or discarded writes in CLOSED state; never forward FlushOutput to succeed.
+                if not msg.is_done():
+                    msg.set_failed(self._closed_error or ssl.SSLEOFError('TLS session is closed'))
+                return
             self._pending_flush_outputs.append(msg)
             self._turn(ctx)
             return
@@ -660,7 +712,13 @@ class SslIoPipelineHandler(
         if self._shutdown_output_requested:
             if self._shutdown_output_sent:
                 if isinstance(msg, IoPipelineMessages.ShutdownOutput):
-                    ctx.feed_out(msg)
+                    if self._shutdown_output_abandoned:
+                        # The earlier ShutdownOutput failed locally and never reached the terminal; reject locally too.
+                        ctx.mark_propagated('outbound', msg)
+                        if not msg.is_done():
+                            msg.set_failed(SawShutdownOutputIoPipelineError('Duplicate ShutdownOutput on closed TLS'))
+                    else:
+                        ctx.feed_out(msg)
                     return True
                 return False
             if isinstance(msg, IoPipelineMessages.MustPropagate):
@@ -682,6 +740,8 @@ class SslIoPipelineHandler(
 
     def _send_final_output(self, ctx: IoPipelineHandlerContext, fo: IoPipelineMessages.FinalOutput) -> None:
         self._final_output_sent = True
+        self._cancel_timeout(self._shutdown_timeout_handle)
+        self._shutdown_timeout_handle = None
         ctx.feed_out(fo)
 
         held, self._after_final_output = self._after_final_output, None
@@ -698,6 +758,14 @@ class SslIoPipelineHandler(
 
         ctx.mark_propagated('outbound', msg)  # We own its delivery now; released by _emit() after close_notify.
         self._ensure_state()
+        if self._state == self.State.CLOSED:
+            # Session is already closed with no live TLS engine to send close_notify; fail instead of forwarding.
+            self._shutdown_output_requested = True
+            self._shutdown_output_sent = True
+            self._shutdown_output_abandoned = True
+            if not msg.is_done():
+                msg.set_failed(self._closed_error or ssl.SSLEOFError('TLS session is closed'))
+            return
         self._shutdown_output_requested = True
         self._pending_shutdown_output = msg
         self._after_shutdown_output = []
@@ -710,7 +778,8 @@ class SslIoPipelineHandler(
             raise SawShutdownOutputIoPipelineError('Write after ShutdownOutput on SslIoPipelineHandler')
         self._ensure_state()
         if self._state == self.State.CLOSED:
-            # Peer-initiated teardown racing an in-flight app write; the app will see FinalInput shortly.
+            # Session already closed (e.g. failed handshake or fatal read error); flag so later FlushOutput fails.
+            self._dropped_output_bytes = True
             return
         for seg in ByteStreamBuffers.iter_segments(msg):
             mv = memoryview(seg)
@@ -757,8 +826,39 @@ class SslIoPipelineHandler(
                     # Handshake/write failures follow the original failure path. Read failures are caught at the
                     # read boundary so an authenticated prefix cannot be lost before emission.
                     self._state = self.State.CLOSED
-                    self._sync_state_timeouts(ctx)
-                    self._abandon_output(e)
+                    if self._closed_error is None:
+                        self._closed_error = e
+                    self._staged_plaintext_bytes = 0
+                    self._cancel_timeouts()
+                    abandon_exc: ta.Optional[BaseException] = None
+                    try:
+                        self._abandon_output(e)
+                    except BaseException as ae:  # noqa
+                        abandon_exc = ae
+                    try:
+                        # Emit any authenticated plaintext decrypted in an earlier pump iteration before raising, and
+                        # release any retained FinalOutput so the close is not stranded.
+                        if in_chunks and not self._is_removed():
+                            self._delivered_plaintext = True
+                            ctx.feed_in(SegmentedByteStreamBufferView([memoryview(b) for b in in_chunks]))
+                            if (
+                                    not self._is_removed() and
+                                    self._delivered_plaintext and
+                                    (self._flush_in_seen or self._read_satisfied)
+                            ):
+                                self._delivered_plaintext = False
+                                self._flush_in_seen = False
+                                self._read_satisfied = False
+                                ctx.feed_in(IoPipelineFlowMessages.FlushInput())
+                    finally:
+                        if not self._is_removed() and self._pending_final_output is not None:
+                            fo = self._pending_final_output
+                            self._pending_final_output = None
+                            self._send_final_output(ctx, fo)
+                    if abandon_exc is not None:
+                        raise abandon_exc from e
+                    if self._is_removed():
+                        return
                     raise
                 if (hf := self._handshake_failure) is not None:
                     self._handshake_failure = None
@@ -848,6 +948,8 @@ class SslIoPipelineHandler(
                 self._plaintext_eof = True
                 self._state = self.State.CLOSED
                 self._handshake_failure = ssl.SSLEOFError('transport closed during the TLS handshake')
+                if self._closed_error is None:
+                    self._closed_error = self._handshake_failure
                 return True
             raise
 
@@ -875,7 +977,7 @@ class SslIoPipelineHandler(
             mv = self._write_q[0]
             self._read_starved = False
             try:
-                self._ssl_obj.write(mv)
+                written = self._ssl_obj.write(mv)
 
             except ssl.SSLWantReadError:
                 # Renegotiation / KeyUpdate: the engine needs peer bytes before accepting more plaintext. CRITICAL: the
@@ -890,6 +992,15 @@ class SslIoPipelineHandler(
                 # Shouldn't happen with a MemoryBIO; drain and retry, bailing if that made no room.
                 if not self._collect_ciphertext(out_chunks):
                     raise
+                progressed = True
+                continue
+
+            # Respect short write counts (e.g. SSL_MODE_ENABLE_PARTIAL_WRITE) by retaining the unwritten suffix.
+            if written <= 0:
+                raise ssl.SSLError('SSLObject.write returned non-positive byte count')
+            if written < mv.nbytes:
+                self._write_q[0] = mv[written:]
+                self._write_q_bytes -= written
                 progressed = True
                 continue
 
@@ -925,6 +1036,7 @@ class SslIoPipelineHandler(
         while True:
             if self._yield_read():
                 return None
+            out_pending = self._out_bio.pending
             try:
                 b = self._ssl_obj.read(size)
 
@@ -955,9 +1067,17 @@ class SslIoPipelineHandler(
                     self._plaintext_eof = True
                     return b''
                 self._pending_read_error = e.with_traceback(None)
+                if self._closed_error is None:
+                    self._closed_error = self._pending_read_error
                 self._state = self.State.CLOSED
                 self._plaintext_eof = False
                 return None
+
+            finally:
+                # SSL_read can emit TLS control records (KeyUpdate, post-handshake auth, renegotiation, alerts) into
+                # out_bio without raising SSLWantWriteError; mark control activity so buffered transports flush them.
+                if self._out_bio.pending > out_pending:
+                    self._control_activity = True
 
             if not b:
                 self._plaintext_eof = True
@@ -1074,8 +1194,10 @@ class SslIoPipelineHandler(
             # ordinary input EOF whenever the peer finishes.
             pass
 
-        except ssl.SSLError:
+        except ssl.SSLError as e:
             self._state = self.State.CLOSED
+            if self._closed_error is None:
+                self._closed_error = e.with_traceback(None)
             self._control_activity = True
             return True
 
@@ -1131,10 +1253,12 @@ class SslIoPipelineHandler(
                 return True
             return False
 
-        except ssl.SSLError:
+        except ssl.SSLError as e:
             # Peer misbehaved during shutdown or the engine is in a weird state; nothing more can be done gracefully
             # either way.
             self._state = self.State.CLOSED
+            if self._closed_error is None:
+                self._closed_error = e.with_traceback(None)
             self._control_activity = True
             return True
 
@@ -1219,7 +1343,10 @@ class SslIoPipelineHandler(
                 not self._pending_flush_outputs and
                 (self._close_notify_sent or self._state == self.State.CLOSED)
         ):
-            self._send_shutdown_output(ctx)
+            if self._close_notify_sent:
+                self._send_shutdown_output(ctx)
+            else:
+                self._abandon_shutdown_output(self._closed_error or ssl.SSLEOFError('TLS shutdown failed'))
             if self._is_removed():
                 return
 

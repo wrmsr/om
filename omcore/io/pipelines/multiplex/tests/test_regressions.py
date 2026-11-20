@@ -14,6 +14,7 @@ import unittest
 import weakref
 
 from .....testing.unittest.asyncs import AsyncioIsolatedAsyncTestCase
+from ...asyncs import AsyncIoPipelineMessages
 from ...core import IoPipeline
 from ...core import IoPipelineHandler
 from ...core import IoPipelineMessages
@@ -714,3 +715,129 @@ class TestDeferredYieldsAndTimers(AsyncioIsolatedAsyncTestCase):
                         driver.close()
                     sock.close()
                     peer.close()
+
+
+class TestAdapterErrorAndDeadStreamEdges(unittest.TestCase):
+    # Previously, several adapter error paths left MultiplexIoPipelineHandler in inconsistent states:
+    #  1) _open_local registered _pending_opens / _pending_establish AFTER _guard(encode_open), so an encode_open
+    #     exception failed the connection without finding or failing the OpenStream completable.
+    #  2) _emit_unit (fence.kind == 'final') called stream.finish_local() unconditionally after _guard(encode_finish),
+    #     crashing with StateIoPipelineError if encode_finish failed the connection and already reset the stream.
+    #  3) _emit_unit (split_message) ran check.state(0 < head_cost <= limit) after _guard(message_cost, default=0),
+    #     crashing with StateIoPipelineError instead of failing gracefully when message_cost raised.
+    #  4) _emit drained _child_awaits unconditionally even after a stream died earlier in the turn, forwarding an
+    #     already-aborted child Await to the parent driver.
+
+    def test_encode_open_raising_fails_open_stream_completable(self) -> None:
+        for explicit_open in (False, True):
+            with self.subTest(explicit_open=explicit_open):
+                class _Adapter(LoopbackAdapter):
+                    def encode_open(self, stream):
+                        raise RuntimeError('encode_open boom')
+
+                h = LoopbackHarness(
+                    AppFactory(lambda o: StreamApp(close_on_final_input=False)),
+                    adapter=_Adapter(explicit_open=explicit_open),
+                )
+                try:
+                    open_msg = IoPipelineMultiplexMessages.OpenStream(
+                        app_spec(StreamApp(close_on_final_input=False)),
+                    )
+                    h.driver.enqueue(open_msg)
+                    h.step()
+
+                    self.assertTrue(open_msg.is_failed(), 'OpenStream was stranded when encode_open raised')
+                    self.assertIsInstance(h.mux._failed, RuntimeError)
+                    self.assertEqual(len(of_type(h.frames, LGoodbye)), 1)
+                    self.assertIs(h.driver.state, IoPipelineDriverState.CLOSED)
+                finally:
+                    h.close()
+
+    def test_encode_finish_raising_fails_connection_without_state_error(self) -> None:
+        class _Adapter(LoopbackAdapter):
+            def encode_finish(self, stream):
+                raise RuntimeError('encode_finish boom')
+
+        h = LoopbackHarness(
+            AppFactory(lambda o: StreamApp(close_on_final_input=False)),
+            adapter=_Adapter(),
+        )
+        try:
+            h.feed(LOpen('k'))
+            h.feed_stream('k', Emit(IoPipelineMessages.FinalOutput))
+
+            self.assertIsInstance(h.mux._failed, RuntimeError)
+            self.assertEqual(len(of_type(h.frames, LGoodbye)), 1)
+            self.assertIs(h.driver.state, IoPipelineDriverState.CLOSED)
+        finally:
+            h.close()
+
+    def test_split_message_cost_raising_fails_connection_without_state_error(self) -> None:
+        class _Adapter(LoopbackAdapter):
+            def __init__(self) -> None:
+                super().__init__(max_unit=10)
+                self._split_done = False
+
+            def message_cost(self, stream, msg) -> int:
+                if self._split_done:
+                    raise RuntimeError('message_cost boom')
+                return len(msg)
+
+            def split_message(self, stream, msg, limit):
+                self._split_done = True
+                return (msg[:limit], msg[limit:])
+
+        h = LoopbackHarness(
+            AppFactory(lambda o: StreamApp(close_on_final_input=False)),
+            adapter=_Adapter(),
+        )
+        try:
+            h.feed(LOpen('k', credit=10))
+            h.feed_stream('k', Emit('x' * 20))
+
+            self.assertIsInstance(h.mux._failed, RuntimeError)
+            self.assertEqual(len(of_type(h.frames, LGoodbye)), 1)
+            self.assertIs(h.driver.state, IoPipelineDriverState.CLOSED)
+        finally:
+            h.close()
+
+    def test_dead_child_await_is_dropped_and_closes_coroutine(self) -> None:
+        started: ta.List[bool] = []
+
+        async def never_run() -> None:
+            started.append(True)
+
+        coro = never_run()
+        child_awt: AsyncIoPipelineMessages.Await = AsyncIoPipelineMessages.Await(coro)
+
+        class _BoomOnSecondMsgAdapter(LoopbackAdapter):
+            def message_cost(self, stream, msg) -> int:
+                if msg == 'boom':
+                    raise RuntimeError('fail connection after child await was collected')
+                return 0
+
+        class _AwaitApp(IoPipelineHandler):
+            def inbound(self, ctx, msg) -> None:
+                if msg == 'emit-await':
+                    ctx.feed_out(child_awt)
+                    return
+                if msg == 'emit-boom':
+                    ctx.feed_out('boom')
+                    return
+                if isinstance(msg, IoPipelineMessages.MustPropagate):
+                    ctx.feed_in(msg)
+
+        h = LoopbackHarness(lambda o: app_spec(_AwaitApp()), adapter=_BoomOnSecondMsgAdapter())
+        try:
+            h.feed(LOpen('k1'), LOpen('k2'))
+            # During PUMP, k1's child_awt is moved into mux._child_awaits; then k2's 'boom' raises in message_cost,
+            # failing the connection and aborting k1 before EMIT drains _child_awaits.
+            h.feed(LBatch([LMsg('k1', 'emit-await'), LMsg('k2', 'emit-boom')]))
+
+            parent_awaits = [m for m in h.recorder.out if isinstance(m, AsyncIoPipelineMessages.Await)]
+            self.assertEqual(parent_awaits, [])
+            self.assertTrue(child_awt.is_failed())
+            self.assertEqual(started, [])
+            self.assertIsNone(getattr(coro, 'cr_frame'))
+        finally:
+            h.close()

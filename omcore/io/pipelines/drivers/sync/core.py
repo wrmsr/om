@@ -521,9 +521,13 @@ class SyncIoPipelineDriver(IoPipelinePostingTarget, Abstract):
                 self._output_writable = False
                 self._pipeline.feed_in(IoPipelineFlowMessages.PauseOutput())
 
-        elif self._write_q_bytes <= self._config.write_low_watermark and not self._pipeline.saw_shutdown_output:
-            # Never announced once ShutdownOutput reached the terminal - not just once the transport performed it -
-            # since from then on nothing may produce ordinary output.
+        elif (
+                self._write_q_bytes <= self._config.write_low_watermark and
+                not self._pipeline.saw_shutdown_output and
+                not self._pipeline.saw_final_output
+        ):
+            # Never announced once ShutdownOutput or FinalOutput reached the terminal - not just once the transport
+            # performed it - since from then on nothing may produce ordinary output.
             self._output_writable = True
             self._pipeline.feed_in(IoPipelineFlowMessages.ReadyForOutput())
 
@@ -736,6 +740,14 @@ class SyncIoPipelineDriver(IoPipelinePostingTarget, Abstract):
 
             return None
 
+    def _ensure_active_after_callback(self, pipeline: IoPipeline) -> bool:
+        if self._state not in (IoPipelineDriverState.RUNNING, IoPipelineDriverState.DRAINING):
+            return False
+        if not pipeline.is_ready:
+            self.close()
+            return False
+        return True
+
     def next(
             self,
             *,
@@ -781,13 +793,20 @@ class SyncIoPipelineDriver(IoPipelinePostingTarget, Abstract):
                 try:
                     self._restore_transport_if_prepared()
                     self._complete_transport_final_output()
-                    pipeline.destroy()
+                    if pipeline.is_ready:
+                        pipeline.destroy()
+                    self._state = IoPipelineDriverState.CLOSED
+                    # Fail any posts still queued (e.g. posted during FinalOutput completion or destroy).
+                    self._fail_queued_posts()
                 except BaseException:
                     self._state = IoPipelineDriverState.FAILED
+                    try:
+                        self._fail_queued_posts()
+                    except Exception:  # noqa
+                        pass
                     raise
-                else:
-                    self._state = IoPipelineDriverState.CLOSED
                 finally:
+                    self._input_q.clear()
                     self._restore_transport_if_prepared()
 
                 return None
@@ -808,12 +827,20 @@ class SyncIoPipelineDriver(IoPipelinePostingTarget, Abstract):
             want_write = bool(self._write_q)
 
             if not read:
-                while self._write_q and self._try_write():
-                    pass
-                # Writing completes fences, whose listeners may have produced more output to process now.
+                try:
+                    while self.is_running and self._write_q and self._try_write():
+                        pass
+                except BaseException:
+                    if self._state is not IoPipelineDriverState.FAILED:
+                        self._fail()
+                    raise
+                if not self._ensure_active_after_callback(pipeline):
+                    return None
+                # Writing completes fences, whose listeners may have produced more output or boundary input now.
                 if (
                         (self._transport_final_output is not None and not self._write_q) or
-                        pipeline.output.peek() is not None
+                        pipeline.output.peek() is not None or
+                        self._input_q
                 ):
                     continue
                 return None
@@ -828,15 +855,28 @@ class SyncIoPipelineDriver(IoPipelinePostingTarget, Abstract):
                 want_write=want_write,
             )
 
+            # A due timer inside _wait_for_io_or_timer may have closed the driver (restoring blocking mode on the
+            # transport) or destroyed its pipeline; stop before attempting any I/O.
+            if not self._ensure_active_after_callback(pipeline):
+                return None
+
             progressed = False
-            if writable:
-                progressed |= self._try_write()
-            if readable:
-                if draining:
-                    progressed |= self._discard_input()
-                else:
-                    self._input_q.extend(self._do_read())
-                    progressed = True
+            try:
+                if writable:
+                    progressed |= self._try_write()
+                if readable and self.is_running:
+                    if draining:
+                        progressed |= self._discard_input()
+                    else:
+                        self._input_q.extend(self._do_read())
+                        progressed = True
+            except BaseException:
+                if self._state is not IoPipelineDriverState.FAILED:
+                    self._fail()
+                raise
+
+            if not self._ensure_active_after_callback(pipeline):
+                return None
 
             if not (progressed or ran_timer):
                 return None

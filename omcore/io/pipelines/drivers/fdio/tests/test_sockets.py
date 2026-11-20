@@ -18,6 +18,7 @@ from ....core import IoPipelineHandlerRef
 from ....core import IoPipelineMessages
 from ....core import IoPipelineService
 from ....core import IoPipelineUpdate
+from ....errors import AbortedIoPipelineError
 from ....flow.stub import StubIoPipelineFlowService
 from ....flow.types import IoPipelineFlowMessages
 from ....sched.timeouts import ReadTimeoutIoPipelineHandler
@@ -885,3 +886,95 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
             drv.close()
 
         self.assertIs(drv.state, IoPipelineDriverState.FAILED)
+
+    def test_fence_listener_destroying_pipeline_in_on_writable_closes_cleanly(self) -> None:
+        # When on_writable() drains _write_q, completing a FlushOutput or ShutdownOutput fence invokes completion
+        # listeners synchronously. If a listener destroys the pipeline mid-drain, on_writable() previously continued
+        # into _try_flush_write_q() / _update_output_writability() / _gracefully_close() on the destroyed pipeline and
+        # crashed.
+
+        sock, peer = socket.socketpair()
+        with peer:
+            self.assertGreater(fill_socket_send_buffer(sock), 0)
+            flush_output = IoPipelineFlowMessages.FlushOutput()
+            final_output = IoPipelineMessages.FinalOutput()
+            capture = CaptureOutputWritabilityIoPipelineHandler()
+
+            class _EmitHandler(IoPipelineHandler):
+                def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+                    if msg == 'emit':
+                        ctx.feed_out(b'abcde')
+                        ctx.feed_out(flush_output)
+                        ctx.feed_out(final_output)
+                        return
+                    ctx.feed_in(msg)
+
+            drv = IoPipelineDriverSocketFdioHandler(
+                sock,
+                ('127.0.0.1', 0),
+                IoPipeline.Spec(
+                    [capture, _EmitHandler()],
+                    services=[StubIoPipelineFlowService(auto_read=False)],
+                ),
+                config=IoPipelineDriverSocketFdioHandler.Config(
+                    write_high_watermark=4,
+                    write_low_watermark=2,
+                ),
+            )
+            flush_output.add_listener(lambda _m: drv.pipeline.destroy())
+            try:
+                self.assertIsNone(drv.next(read=False))
+                drv.enqueue('emit')
+                self.assertIsNone(drv.next(read=False))
+                self.assertIs(drv.state, IoPipelineDriverState.DRAINING)
+                self.assertFalse(flush_output.is_done())
+
+                self.assertTrue(drain_socket(peer))
+                drv.on_writable()
+
+                self.assertTrue(flush_output.is_succeeded())
+                self.assertTrue(final_output.is_failed())
+                self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
+                self.assertTrue(drv.closed)
+                self.assertFalse(drv.pipeline.is_ready)
+            finally:
+                drv.close()
+
+    def test_graceful_close_fails_posts_queued_during_final_output_completion(self) -> None:
+        # Posts queued while FinalOutput is completing during _gracefully_close() must be failed rather than silently
+        # abandoned in _input_q.
+
+        sock, peer = socket.socketpair()
+        with peer:
+            graceful_close = GracefulCloseIoPipelineHandler()
+            drv = IoPipelineDriverSocketFdioHandler(
+                sock,
+                ('127.0.0.1', 0),
+                IoPipeline.Spec(
+                    [graceful_close],
+                    services=[StubIoPipelineFlowService(auto_read=False)],
+                ),
+            )
+            queued_posts: ta.List[ta.Any] = []
+            ran: ta.List[bool] = []
+            post_excs: ta.List[ta.Optional[BaseException]] = []
+
+            def on_final_done(_msg: ta.Any) -> None:
+                p = drv.posting.post(lambda: ran.append(True))
+                p.add_listener(lambda m: post_excs.append(m.get_exception() if m.is_failed() else None))
+                queued_posts.append(p)
+
+            graceful_close.final_output.add_listener(on_final_done)
+            try:
+                self.assertIsNone(drv.next(read=False))
+                drv.enqueue(_CLOSE)
+                self.assertIsNone(drv.next(read=False))
+
+                self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
+                self.assertEqual(ran, [])
+                self.assertEqual(len(queued_posts), 1)
+                self.assertTrue(queued_posts[0].is_failed())
+                self.assertEqual(len(post_excs), 1)
+                self.assertIsInstance(post_excs[0], AbortedIoPipelineError)
+            finally:
+                drv.close()

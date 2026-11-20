@@ -16,6 +16,7 @@ itself cause through `MultiplexChildHost.on_child_activity`.
 import abc
 import dataclasses as dc
 import functools
+import inspect
 import typing as ta
 import weakref
 
@@ -800,6 +801,8 @@ class IoPipelineMultiplexChild:
             if isinstance(msg := getattr(item, 'msg', None), IoPipelineMessages.Completable):
                 self.complete(msg, exc)
         for awt in self.take_awaits():
+            if inspect.iscoroutine(awt.obj):
+                awt.obj.close()
             self.complete_await(awt, exc=exc)
         self._destroy()
 

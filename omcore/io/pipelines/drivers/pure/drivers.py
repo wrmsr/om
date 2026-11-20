@@ -385,9 +385,13 @@ class PureIoPipelineDriver(IoPipelinePostingTarget):
                 self._output_writable = False
                 self._pipeline.feed_in(IoPipelineFlowMessages.PauseOutput())
 
-        elif self._write_q_bytes <= self._config.write_low_watermark and not self._pipeline.saw_shutdown_output:
-            # Never announced once ShutdownOutput reached the terminal - not just once the transport performed it -
-            # since from then on nothing may produce ordinary output.
+        elif (
+                self._write_q_bytes <= self._config.write_low_watermark and
+                not self._pipeline.saw_shutdown_output and
+                not self._pipeline.saw_final_output
+        ):
+            # Never announced once ShutdownOutput or FinalOutput reached the terminal - not just once the transport
+            # performed it - since from then on nothing may produce ordinary output.
             self._output_writable = True
             self._pipeline.feed_in(IoPipelineFlowMessages.ReadyForOutput())
 
@@ -409,12 +413,20 @@ class PureIoPipelineDriver(IoPipelinePostingTarget):
             with pipeline.enter():
                 if not final_output.is_done():
                     final_output.set_succeeded(None)
-            pipeline.destroy()
+            if pipeline.is_ready:
+                pipeline.destroy()
+            self._state = IoPipelineDriverState.CLOSED
+            # Fail any posts still queued (e.g. posted during FinalOutput completion or destroy).
+            self._fail_queued_posts()
         except BaseException:
             self._state = IoPipelineDriverState.FAILED
+            try:
+                self._fail_queued_posts()
+            except Exception:  # noqa
+                pass
             raise
-        else:
-            self._state = IoPipelineDriverState.CLOSED
+        finally:
+            self._input_q.clear()
 
     def fail_output(self, exc: BaseException) -> None:
         """
@@ -441,6 +453,16 @@ class PureIoPipelineDriver(IoPipelinePostingTarget):
             self._fail()
         raise exc
 
+    def _ensure_active_after_callback(self) -> bool:
+        # Helper method (rather than inline attribute checks) because fence/writability callbacks can reentrantly close
+        # the driver or destroy its pipeline, which mypy otherwise narrows away.
+        if self._state not in (IoPipelineDriverState.RUNNING, IoPipelineDriverState.DRAINING):
+            return False
+        if not self._pipeline.is_ready:
+            self.close()
+            return False
+        return True
+
     def drain_output(self, max_bytes: ta.Optional[int] = None) -> bytes:
         """
         Accept queued bytes across the simulated transport boundary.
@@ -466,6 +488,9 @@ class PureIoPipelineDriver(IoPipelinePostingTarget):
         out: ta.List[bytes] = []
         try:
             while self._write_q:
+                # A fence listener may have closed the driver or destroyed its pipeline mid-drain.
+                if not self._ensure_active_after_callback():
+                    return b''.join(out)
                 head = self._write_q[0]
                 if isinstance(head, IoPipelineFlowMessages.FlushOutput):
                     self._write_q.popleft()
@@ -492,7 +517,13 @@ class PureIoPipelineDriver(IoPipelinePostingTarget):
                 if remaining is not None:
                     remaining -= n
 
+            if not self._ensure_active_after_callback():
+                return b''.join(out)
+
             self._update_output_writability()
+
+            if not self._ensure_active_after_callback():
+                return b''.join(out)
 
             if self._transport_final_output is not None and not self._write_q:
                 self._gracefully_close()

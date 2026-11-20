@@ -769,3 +769,149 @@ class TestKeepAliveFullPipeline(unittest.TestCase):
         out = channel.output.drain()
         self.assertEqual(len(out), 1)
         self.assertIsInstance(out[0], IoPipelineMessages.FinalOutput)
+
+
+##
+
+
+class TestKeepAliveRegressions(unittest.TestCase):
+    def test_app_supplied_connection_close_closes_keepalive_connection(self) -> None:
+        # Regression: _set_response_connection_header returned early whenever the response already carried any
+        # Connection header, ignoring an app-supplied `Connection: close` on an HTTP/1.1 keep-alive request. Because
+        # _keep_alive stayed True, _complete_response never emitted FinalOutput - deadlocking close-delimited responses.
+        class _AppCloseHandler(IoPipelineHandler):
+            def __init__(self, *, streaming: bool) -> None:
+                super().__init__()
+                self._streaming = streaming
+
+            def inbound(self, ctx, msg):  # noqa
+                if isinstance(msg, IoPipelineHttpRequestHead):
+                    head = IoPipelineHttpResponseHead(
+                        status=200,
+                        reason='OK',
+                        headers=HttpHeaders([('Content-Length', '2'), ('Connection', 'close')]),
+                    )
+                    if self._streaming:
+                        ctx.feed_out(head)
+                        ctx.feed_out(IoPipelineHttpResponseEnd())
+                    else:
+                        ctx.feed_out(FullIoPipelineHttpResponse(head=head, body=b'ok'))
+                    return
+                ctx.feed_in(msg)
+
+        for streaming in (False, True):
+            with self.subTest(streaming=streaming):
+                ka = IoPipelineHttpServerKeepAliveHandler()
+                channel = IoPipeline.new(
+                    [ka, _AppCloseHandler(streaming=streaming)],
+                    IoPipeline.Config(inbound_terminal='drop'),
+                )
+                channel.feed_in(IoPipelineHttpRequestHead(
+                    method='GET',
+                    target='/',
+                    headers=HttpHeaders([('Host', 'test')]),
+                    version=HttpVersions.HTTP_1_1,
+                ))
+                out = channel.output.drain()
+                self.assertIsInstance(out[-1], IoPipelineMessages.FinalOutput)
+                self.assertTrue(ka._closing)
+
+    def test_full_response_preserves_trailers_when_connection_header_added(self) -> None:
+        # Regression: KeepAlive rebuilt FullIoPipelineHttpResponse without passing trailers=msg.trailers, silently
+        # dropping trailers whenever a Full response passed outbound through KeepAlive.
+        trailers = HttpHeaders([('X-Digest', 'sha256=deadbeef')])
+
+        class _TrailerAppHandler(IoPipelineHandler):
+            def inbound(self, ctx, msg):  # noqa
+                if isinstance(msg, IoPipelineHttpRequestHead):
+                    ctx.feed_out(FullIoPipelineHttpResponse(
+                        head=IoPipelineHttpResponseHead(
+                            status=200,
+                            reason='OK',
+                            headers=HttpHeaders([('Transfer-Encoding', 'chunked')]),
+                        ),
+                        body=b'ok',
+                        trailers=trailers,
+                    ))
+                    return
+                ctx.feed_in(msg)
+
+        channel = IoPipeline.new(
+            [IoPipelineHttpServerKeepAliveHandler(), _TrailerAppHandler()],
+            IoPipeline.Config(inbound_terminal='drop'),
+        )
+        # Request has Connection: close so KeepAlive MUST stamp Connection: close and rebuild the Full response.
+        channel.feed_in(IoPipelineHttpRequestHead(
+            method='GET',
+            target='/',
+            headers=HttpHeaders([('Host', 'test'), ('Connection', 'close')]),
+            version=HttpVersions.HTTP_1_1,
+        ))
+
+        out = channel.output.drain()
+        self.assertEqual(len(out), 2)
+        self.assertIsInstance(out[0], FullIoPipelineHttpResponse)
+        self.assertTrue(out[0].head.headers.contains_list_value('connection', 'close', ignore_case=True))
+        self.assertEqual(out[0].trailers, trailers)
+        self.assertIsInstance(out[1], IoPipelineMessages.FinalOutput)
+
+    def test_101_switching_protocols_disables_idle_timeout_and_does_not_close(self) -> None:
+        # Regression: IoPipelineHttpResponseHead.is_interim excludes 101, so KeepAlive treated 101 Switching Protocols
+        # as a completed HTTP exchange - arming its idle timer (killing live WebSockets) or immediately emitting
+        # FinalOutput when the upgrade request was HTTP/1.0 or not keep-alive.
+        class _UpgradeAppHandler(IoPipelineHandler):
+            def __init__(self, *, full: bool) -> None:
+                super().__init__()
+                self._full = full
+
+            def inbound(self, ctx, msg):  # noqa
+                if isinstance(msg, IoPipelineHttpRequestHead):
+                    head = IoPipelineHttpResponseHead(
+                        status=101,
+                        reason='Switching Protocols',
+                        headers=HttpHeaders([('Upgrade', 'websocket'), ('Connection', 'Upgrade')]),
+                    )
+                    if self._full:
+                        ctx.feed_out(FullIoPipelineHttpResponse(head=head, body=b''))
+                    else:
+                        ctx.feed_out(head)
+                    return
+                ctx.feed_in(msg)
+
+        for full in (False, True):
+            with self.subTest(full=full):
+                keep_alive = IoPipelineHttpServerKeepAliveHandler(60.)
+                drv = SocketSyncIoPipelineDriver(
+                    _make_timed_ka_spec(keep_alive, _UpgradeAppHandler(full=full)),
+                    object(),
+                )
+                try:
+                    self.assertIsNone(drv.next(read=False))
+                    self.assertIsNotNone(keep_alive._handle)
+
+                    drv.enqueue(IoPipelineHttpRequestHead(
+                        method='GET',
+                        target='/ws',
+                        headers=HttpHeaders([('Host', 'test'), ('Upgrade', 'websocket'), ('Connection', 'Upgrade')]),
+                        version=HttpVersions.HTTP_1_1,
+                    ))
+                    resp = drv.next(read=False)
+                    if full:
+                        assert isinstance(resp, FullIoPipelineHttpResponse)
+                        self.assertEqual(resp.head.status, 101)
+                    else:
+                        assert isinstance(resp, IoPipelineHttpResponseHead)
+                        self.assertEqual(resp.status, 101)
+                    self.assertIsNone(drv.next(read=False))
+
+                    self.assertTrue(keep_alive._upgraded)
+                    self.assertFalse(keep_alive._closing)
+                    self.assertIsNone(keep_alive._handle)
+                    self.assertFalse(drv.pipeline.saw_final_output)
+
+                    # After upgrade, KeepAlive is transparent and must not emit FinalOutput on FinalInput.
+                    drv.pipeline.feed_final_input()
+                    self.assertFalse(drv.pipeline.saw_final_output)
+                    self.assertIsNone(keep_alive._handle)
+                finally:
+                    drv.close()

@@ -5,11 +5,18 @@ import unittest
 
 from ....io.pipelines.core import IoPipeline
 from ....io.pipelines.core import IoPipelineMessages
+from ....io.pipelines.handlers.feedback import FeedbackInboundIoPipelineHandler
 from ....io.pipelines.handlers.queues import InboundQueueIoPipelineHandler
+from ....io.streambufs.errors import FrameTooLargeByteStreamBufferError
 from ....io.streambufs.utils import ByteStreamBuffers
 from ..aggregators import IoPipelineHttpAggregationConfig
+from ..clients.requests import IoPipelineHttpRequestEncoder
+from ..clients.responses import IoPipelineHttpClientResponseDecoder
+from ..clients.responses import IoPipelineHttpResponseAggregatorDecoder
 from ..requests import FullIoPipelineHttpRequest
 from ..requests import IoPipelineHttpRequestAborted
+from ..responses import FullIoPipelineHttpResponse
+from ..responses import IoPipelineHttpResponseAborted
 from ..servers.requests import IoPipelineHttpRequestAggregatorDecoder
 from ..servers.requests import IoPipelineHttpRequestDecoder
 
@@ -174,3 +181,90 @@ class TestAggregatedTrailers(unittest.TestCase):
         first, second = [m for m in ibq.drain() if isinstance(m, FullIoPipelineHttpRequest)]
         self.assertEqual(first.trailers.single['x-y'], 'z')
         self.assertEqual(len(second.trailers), 0)
+
+
+##
+
+
+class TestResponseAggregatorBodylessAndHeadRegressions(unittest.TestCase):
+    @staticmethod
+    def _new_client_response_pipeline(
+            max_size: int = 16,
+    ) -> ta.Tuple[IoPipeline, FeedbackInboundIoPipelineHandler, InboundQueueIoPipelineHandler]:
+        fbi = FeedbackInboundIoPipelineHandler()
+        ibq = InboundQueueIoPipelineHandler()
+        channel = IoPipeline.new([
+            IoPipelineHttpRequestEncoder(),
+            IoPipelineHttpClientResponseDecoder(),
+            IoPipelineHttpResponseAggregatorDecoder(config=IoPipelineHttpAggregationConfig(
+                body_buffer=IoPipelineHttpAggregationConfig.BufferConfig(max_size=max_size, chunk_size=max_size),
+            )),
+            fbi,
+            ibq,
+        ])
+        return channel, fbi, ibq
+
+    def test_head_response_with_large_content_length_is_not_aborted(self) -> None:
+        # Regression: IoPipelineHttpResponseAggregatorDecoder previously checked Content-Length > max_size eagerly in
+        # _HeadState. Because a HEAD response legally carries the target resource's Content-Length (e.g. 100000) while
+        # sending 0 body bytes (Head + End), any HEAD response whose Content-Length exceeded max_size was wrongly
+        # aborted with FrameTooLargeByteStreamBufferError.
+        channel, fbi, ibq = self._new_client_response_pipeline(max_size=16)
+
+        channel.feed_in(fbi.wrap(FullIoPipelineHttpRequest.simple('example.com', '/big', method='HEAD')))
+        channel.output.drain()
+
+        channel.feed_in(b'HTTP/1.1 200 OK\r\nContent-Length: 100000\r\n\r\n')
+
+        [resp] = ibq.drain()
+        self.assertIsInstance(resp, FullIoPipelineHttpResponse)
+        self.assertEqual(resp.head.status, 200)
+        self.assertEqual(resp.head.headers.single['content-length'], '100000')
+        self.assertEqual(ByteStreamBuffers.to_bytes(resp.body, strict=True), b'')
+
+    def test_bodyless_status_responses_with_large_content_length_are_not_aborted(self) -> None:
+        # Regression: 304 Not Modified, 204 No Content, and 1xx responses never carry a body regardless of
+        # Content-Length (304 routinely carries the cached representation's Content-Length). Previously the response
+        # aggregator used generic IoPipelineHttpBodyMode.select and aborted them when Content-Length exceeded max_size.
+        channel, fbi, ibq = self._new_client_response_pipeline(max_size=16)
+
+        for status_line in (
+                b'HTTP/1.1 304 Not Modified\r\nContent-Length: 100000\r\n\r\n',
+                b'HTTP/1.1 204 No Content\r\nContent-Length: 100000\r\n\r\n',
+        ):
+            channel.feed_in(fbi.wrap(FullIoPipelineHttpRequest.simple('example.com', '/cached', method='GET')))
+            channel.output.drain()
+            channel.feed_in(status_line)
+
+            [resp] = ibq.drain()
+            self.assertIsInstance(resp, FullIoPipelineHttpResponse)
+            self.assertEqual(ByteStreamBuffers.to_bytes(resp.body, strict=True), b'')
+
+        # 100 Continue followed by 200 OK on the same request.
+        channel.feed_in(fbi.wrap(FullIoPipelineHttpRequest.simple('example.com', '/upload', method='POST')))
+        channel.output.drain()
+        channel.feed_in(
+            b'HTTP/1.1 100 Continue\r\nContent-Length: 100000\r\n\r\n'
+            b'HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok',
+        )
+        interim, final = ibq.drain()
+        self.assertIsInstance(interim, FullIoPipelineHttpResponse)
+        self.assertEqual(interim.head.status, 100)
+        self.assertIsInstance(final, FullIoPipelineHttpResponse)
+        self.assertEqual(final.head.status, 200)
+        self.assertEqual(ByteStreamBuffers.to_bytes(final.body, strict=True), b'ok')
+
+    def test_get_response_with_oversized_content_length_aborts_on_first_body_data(self) -> None:
+        # Deferring the Content-Length check until BodyData must still reject an oversized GET response immediately on
+        # its very first body byte (even when that single chunk is smaller than max_size), without buffering up to
+        # max_size first.
+        channel, fbi, ibq = self._new_client_response_pipeline(max_size=16)
+
+        channel.feed_in(fbi.wrap(FullIoPipelineHttpRequest.simple('example.com', '/big', method='GET')))
+        channel.output.drain()
+
+        channel.feed_in(b'HTTP/1.1 200 OK\r\nContent-Length: 100000\r\n\r\nx')
+
+        [aborted] = ibq.drain()
+        self.assertIsInstance(aborted, IoPipelineHttpResponseAborted)
+        self.assertIsInstance(aborted.reason, FrameTooLargeByteStreamBufferError)

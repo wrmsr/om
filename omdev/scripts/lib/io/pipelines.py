@@ -34,7 +34,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '9d8d9653293f170ae15dee1518226926d06a04ab'
+__om_amalg_sha1__ = 'ca0cb7d1ac808ce59857e43eea742813842d5ac3'
 
 
 def __om_amalg__():  # noqa
@@ -69,7 +69,7 @@ def __om_amalg__():  # noqa
             dict(sha1='7dd07873ddd48f99bda0cf3837e01c4c7c4cc96c', mod='omcore.logs.utils', path='../../logs/utils.py'),
             dict(sha1='91a359d8bfd7a45badbf0933b00fc41e6e36e222', mod='omcore.io.pipelines.bytes.queues', path='bytes/queues.py'),  # noqa
             dict(sha1='33daa28b6b14a0e7aca10640f938792e86dcfa3b', mod='omcore.io.pipelines.handlers.flatmap', path='handlers/flatmap.py'),  # noqa
-            dict(sha1='db882a29d87bd38eb59c00140174a8af5e6325d1', mod='omcore.io.pipelines.sched.heap', path='sched/heap.py'),  # noqa
+            dict(sha1='20f697a8c0e99b63fb730c96cd1790221233b833', mod='omcore.io.pipelines.sched.heap', path='sched/heap.py'),  # noqa
             dict(sha1='417d6f20e64dc1088a4a065a549b532bd9be389c', mod='omcore.io.streambufs.direct', path='../streambufs/direct.py'),  # noqa
             dict(sha1='5189edf484ef79bcea92069a55e0aafbdcff83bf', mod='omcore.io.streambufs.scanning', path='../streambufs/scanning.py'),  # noqa
             dict(sha1='9ee00768f53de350ac8d1f2b98917a9afcf885f5', mod='omcore.logs.base', path='../../logs/base.py'),
@@ -80,7 +80,7 @@ def __om_amalg__():  # noqa
             dict(sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9', mod='omcore.logs.std.loggers', path='../../logs/std/loggers.py'),  # noqa
             dict(sha1='44f0ed191a654bf66dcb03b99bf81b4dbb680ef3', mod='omcore.io.pipelines.bytes.decoders', path='bytes/decoders.py'),  # noqa
             dict(sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2', mod='omcore.logs.modules', path='../../logs/modules.py'),  # noqa
-            dict(sha1='6f1c8fc23d5b5cb8c80cddc0cc0190fab6e44712', mod='omcore.io.pipelines.drivers.asyncio.streams', path='drivers/asyncio/streams.py'),  # noqa
+            dict(sha1='b3324b3c984b20f20af7b22a2d5512f7106f7651', mod='omcore.io.pipelines.drivers.asyncio.streams', path='drivers/asyncio/streams.py'),  # noqa
             dict(sha1='06d6b72260d4724fb48ad26921d287f2e77715a1', mod='-', path='_amalg.py'),
         ],
     )
@@ -6115,6 +6115,8 @@ class HeapIoPipelineSchedulingService(IoPipelineScheduling, IoPipelineService):
             self._seq,
         )
         self._seq += 1
+        # Pop cancelled roots first so _pending[0] accurately reflects whether handle is the new earliest live timer.
+        self._clear_cancelled()
         heapq.heappush(self._pending, (handle._deadline, handle._seq, handle))  # noqa
         self._live.add(handle)
 
@@ -10290,6 +10292,9 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
                 cmd.msg.set_succeeded(result)
 
     async def _handle_command_await_failed(self, cmd: _AwaitFailedCommand) -> None:
+        if cmd.msg.is_done():
+            # Already completed/aborted by its producer while the failure command was queued.
+            return
         with self._pipeline.enter():
             cmd.msg.set_failed(cmd.exc)
 
@@ -10297,6 +10302,12 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
             self,
             msg: AsyncIoPipelineMessages.Await,
     ) -> ta.Optional[str]:
+        if msg.is_done():
+            # Producer already completed/aborted this Await before the driver polled it; close any unawaited coroutine.
+            if asyncio.iscoroutine(msg.obj):
+                msg.obj.close()
+            return None
+
         loop = asyncio.get_running_loop()
 
         # A coroutine becomes a task the driver creates, and so owns: it is cancelled if the Await is failed by its
@@ -10414,7 +10425,7 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
 
         if self._writer is None or self._drainer_task is None:
             await self._complete_graceful_close()
-            return None
+            return 'stop'
 
         # A drain still pending completes first, on its own; the drainer task then performs the close.
         self._request_close()
@@ -10502,9 +10513,10 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
                     size <= self._config.write_low_watermark or
                     (drained and size <= self._config.write_high_watermark)
                 ) and
-                # Never announced once ShutdownOutput reached the terminal - not just once the transport performed it -
-                # since from then on nothing may produce ordinary output.
-                not self._pipeline.saw_shutdown_output
+                # Never announced once ShutdownOutput or FinalOutput reached the terminal - not just once the transport
+                # performed it - since from then on nothing may produce ordinary output.
+                not self._pipeline.saw_shutdown_output and
+                not self._pipeline.saw_final_output
         ):
             self._output_writable = True
             self._pipeline.feed_in(IoPipelineFlowMessages.ReadyForOutput())
@@ -10661,6 +10673,10 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
             # loop timer is (re)armed for the earliest deadline before any wait.
             self._arm_timer()
 
+            # Stop immediately once graceful close finished rather than executing commands queued ahead of shutdown.
+            if self._shutdown_event.is_set():
+                break
+
             try:
                 cmd = self._command_queue.get_nowait()
             except asyncio.QueueEmpty:
@@ -10682,14 +10698,27 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
                 break
 
             await self._handle_command(cmd)
+            if self._shutdown_event.is_set():
+                break
 
         try:
-            pipeline.destroy()
+            if pipeline.is_ready:
+                pipeline.destroy()
+            self._state = IoPipelineDriverState.CLOSED
+            self._disarm_timer()
+            # Fail any queued posts or pending feed_in futures that did not run before graceful close.
+            self._drain_command_queue(AbortedIoPipelineError('Driver closed'))
         except BaseException:
             await self._fail()
             raise
 
-        self._state = IoPipelineDriverState.CLOSED
+        tasks = [
+            *self._cancel_tasks_now(self._read_task, self._drainer_task),
+            *self._cancel_created_awaits_now(),
+        ]
+        if tasks:
+            await self._wait_cancelled(tasks)
+
         return None
 
     @async_exception_logging(alog)

@@ -355,3 +355,34 @@ class TestOutboundBytesBuffer(unittest.TestCase):
         assert [type(event) for event in capture.events] == [
             IoPipelineFlowMessages.PauseOutput,
         ]
+
+    def test_shutdown_output_suppresses_later_ready_for_output_from_flush_or_downstream(self):
+        # Once ShutdownOutput or FinalOutput has passed through the outbound buffer, no ordinary output may follow.
+        # Previously only the flush inside ShutdownOutput suppressed writability announcements, so a subsequent
+        # FlushOutput or downstream ReadyForOutput still announced ReadyForOutput inbound.
+
+        capture = CaptureOutputWritabilityIoPipelineHandler()
+        ch = IoPipeline.new(
+            [
+                PauseOutputOnBytesIoPipelineHandler(),
+                OutboundBytesBufferIoPipelineHandler(
+                    OutboundBytesBufferIoPipelineHandler.Config(
+                        flush_threshold=None,
+                        write_high_watermark=4,
+                        write_low_watermark=2,
+                    ),
+                ),
+                capture,
+                fbi := FeedbackInboundIoPipelineHandler(),
+            ],
+            services=[StubIoPipelineFlowService()],
+        )
+
+        ch.feed_in(fbi.wrap(b'abcde'))
+        ch.feed_in(fbi.wrap(IoPipelineMessages.ShutdownOutput()))
+        ch.feed_in(IoPipelineFlowMessages.ReadyForOutput())
+        ch.feed_in(fbi.wrap(IoPipelineFlowMessages.FlushOutput()))
+
+        assert [type(event) for event in capture.events] == [
+            IoPipelineFlowMessages.PauseOutput,
+        ]
