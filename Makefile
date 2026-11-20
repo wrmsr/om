@@ -11,6 +11,7 @@ SHELL:=/bin/bash
 
 all: fgc test
 
+.PHONY: fgc
 fgc: fix gen check
 
 
