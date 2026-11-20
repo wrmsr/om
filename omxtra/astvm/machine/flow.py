@@ -267,6 +267,7 @@ class MachineFlow(MachineBase):
         'default_next_guard',
         'sequence_next_guard',
         'reversed_guard',
+        'sentinel_call_guard',
         'mapping_keys_guard',
         'call_kwargs_guard',
         'dict_unpack_guard',
@@ -347,7 +348,17 @@ class MachineFlow(MachineBase):
                         outcome = Outcome('raise', space.exception('StopIteration', ()))
 
             elif kind == 'reversed_guard' and outcome.kind == 'raise':
-                if space.exception_matches(ta.cast(ObjectRef, outcome.value), space.types['IndexError']):
+                info = space.data(task.data)
+                self._runtime.replace(task.data, dc.replace(info, exhausted=True))
+                exception = ta.cast(ObjectRef, outcome.value)
+                if (
+                        space.exception_matches(exception, space.types['IndexError']) or
+                        space.exception_matches(exception, space.types['StopIteration'])
+                ):
+                    outcome = Outcome('raise', space.exception('StopIteration', ()))
+
+            elif kind == 'sentinel_call_guard' and outcome.kind == 'raise':
+                if space.exception_matches(ta.cast(ObjectRef, outcome.value), space.types['StopIteration']):
                     info = space.data(task.data)
                     self._runtime.replace(task.data, dc.replace(info, exhausted=True))
                     outcome = Outcome('raise', space.exception('StopIteration', ()))

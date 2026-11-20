@@ -1,8 +1,11 @@
+import bisect
 import dataclasses as dc
 import operator
 import typing as ta
 
 from ..state import IteratorData
+from ..state import KeyOrder
+from ..state import MappingIteratorData
 from ..state import RangeData
 from ..values import _ELLIPSIS
 from ..values import _MISSING
@@ -212,6 +215,8 @@ class SpaceCollections(SpaceBase):
                 if token not in data:
                     self.budget.size(len(data) + 1)
                     self.budget.allocate(1)
+                elif kind == 'set':
+                    return
                 elif kind == 'dict':
                     record = (data[token][0], item)
 
@@ -265,61 +270,111 @@ class SpaceCollections(SpaceBase):
         self.budget.allocate(1)
         self.runtime.append(ref, value)
 
+    def _iteration_mapping(self, target: Value) -> tuple[ObjectRef, str]:
+        mode = 'keys'
+        kind = self.kind(target)
+        if kind == 'dict_view':
+            target, mode = self.data(target)
+            kind = self.kind(target)
+        if kind == 'mappingproxy':
+            target = self.data(target)
+        return ta.cast(ObjectRef, target), mode
+
+    def _iteration_entries(
+            self,
+            data: ta.Mapping[object, object],
+            order: KeyOrder | None,
+    ) -> tuple[tuple[int, object], ...]:
+        size = len(data)
+        self.budget.tick(size)
+        self.budget.allocate(size)
+        if order is None:
+            return tuple(enumerate(data))
+        return tuple((position, key) for key, position in order.positions.items())
+
     def iter_value(self, value: Value) -> Value:
         kind = self.kind(value)
 
         if kind in ('iterator', 'generator', 'adapter'):
             return value
 
-        if kind == 'dict_view':
-            target, _ = self.data(value)
-            keys = tuple(k for k, _ in self.mapping_pairs(target))
-            return self.new('iterator', IteratorData(value, keys=keys, size=len(keys)))
-
         if kind in ('list', 'tuple', 'str', 'bytes', 'range'):
             return self.new('iterator', IteratorData(value))
 
-        if kind in ('dict', 'namespace', 'mappingproxy', 'set', 'frozenset'):
-            data = self.data(self.data(value)) if kind == 'mappingproxy' else self.data(value)
-            if kind == 'dict':
-                keys = tuple(entry[0] for entry in data.values())
-            elif kind in ('namespace', 'mappingproxy'):
-                keys = tuple(data)
-            else:
-                keys = tuple(data.values())
-
-            return self.new('iterator', IteratorData(value, keys=keys, size=len(data)))
+        if kind in ('dict', 'namespace', 'mappingproxy', 'set', 'frozenset', 'dict_view'):
+            ref, _ = self._iteration_mapping(value)
+            obj = self.runtime.read(ref)
+            order = obj.key_order
+            version = order.next_position if order is not None else None
+            mapping = MappingIteratorData(version, self._iteration_entries(obj.data, order))
+            return self.new('iterator', IteratorData(value, mapping=mapping))
 
         return self.error('TypeError', f'{kind} is not iterable')
 
+    def _next_mapping_item(
+            self,
+            iterator: ObjectRef,
+            info: IteratorData,
+            mapping: MappingIteratorData,
+    ) -> Value:
+        ref, mode = self._iteration_mapping(info.target)
+        obj = self.runtime.read(ref)
+        order = obj.key_order
+
+        size = len(mapping.entries)
+        if mapping.invalidated or len(obj.data) != size:
+            if not mapping.invalidated:
+                self.runtime.replace(iterator, dc.replace(info, mapping=dc.replace(mapping, invalidated=True)))
+            self.error('RuntimeError', 'container changed size during iteration')
+
+        index = info.index
+        if order is not None and mapping.version != order.next_position:
+            # At the original size, any deletion since the snapshot must have been paired with an insertion.
+            entries = self._iteration_entries(obj.data, order)
+            index = bisect.bisect_left(entries, mapping.next_position, key=operator.itemgetter(0))
+            mapping = dc.replace(mapping, version=order.next_position, entries=entries)
+        elif order is None:
+            while index < size and mapping.entries[index][1] not in obj.data:
+                self.budget.tick()
+                index += 1
+
+        if index >= len(mapping.entries):
+            self.runtime.replace(iterator, dc.replace(info, exhausted=True))
+            self.error('StopIteration')
+
+        if obj.kind in ('dict', 'namespace') and mapping.yielded == size:
+            self.runtime.replace(iterator, dc.replace(info, exhausted=True))
+            self.error('RuntimeError', 'dictionary keys changed during iteration')
+
+        pos, token = mapping.entries[index]
+        if obj.kind in ('set', 'frozenset'):
+            value = obj.data[token]
+        else:
+            key, item = obj.data[token] if obj.kind == 'dict' else (token, obj.data[token])
+            if mode == 'keys':
+                value = key
+            elif mode == 'values':
+                value = item
+            else:
+                value = self.new('tuple', (key, item))
+
+        mapping = dc.replace(mapping, next_position=pos + 1, yielded=mapping.yielded + 1)
+        self.runtime.replace(iterator, dc.replace(info, index=index + 1, mapping=mapping))
+        return value
+
     def next_value(self, iterator: ObjectRef) -> Value:
-        info = self.data(iterator)
+        info: IteratorData = self.data(iterator)
 
         if info.exhausted:
             self.error('StopIteration')
 
-        if info.size is not None and self.length(info.target) != info.size:
-            self.error('RuntimeError', 'container changed size during iteration')
+        if info.mapping is not None:
+            return self._next_mapping_item(iterator, info, info.mapping)
 
-        if info.keys is not None:
-            if info.index >= len(info.keys):
-                self.runtime.replace(iterator, dc.replace(info, exhausted=True))
-                self.error('StopIteration')
+        if info.index >= self.length(info.target):
+            self.runtime.replace(iterator, dc.replace(info, exhausted=True))
+            self.error('StopIteration')
 
-            value = info.keys[info.index]
-
-            if self.kind(info.target) == 'dict_view':
-                target, mode = self.data(info.target)
-                if mode != 'keys':
-                    item = self.get_item(target, value)
-                    value = item if mode == 'values' else self.new('tuple', (value, item))
-
-        else:
-            if info.index >= self.length(info.target):
-                self.runtime.replace(iterator, dc.replace(info, exhausted=True))
-                self.error('StopIteration')
-
-            value = self.get_item(info.target, info.index)
-
+        value = self.get_item(info.target, info.index)
         self.runtime.replace(iterator, dc.replace(info, index=info.index + 1))
         return value

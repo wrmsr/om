@@ -165,6 +165,10 @@ lists and dataclass records. All guest heap changes go through allocation, repla
 deleting or appending. `read()` lends read-only state by contract. `edit_thread()` and `edit_generator()`
 are explicit write barriers that lend mutable execution records to the machine.
 
+`DictRuntime` stores insertion positions with mapping and set entries, and checkpoints include those positions.
+Mapping views read current values as they advance. Iteration after a same-size key edit follows those stored
+positions, so it can differ from CPython when CPython compacts its internal dictionary table.
+
 `Machine` drives explicit `Task` continuations and data-only execution state. Calls, operand temporaries,
 loop handlers, active exceptions, cleanup outcomes and generator suspension do not live in native guest
 frames. Host implementation methods still execute normally, of course. The suite runs guest recursion

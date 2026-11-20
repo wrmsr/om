@@ -85,12 +85,20 @@ class RangeData:
 
 
 @dc.dataclass(frozen=True, slots=True)
+class MappingIteratorData:
+    version: int | None
+    entries: tuple[tuple[int, object], ...]
+    next_position: int = 0
+    yielded: int = 0
+    invalidated: bool = False
+
+
+@dc.dataclass(frozen=True, slots=True)
 class IteratorData:
     target: Value
     exhausted: bool = False
     index: int = 0
-    keys: tuple[Value, ...] | None = None
-    size: int | None = None
+    mapping: MappingIteratorData | None = None
 
 
 @dc.dataclass(frozen=True, slots=True)
@@ -147,10 +155,17 @@ class ThreadState:
     error: ObjectRef | None = None
 
 
+@dc.dataclass(slots=True)
+class KeyOrder:
+    positions: dict[object, int]
+    next_position: int
+
+
 @dc.dataclass(frozen=True, slots=True)
 class HeapObject:
     kind: str
     data: ta.Any
+    key_order: KeyOrder | None = None
 
 
 @dc.dataclass(frozen=True)

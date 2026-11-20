@@ -4,6 +4,7 @@ import typing as ta
 from .state import Checkpoint
 from .state import GeneratorData
 from .state import HeapObject
+from .state import KeyOrder
 from .state import ThreadState
 from .values import BoundaryError
 from .values import InterpreterError
@@ -19,6 +20,9 @@ class Runtime:
     Nominal storage interface. No virtual-subclass registry is needed.
 
     read() lends READ-ONLY state, including nested payloads. All heap changes must use the mutation methods.
+    Dict, namespace, set, and frozenset records can carry key positions in insertion order. Replacing values preserves
+    positions, and inserting a key after deletion assigns a new position. With positions, iterators can follow new
+    entries after same-size edits. Checkpoints preserve the positions.
     edit_thread()/edit_generator() are explicit write barriers: they lend exclusive mutable execution records for one
     machine step. A recording or persistent implementation can snapshot/COW at those barriers; DictRuntime does not.
     Checkpoints are legal only between complete steps, never from a capability callback.
@@ -82,7 +86,10 @@ class DictRuntime(Runtime):
     def allocate(self, kind: str, data: ta.Any) -> ObjectRef:
         self._next += 1
         ref = ObjectRef(self._owner, self._next)
-        self._objects[ref.serial] = HeapObject(kind, data)
+        order = None
+        if kind in ('dict', 'namespace', 'set', 'frozenset'):
+            order = KeyOrder({key: i for i, key in enumerate(data)}, len(data))
+        self._objects[ref.serial] = HeapObject(kind, data, order)
         return ref
 
     def read(self, ref: ObjectRef) -> HeapObject:
@@ -92,7 +99,15 @@ class DictRuntime(Runtime):
 
     def replace(self, ref: ObjectRef, data: ta.Any) -> None:
         obj = self.read(ref)
-        self._objects[ref.serial] = HeapObject(obj.kind, data)
+        order = obj.key_order
+        if order is not None:
+            positions = {key: pos for key, pos in order.positions.items() if key in data}
+            order = KeyOrder(positions, order.next_position)
+            for key in data:
+                if key not in positions:
+                    positions[key] = order.next_position
+                    order.next_position += 1
+        self._objects[ref.serial] = HeapObject(obj.kind, data, order)
 
     def write(
             self,
@@ -100,10 +115,18 @@ class DictRuntime(Runtime):
             key: ta.Any,
             value: ta.Any,
     ) -> None:
-        DictRuntime.read(self, ref).data[key] = value
+        obj = DictRuntime.read(self, ref)
+        obj.data[key] = value
+        order = obj.key_order
+        if order is not None and key not in order.positions:
+            order.positions[key] = order.next_position
+            order.next_position += 1
 
     def delete(self, ref: ObjectRef, key: ta.Any) -> None:
-        del DictRuntime.read(self, ref).data[key]
+        obj = DictRuntime.read(self, ref)
+        del obj.data[key]
+        if (order := obj.key_order) is not None:
+            del order.positions[key]
 
     def append(self, ref: ObjectRef, value: Value) -> None:
         DictRuntime.read(self, ref).data.append(value)

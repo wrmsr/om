@@ -51,6 +51,7 @@ class MachineAdapters(MachineBase):
 
         elif info.kind == 'sentinel':
             self._add('sentinel_value', env, data=ref)
+            self._add('sentinel_call_guard', env, data=ref)
             self._invoke(env, info.function, ())
 
         else:
@@ -103,7 +104,7 @@ class MachineAdapters(MachineBase):
         self._add('adapter_pull', task.env, data=(ref, (*row, self._pop()), index + 1))
 
     def _task_adapter_exhausted(self, task: Task) -> None:
-        self._pop()
+        exception = ta.cast(ObjectRef, self._pop())
 
         ref, row, index = task.data
         info = self._space.data(ref)
@@ -113,14 +114,14 @@ class MachineAdapters(MachineBase):
                 self._space.error('ValueError', 'zip arguments have different lengths')
             self._add('zip_probe', task.env, data=(ref, 1))
         else:
-            self._adapter_stop(ref)
+            self._raise(exception)
 
     def _task_zip_probe(self, task: Task) -> None:
         ref, index = task.data
         info = self._space.data(ref)
 
         if index == len(info.iterators):
-            self._adapter_stop(ref)
+            self._space.error('StopIteration')
 
         self._pull(
             task.env, info.iterators[index],
@@ -153,6 +154,9 @@ class MachineAdapters(MachineBase):
 
         self._add('sentinel_comparison', task.env, data=(task.data, value))
         self._operation('compare:Eq', task.env, self._space.data(task.data).extra, value)
+
+    def _task_sentinel_call_guard(self, task: Task) -> None:
+        pass
 
     def _task_sentinel_comparison(self, task: Task) -> None:
         self._add('sentinel_test', task.env, data=task.data)
