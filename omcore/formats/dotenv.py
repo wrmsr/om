@@ -542,9 +542,9 @@ def dotenv_unset_key(
 
 
 def dotenv_resolve_variables(
-        values: ta.Iterable[ta.Tuple[str, ta.Optional[str]]],
-        override: bool,
-        env: ta.Mapping[str, str],
+    values: ta.Iterable[ta.Tuple[str, ta.Optional[str]]],
+    override: bool,
+    env: ta.Mapping[str, str],
 ) -> ta.Dict[str, ta.Optional[str]]:
     new_values: ta.Dict[str, ta.Optional[str]] = {}
 
