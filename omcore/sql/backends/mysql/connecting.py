@@ -5,6 +5,7 @@ properly injected; kept minimal on purpose.
 import typing as ta
 
 from .... import check
+from .... import lang
 from ....secrets.secrets import Secrets
 from ...api.core import AsyncDb
 from ...api.core import Db
@@ -13,7 +14,7 @@ from ...dbs.specs import HostDbLoc
 from ...drivers.omysql.core.asyncio import AsyncioConnection
 from ...drivers.omysql.core.sync import SyncConnection
 from ..connecting import parse_url_db_loc as _parse_url_db_loc
-from ..connecting import reveal_password
+from ..connecting import reveal_loc_field
 from ..connecting import with_username  # noqa
 from .drivers.omysql.asyncio import AsyncioOmysqlDb
 from .drivers.omysql.sync import OmysqlDb
@@ -32,13 +33,11 @@ def _omysql_kwargs(
         database: str | None = None,
         secrets: Secrets | None = None,
 ) -> dict[str, ta.Any]:
-    password = reveal_password(loc, secrets)
-
     return dict(
-        user=check.non_empty_str(loc.username),
-        password=password if password is not None else '',
-        host=loc.host,
-        port=loc.port if loc.port is not None else check.not_none(DbFamilies.MYSQL.default_port),
+        user=reveal_loc_field(loc.username, str, secrets),
+        password=reveal_loc_field(loc.password, str, secrets),
+        host=reveal_loc_field(loc.host, str, secrets),
+        port=lang.coalesce(reveal_loc_field(loc.port, int, secrets), check.not_none(DbFamilies.MYSQL.default_port)),
         database=database,
     )
 

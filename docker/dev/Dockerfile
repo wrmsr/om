@@ -893,6 +893,16 @@ RUN (\
 mkdir /om/scripts && chmod -R g=u /om/scripts ;\
 )
 
+RUN cat > /om/scripts/install-agy <<'EOF' && chmod 664 /om/scripts/install-agy
+#!/bin/bash
+set -e
+
+command -v agy >/dev/null 2>&1 && exit 0
+
+curl -fsSL https://antigravity.google/cli/install.sh | bash
+EOF
+
+
 RUN cat > /om/scripts/install-claude <<'EOF' && chmod 664 /om/scripts/install-claude
 #!/bin/bash
 set -e

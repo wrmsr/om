@@ -2,14 +2,17 @@
 Thin, provisional glue between db locations and live connections, shared by the per-backend `connecting` modules.
 Expected to be redone once connection configuration is properly injected; kept minimal on purpose.
 """
+import typing as ta
 import urllib.parse
 
 from ... import check
 from ... import dataclasses as dc
-from ...secrets.secrets import SecretRef
-from ...secrets.secrets import Secrets
+from ...secrets import all as sec
 from ..dbs.specs import DbFamily
 from ..dbs.specs import HostDbLoc
+
+
+T = ta.TypeVar('T')
 
 
 ##
@@ -30,16 +33,32 @@ def parse_url_db_loc(url: str, family: DbFamily) -> tuple[HostDbLoc, str | None]
     return loc, (p_u.path.lstrip('/') or None)
 
 
-def reveal_password(loc: HostDbLoc, secrets: Secrets | None = None) -> str | None:
-    if (pw := loc.password) is None:
-        return None
-    elif isinstance(pw, str):
-        return pw
-    elif isinstance(pw, SecretRef):
-        return check.not_none(secrets).fix(pw).reveal()
+def reveal_loc_field(
+        v: sec.SecretRef | T | None,
+        ty: type[T],
+        secrets: sec.Secrets | None = None,
+) -> T | None:
+    if v is None or isinstance(v, ty):
+        return v
+    elif isinstance(v, sec.SecretRef):
+        s = check.not_none(secrets).fix(v).reveal()
+        if ty is str:
+            return ta.cast(T, s)
+        elif ty is int:
+            return ta.cast(T, int(s))
+        else:
+            raise TypeError(ty)
     else:
-        raise TypeError(pw)
+        raise TypeError(v)
 
 
-def with_username(loc: HostDbLoc, username: str, password: str | None) -> HostDbLoc:
-    return dc.replace(loc, username=username, password=password)
+def with_username(
+        loc: HostDbLoc,
+        username: str,
+        password: str | None,
+) -> HostDbLoc:
+    return dc.replace(
+        loc,
+        username=username,
+        password=password,
+    )

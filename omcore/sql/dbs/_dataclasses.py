@@ -548,23 +548,23 @@ def _process_dataclass__595892a0441f93f5cea9ddbd6408520e0329176a():
 
 
 @_register(
-    installer_sha1='4f0d3c2f80146ae14199ef6330a7a7268aaecfff',
+    installer_sha1='f30405a89925e97edc717075a577dfe2081c43f6',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
-            "se, False, False, False), ((('host', True, True, None, True, False, False, None), 'instance', 'missing', N"
-            "one, False, False, False), (('port', True, True, None, True, False, False, None), 'instance', 'value', Non"
-            "e, False, False, False), (('username', True, True, None, True, True, False, None), 'instance', 'value', No"
-            "ne, False, False, False), (('password', True, True, None, True, True, False, None), 'instance', 'value', N"
-            "one, False, False, True)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), ()"
-            ", (False,)))"
+            "se, False, False, False), ((('host', True, True, None, True, False, False, None), 'instance', 'value', Non"
+            "e, False, False, True), (('port', True, True, None, True, False, False, None), 'instance', 'value', None, "
+            "False, False, False), (('username', True, True, None, True, True, False, None), 'instance', 'value', None,"
+            " False, False, True), (('password', True, True, None, True, True, False, None), 'instance', 'value', None,"
+            " False, False, True)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (F"
+            "alse,)))"
         ),
     ),
     cls_names=(
         ('omcore.sql.dbs.specs', 'HostDbLoc'),
     ),
 )
-def _process_dataclass__4f0d3c2f80146ae14199ef6330a7a7268aaecfff():
+def _process_dataclass__f30405a89925e97edc717075a577dfe2081c43f6():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -572,12 +572,15 @@ def _process_dataclass__4f0d3c2f80146ae14199ef6330a7a7268aaecfff():
         __dataclass__globals,
     ):
         __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__0__default = __dataclass__spec.fields[0].default.must()
         __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
         __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
         __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
         __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
         __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
         __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__repr__fns__0__fn = __dataclass__spec.fields[0].repr_fn
+        __dataclass__repr__fns__2__fn = __dataclass__spec.fields[2].repr_fn
         __dataclass__repr__fns__3__fn = __dataclass__spec.fields[3].repr_fn
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
@@ -650,7 +653,7 @@ def _process_dataclass__4f0d3c2f80146ae14199ef6330a7a7268aaecfff():
 
         def __init__(
             self,
-            host: __dataclass__init__fields__0__annotation,
+            host: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
             port: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
             *,
             username: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
@@ -666,9 +669,11 @@ def _process_dataclass__4f0d3c2f80146ae14199ef6330a7a7268aaecfff():
         @__dataclass___recursive_repr()
         def __repr__(self):
             parts = []
-            parts.append(f"host={self.host!r}")
+            if (s := __dataclass__repr__fns__0__fn(self.host)) is not None:
+                parts.append(f"host={s}")
             parts.append(f"port={self.port!r}")
-            parts.append(f"username={self.username!r}")
+            if (s := __dataclass__repr__fns__2__fn(self.username)) is not None:
+                parts.append(f"username={s}")
             if (s := __dataclass__repr__fns__3__fn(self.password)) is not None:
                 parts.append(f"password={s}")
             return (

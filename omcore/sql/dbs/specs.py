@@ -64,12 +64,12 @@ class UrlDbLoc(DbLoc, lang.Final):
 @msh.update_object_options(field_defaults=msh.FieldOptions(omit_if=lang.is_none))
 @dc.dataclass(frozen=True)
 class HostDbLoc(DbLoc, lang.Final):
-    host: str
-    port: int | None = None
+    host: sec.SecretRefOrStr | None = dc.xfield(default=None) | sec.secret_field
+    port: sec.SecretRef | int | None = None
 
     _: dc.KW_ONLY
 
-    username: str | None = None
+    username: sec.SecretRefOrStr | None = dc.xfield(default=None) | sec.secret_field
     password: sec.SecretRefOrStr | None = dc.xfield(default=None) | sec.secret_field
 
 
