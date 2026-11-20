@@ -3,21 +3,17 @@ import textwrap
 import pytest
 
 from .. import astvm
+from .replay import check_pending_replay
+from .replay import expected_result
 
 
 ##
 
 
-def _expected(source):
-    namespace: dict[str, object] = {}
-    exec(source, namespace)
-    return namespace['result']
-
-
 def _check_replay(setup, body):
     setup = textwrap.dedent(setup)
     body = textwrap.dedent(body)
-    expected = _expected(setup + '\n' + body)
+    expected = expected_result(setup + '\n' + body)
 
     vm = astvm.Interpreter()
     vm.execute(setup)
@@ -28,33 +24,6 @@ def _check_replay(setup, body):
     for _ in range(2):
         vm.restore(checkpoint)
         vm.execute(body)
-        assert vm.get('result') == expected
-
-
-def _check_pending_replay(source, task_kind, *, predicate=None, occurrence=1):
-    expected = _expected(source)
-    runtime = astvm.DictRuntime()
-    vm = astvm.Interpreter(runtime=runtime)
-    vm.start(source)
-    while not vm.done:
-        execution = runtime.read_thread().executions[-1]
-        if execution.tasks:
-            task = execution.tasks[-1]
-            if task.kind == task_kind and (predicate is None or predicate(task)):
-                occurrence -= 1
-                if not occurrence:
-                    break
-        vm.step()
-    else:
-        pytest.fail(f'{task_kind!r} continuation was not reached')
-
-    checkpoint = vm.checkpoint()
-    vm.run()
-    assert vm.get('result') == expected
-
-    for _ in range(2):
-        vm.restore(checkpoint)
-        vm.run()
         assert vm.get('result') == expected
 
 
@@ -216,7 +185,7 @@ def test_zip_replay_keeps_aliases_and_partially_consumed_row(strict):
         result.append('uneven')
     result.append(next(source, None))
     """)
-    _check_pending_replay(source, 'adapter_pull', predicate=lambda task: task.data[1] == (3,))
+    check_pending_replay(source, 'adapter_pull', predicate=lambda task: task.data[1] == (3,))
 
 
 def test_strict_zip_consumes_one_item_from_longer_input_when_probing():
@@ -229,7 +198,7 @@ def test_strict_zip_consumes_one_item_from_longer_input_when_probing():
     except ValueError:
         result.append(next(source))
     """)
-    _check_pending_replay(source, 'zip_probe')
+    check_pending_replay(source, 'zip_probe')
 
 
 @pytest.mark.parametrize('make', ['zip(left, right)', 'map(lambda a, b: (a, b), left, right)'])
@@ -254,7 +223,7 @@ def test_adapter_keeps_partial_consumption_after_input_error(make):
     except ValueError as exc:
         result = (exc.args, next(adapter), next(left))
     """)
-    _check_pending_replay(source, 'adapter_pull', predicate=lambda task: task.data[1] == (1,))
+    check_pending_replay(source, 'adapter_pull', predicate=lambda task: task.data[1] == (1,))
 
 
 @pytest.mark.parametrize('make', ['iter(source, None)', 'reversed(source)'])
@@ -315,4 +284,4 @@ def test_mutating_consumer_keeps_partial_changes_when_input_raises(target, opera
     except ValueError as exc:
         result = (target, events, exc.args, next(iterator, None))
     """)
-    _check_pending_replay(source, task_kind, occurrence=2)
+    check_pending_replay(source, task_kind, occurrence=2)
