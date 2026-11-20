@@ -1,19 +1,24 @@
+import importlib.resources
 import json
 import os
 import select
+import shlex
 import signal
 import subprocess
 import sys
 import tempfile
 import unittest
 
-from .. import minieval
+from .. import commands
+from .. import docker
+from .. import models
+from ..assets import eval_resources
 
 
 ##
 
 
-class FailingDocker(minieval.Docker):
+class FailingDocker(docker.Docker):
     def __init__(self, failure):
         super().__init__(
             executable='unused',
@@ -30,8 +35,8 @@ class FailingDocker(minieval.Docker):
         if args[0] == self.failure:
             if self.failure == 'create':
                 raise KeyboardInterrupt
-            raise minieval.CommandError('Injected start failure')
-        return minieval.CommandResult(0, 0.0, stdout=('a' * 64 + '\n').encode())
+            raise commands.CommandError('Injected start failure')
+        return commands.CommandResult(0, 0.0, stdout=('a' * 64 + '\n').encode())
 
 
 class RunnerTest(unittest.TestCase):
@@ -64,7 +69,7 @@ class RunnerTest(unittest.TestCase):
             'print("diagnostic", file=sys.stderr)\n'
         )
         log = os.path.join(self.directory, 'command.log')
-        result = minieval.run_command(
+        result = commands.run_command(
             [sys.executable, '-c', source, *args],
             log_path=log,
             timeout=10,
@@ -75,7 +80,7 @@ class RunnerTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertFalse(result.timed_out)
         self.assertEqual(json.loads(result.stdout), [args, '68656c6c6f00ff0a'])
-        self.assertIn('diagnostic', minieval.read_text(log))
+        self.assertIn('diagnostic', commands.read_text(log))
 
     def test_timeout_kills_a_resistant_descendant(self):
         marker = os.path.join(self.directory, 'child.pid')
@@ -94,7 +99,7 @@ class RunnerTest(unittest.TestCase):
             'subprocess.Popen([sys.executable, "-c", sys.argv[1], sys.argv[2]])\n'
             'signal.pause()\n'
         )
-        result = minieval.run_command(
+        result = commands.run_command(
             [sys.executable, '-c', parent_source, child_source, marker],
             log_path=os.path.join(self.directory, 'timeout.log'),
             timeout=1,
@@ -104,7 +109,7 @@ class RunnerTest(unittest.TestCase):
         self.assertTrue(result.timed_out)
         self.assertNotEqual(result.returncode, 0)
         self.assertLess(result.seconds, 8)
-        pid = int(minieval.read_text(marker))
+        pid = int(commands.read_text(marker))
         state = subprocess.run(
             ['ps', '-p', str(pid), '-o', 'stat='],
             stdout=subprocess.PIPE,
@@ -129,8 +134,8 @@ class RunnerTest(unittest.TestCase):
         )
         runner_source = (
             'import sys\n'
-            'import minieval\n'
-            'minieval.run_command(\n'
+            'from omllm.ui.evals import commands\n'
+            'commands.run_command(\n'
             '    [sys.executable, "-c", sys.argv[1], sys.argv[2]],\n'
             '    log_path=sys.argv[3], timeout=60, capture=True,\n'
             ')\n'
@@ -146,7 +151,6 @@ class RunnerTest(unittest.TestCase):
                         marker,
                         os.path.join(self.directory, 'interrupt.log'),
                     ],
-                    cwd=os.path.dirname(os.path.abspath(minieval.__file__)),
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                     start_new_session=True,
@@ -159,7 +163,7 @@ class RunnerTest(unittest.TestCase):
                     process.wait(timeout=10)
                 finally:
                     if process.poll() is None:
-                        minieval.stop_process(process)
+                        commands.stop_process(process)
         finally:
             os.close(ready_fd)
 
@@ -172,8 +176,8 @@ class RunnerTest(unittest.TestCase):
         self.write('.DS_Store', 'Finder metadata')
         self.write('README.md', 'Task collection')
 
-        self.assertEqual([task.name for task in minieval.load_tasks(self.directory)], ['one', 'two'])
-        selected = minieval.load_tasks(self.directory, ['two', 'one'])
+        self.assertEqual([task.name for task in models.load_tasks(self.directory)], ['one', 'two'])
+        selected = models.load_tasks(self.directory, ['two', 'one'])
         self.assertEqual([task.name for task in selected], ['two', 'one'])
 
     def test_task_selection_rejects_escape_and_duplicate(self):
@@ -181,7 +185,7 @@ class RunnerTest(unittest.TestCase):
         for names in (['../one'], ['one', 'one'], ['missing']):
             with self.subTest(names=names):
                 with self.assertRaises(ValueError):
-                    minieval.load_tasks(self.directory, names)
+                    models.load_tasks(self.directory, names)
 
     def test_template_substitution_is_literal_and_nonrecursive(self):
         value = 'python {instruction_file} {workdir} {"ordinary": "braces"}'
@@ -190,7 +194,7 @@ class RunnerTest(unittest.TestCase):
             'workdir': '/work',
         }
         self.assertEqual(
-            minieval.replace_tokens(value, tokens),
+            commands.replace_tokens(value, tokens),
             'python /tmp/run {workdir}/instruction.md /work {"ordinary": "braces"}',
         )
 
@@ -198,19 +202,19 @@ class RunnerTest(unittest.TestCase):
         target = self.write('original/file.txt', 'keep me')
         link = os.path.join(self.directory, 'link')
         os.symlink(os.path.dirname(target), link)
-        minieval.remove_path(link)
+        commands.remove_path(link)
 
         self.assertFalse(os.path.lexists(link))
-        self.assertEqual(minieval.read_text(target), 'keep me')
+        self.assertEqual(commands.read_text(target), 'keep me')
 
     def test_task_hash_ignores_generated_metadata(self):
         root = self.task('one')
-        before = minieval.hash_tree(root)
+        before = models.hash_tree(root)
         self.write('one/.git/config', 'generated metadata')
         self.write('one/__pycache__/cached.pyc', 'generated metadata')
-        self.assertEqual(minieval.hash_tree(root), before)
+        self.assertEqual(models.hash_tree(root), before)
         self.write('one/instruction.md', '# A changed assignment\n')
-        self.assertNotEqual(minieval.hash_tree(root), before)
+        self.assertNotEqual(models.hash_tree(root), before)
 
     def test_task_hash_covers_directory_symlinks(self):
         root = self.task('one')
@@ -218,27 +222,27 @@ class RunnerTest(unittest.TestCase):
         os.mkdir(os.path.join(self.directory, 'target-b'))
         link = os.path.join(root, 'linked-data')
         os.symlink('../target-a', link)
-        before = minieval.hash_tree(root)
+        before = models.hash_tree(root)
         os.unlink(link)
         os.symlink('../target-b', link)
 
-        self.assertNotEqual(minieval.hash_tree(root), before)
+        self.assertNotEqual(models.hash_tree(root), before)
 
     def test_failed_or_timed_out_agent_cannot_claim_success(self):
-        passed = minieval.CommandResult(0, 0.1)
-        failed = minieval.CommandResult(1, 0.1)
-        timeout = minieval.CommandResult(-9, 0.1, timed_out=True)
+        passed = commands.CommandResult(0, 0.1)
+        failed = commands.CommandResult(1, 0.1)
+        timeout = commands.CommandResult(-9, 0.1, timed_out=True)
         cases = [
             (failed, passed, 'agent_error'),
             (timeout, passed, 'agent_timeout'),
             (passed, failed, 'failed'),
             (passed, timeout, 'test_timeout'),
-            (passed, minieval.CommandResult(2, 0.1), 'grader_error'),
+            (passed, commands.CommandResult(2, 0.1), 'grader_error'),
             (passed, passed, 'passed'),
         ]
         for agent, verifier, expected in cases:
             with self.subTest(expected=expected):
-                self.assertEqual(minieval.classify_result(agent, verifier), expected)
+                self.assertEqual(models.classify_result(agent, verifier), expected)
 
     def test_external_adapter_receives_the_request_and_clean_argument_boundaries(self):
         path = self.write('capture.py', (
@@ -254,13 +258,13 @@ class RunnerTest(unittest.TestCase):
             'instruction_file': '/tmp/a task/instruction.md',  # noqa
             'instruction': 'Fix the example.\nKeep the interface unchanged.',
         }
-        agent = minieval.load_agent(
+        agent = models.load_agent(
             'external',
             self.directory,
             [sys.executable, path, capture_path, '{container_id}', '{instruction_file}'],
         )
-        task = minieval.Task('example', self.directory, request['instruction'])
-        result = minieval.run_agent(
+        task = models.Task('example', self.directory, request['instruction'])
+        result = docker.run_agent(
             None,  # type: ignore
             agent,
             task,
@@ -271,7 +275,7 @@ class RunnerTest(unittest.TestCase):
         )
 
         self.assertEqual(result.returncode, 0)
-        captured = json.loads(minieval.read_text(capture_path))
+        captured = json.loads(commands.read_text(capture_path))
         self.assertEqual(captured['request'], request)
         self.assertEqual(captured['args'], [
             'a' * 64,
@@ -280,22 +284,63 @@ class RunnerTest(unittest.TestCase):
         ])
 
     def test_bundled_container_agent_configs_load(self):
-        root = os.path.dirname(os.path.abspath(minieval.__file__))
+        root = self.enterContext(importlib.resources.as_file(eval_resources()))
         for name in ('codex', 'claude', 'pi'):
             with self.subTest(name=name):
-                agent = minieval.load_agent(name, os.path.join(root, 'agents'), [])
+                agent = models.load_agent(name, os.path.join(root, 'agents'), [])
                 self.assertEqual(agent.kind, 'container')
                 self.assertEqual(agent.user, 'agent')
                 self.assertTrue(agent.command)
                 self.assertTrue(os.path.isfile(os.path.join(agent.directory, agent.dockerfile)))
 
+    def test_native_docker_adapter_routes_file_tools_through_docker_exec(self):
+        workdir = os.path.join(self.directory, 'container root')
+        os.mkdir(workdir)
+        container_id = 'a' * 64
+        executable = self.write('docker', (
+            '#!/bin/sh\n'
+            'set -eu\n'
+            '[ "$1 $2 $3 $4 $5" = "exec -i -u agent ' + container_id + '" ]\n'
+            'shift 5\n'
+            f'cd {shlex.quote(workdir)}\n'
+            'exec "$@"\n'
+        ))
+        os.chmod(executable, 0o700)
+        answer = os.path.join(workdir, 'answer.txt')
+        script = self.write('script.json', json.dumps([
+            {'tool_calls': [{'name': 'write', 'args': {'file_path': answer, 'contents': 'remote'}}]},
+            {'text': 'Done.'},
+        ]))
+        result = docker.run_agent(
+            docker.Docker(executable=executable, platform=None, timeout=30, log_path=os.devnull),
+            models.Agent('scripted', 'scripted'),
+            models.Task('example', self.directory, 'Write an answer.'),
+            {
+                'runtime': 'docker',
+                'container_id': container_id,
+                'docker_executable': executable,
+                'user': 'agent',
+                'workdir': workdir,
+                'instruction': 'Write an answer.',
+                'output_dir': self.directory,
+                'artifact_dir': self.directory,
+            },
+            timeout=30,
+            extra_args=(),
+            extra_env=(),
+            script=script,
+        )
+        log = commands.read_text(os.path.join(self.directory, 'agent.log'))
+        self.assertEqual(result.returncode, 0, log)
+        self.assertEqual(commands.read_text(answer), 'remote')
+
     def test_start_failure_still_removes_the_created_container(self):
         path = self.task('example')
-        docker = FailingDocker('start')
-        result = minieval.run_trial(
-            docker,
-            minieval.Task('example', path, 'Repair this task'),
-            minieval.Agent('nop', 'nop'),
+        failing_docker = FailingDocker('start')
+        result = docker.run_trial(
+            failing_docker,
+            models.Task('example', path, 'Repair this task'),
+            models.Agent('nop', 'nop'),
             task_image='test-image',
             agent_image='test-image',
             output_dir=os.path.join(self.directory, 'attempt'),
@@ -304,18 +349,18 @@ class RunnerTest(unittest.TestCase):
         )
 
         self.assertEqual(result['status'], 'infrastructure_error')
-        self.assertIn(['rm', '-f', 'a' * 64], docker.calls)
+        self.assertIn(['rm', '-f', 'a' * 64], failing_docker.calls)
         self.assertFalse(result.get('cleanup_errors'))
 
     def test_interrupted_creation_cleans_up_by_registered_name(self):
         path = self.task('example')
-        docker = FailingDocker('create')
+        failing_docker = FailingDocker('create')
         output = os.path.join(self.directory, 'attempt')
         with self.assertRaises(KeyboardInterrupt):
-            minieval.run_trial(
-                docker,
-                minieval.Task('example', path, 'Repair this task'),
-                minieval.Agent('nop', 'nop'),
+            docker.run_trial(
+                failing_docker,
+                models.Task('example', path, 'Repair this task'),
+                models.Agent('nop', 'nop'),
                 task_image='test-image',
                 agent_image='test-image',
                 output_dir=output,
@@ -323,9 +368,9 @@ class RunnerTest(unittest.TestCase):
                 test_timeout=1,
             )
 
-        result = json.loads(minieval.read_text(os.path.join(output, 'result.json')))
+        result = json.loads(commands.read_text(os.path.join(output, 'result.json')))
         self.assertEqual(result['status'], 'interrupted')
         self.assertEqual(len(result['containers']), 1)
         name = result['containers'][0]
         self.assertTrue(name.startswith('minieval-'))
-        self.assertIn(['rm', '-f', name], docker.calls)
+        self.assertIn(['rm', '-f', name], failing_docker.calls)

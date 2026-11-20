@@ -1,4 +1,5 @@
 import argparse
+import sys
 import typing as ta
 
 from omcore import lang
@@ -26,6 +27,20 @@ def _build_frontend_parser() -> argparse.ArgumentParser:
 
 
 def _main(argv: lang.SequenceNotStr[str] | None = None) -> None:
+    if argv is None:
+        argv = sys.argv[1:]
+    if argv and argv[0] == 'evals':
+        from .evals import minieval
+
+        minieval._main(list(argv[1:]))  # noqa: SLF001
+        return
+
+    if argv and argv[0] == 'jobs':
+        from .jobs.cli import run_jobs_cli
+
+        run_jobs_cli(list(argv[1:]))
+        return
+
     ns, args = _build_frontend_parser().parse_known_args(argv)
 
     #

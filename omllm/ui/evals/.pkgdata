@@ -1,0 +1,7 @@
+eval-data/agents/README.md
+eval-data/agents/*/Dockerfile
+eval-data/agents/*/agent.json
+eval-data/tasks/*/instruction.md
+eval-data/tasks/*/environment/*
+eval-data/tasks/*/solution/*
+eval-data/tasks/*/tests/*

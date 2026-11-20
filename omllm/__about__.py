@@ -49,6 +49,8 @@ class Project(ProjectBase):
 
 
 class Setuptools(SetuptoolsBase):
+    include_package_data = False
+
     find_packages = {
         'include': [Project.name, f'{Project.name}.*'],
         'exclude': [*SetuptoolsBase.find_packages['exclude']],

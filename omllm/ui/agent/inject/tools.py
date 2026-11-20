@@ -1,8 +1,10 @@
+from omcore import check
 from omcore import inject as inj
 from omcore.asyncs.asynclite import all as asl
 
 from .... import agent as agn
 from ....agent.remote.inject import bind_docker_remote_agent
+from ....agent.remote.inject import bind_remote_agent_ops
 from ....agent.tools.inject import agent_tool_sets_binder
 from ....agent.tools.inject import agent_tools_binder
 from ....agent.tools.inject import bind_agent_tool_class
@@ -49,7 +51,11 @@ class _EnvironmentInfoGetter:
 ##
 
 
-def bind_tool_infrastructure(config: AgentConfig) -> inj.Elements:
+def bind_tool_infrastructure(
+        config: AgentConfig,
+        *,
+        remote_client: agn.RemoteAgentClient | None = None,
+) -> inj.Elements:
     """
     What tools stand on, bound once for the whole app: the environment they work in, what they run processes on,
     and the ops they share. An agent scope - the root agent's today, a subagent's - binds its own tool classes over
@@ -60,7 +66,10 @@ def bind_tool_infrastructure(config: AgentConfig) -> inj.Elements:
 
     # An environment and a process manager are bound either way, whatever tools the agent is given: the agent is told
     # where it is regardless, and the user's own shell runs on the manager too.
-    if config.container is not None:
+    if remote_client is not None:
+        check.none(config.container)
+        lst.extend([inj.bind(remote_client), bind_remote_agent_ops()])
+    elif config.container is not None:
         lst.extend([
             bind_docker_remote_agent(agn.DockerContainerId.parse(config.container)),
         ])
@@ -91,7 +100,7 @@ def bind_tool_infrastructure(config: AgentConfig) -> inj.Elements:
             inj.bind(agn.ExecOps, to_key=agn.ProcessesExecOps),
         ])
 
-    if config.fs and config.container is None:
+    if config.fs and config.container is None and remote_client is None:
         lst.extend([
             inj.bind(agn.LocalFsOps, singleton=True),
             inj.bind(agn.FsOps, to_key=agn.LocalFsOps),
@@ -118,7 +127,7 @@ def _provide_unsandboxed_ripgrep_tool(
     )
 
 
-def bind_tool_classes(config: AgentConfig) -> inj.Elements:
+def bind_tool_classes(config: AgentConfig, *, remote: bool = False) -> inj.Elements:
     """
     The tool classes the config calls for, as singletons of the injector this is bound in, each contributed to that
     injector's `AgentTools`. Bound per agent scope: every agent gets instances of its own over the shared
@@ -173,7 +182,7 @@ def bind_tool_classes(config: AgentConfig) -> inj.Elements:
         ])
 
     if config.exec and config.fs:
-        if config.container is not None:
+        if remote or config.container is not None:
             lst.append(inj.bind(agn.RipgrepTool, singleton=True, to_fn=_provide_unsandboxed_ripgrep_tool))
         else:
             lst.append(inj.bind(agn.RipgrepTool, singleton=True))
@@ -200,11 +209,11 @@ def bind_tool_classes(config: AgentConfig) -> inj.Elements:
 ##
 
 
-def bind_tools(config: AgentConfig) -> inj.Elements:
+def bind_tools(config: AgentConfig, *, remote_client: agn.RemoteAgentClient | None = None) -> inj.Elements:
     return inj.as_elements(
-        bind_tool_infrastructure(config),
+        bind_tool_infrastructure(config, remote_client=remote_client),
 
-        bind_tool_classes(config),
+        bind_tool_classes(config, remote=remote_client is not None),
 
         inj.bind(agn.ToolSet, to_fn=provide_tool_set, singleton=True),
     )

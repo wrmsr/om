@@ -1,4 +1,5 @@
 """Validate the starter tasks' behavior locally, independently of Docker."""
+import importlib.resources
 import os
 import shutil
 import subprocess
@@ -6,7 +7,8 @@ import sys
 import tempfile
 import unittest
 
-from .. import minieval
+from .. import models
+from ..assets import eval_resources
 
 
 ##
@@ -44,8 +46,8 @@ class FixtureTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0 if reference or visible else 1, result.stdout)
 
     def get_tasks(self):
-        root = os.path.dirname(os.path.abspath(minieval.__file__))
-        return minieval.load_tasks(os.path.join(root, 'tasks'))
+        root = self.enterContext(importlib.resources.as_file(eval_resources()))
+        return models.load_tasks(os.path.join(root, 'tasks'))
 
     def test_visible_tests_pass_on_starters(self):
         for task in self.get_tasks():

@@ -1,70 +1,48 @@
-# Mini agent eval
+# Coding-agent evals
 
-A small coding-agent evaluator: one standard-library Python runner, Docker and local runtimes, three starter tasks, and
-optional Codex, Claude Code, and Pi adapters. Your own host agent can work against a Docker container or a local trial
-workspace.
-
-The runner targets Python 3.11+ on Linux and macOS, including Python 3.14. Docker is the default runtime and requires an
-ordinary running Linux Docker daemon: Docker Engine on Linux or Docker Desktop on macOS. The local runtime requires
-Linux Landlock ABI 3 or newer, host Git, and a Python interpreter. Neither runtime needs extra host Python packages.
-Host Node is only needed for host agents which use it.
-
-## First run
-
-Unpack this directory, enter it, and run:
+Run `om llm evals` to evaluate the native `omllm` harness or an external coding agent. The three bundled tasks
+ship with their starting workspaces, independent graders, and reference solutions.
 
 ```sh
-python3 -m minieval list
-python3 -m minieval check
+om llm evals list
+om llm evals check
+om llm evals run --agent om
 ```
 
-`check` builds the three task images and runs each task twice: once with no changes, then with its reference solution.
-It succeeds only when all three starters fail their grading tests and all three reference solutions pass. It requires
-no model credentials and makes no model requests. The first image build downloads base images and OS packages.
+From a source checkout, substitute `./python -m omllm.ui.evals` for `om llm evals`.
 
-For a quicker first check:
+Docker is the default runtime. `check` builds the task images and runs each task with both a no-op and its reference
+solution. The starters must fail grading and the reference solutions must pass. These controls make no model requests.
+The first Docker build downloads base images and OS packages.
+
+## Run the native harness
 
 ```sh
-python3 -m minieval check --task intervals
+om llm evals run --agent om --timeout 300
+om llm evals run --runtime local --agent om --timeout 300
 ```
 
-### Without Docker
+The harness runs headlessly on the host and uses the normal model catalog and `om` secrets loading. It uses the
+`gpt` alias and a 16-turn limit by default. Override them with `--agent-arg=--model --agent-arg=MODEL_ALIAS` and
+`--agent-arg=--max-turns --agent-arg=NUMBER`. The native agent's shell and filesystem tools run through the remote
+agent protocol in the task container or under Landlock. Provider credentials stay with the host harness. The exact
+prompt appears in each trial's `agent-artifacts/prompt.txt`.
 
-From the monorepo root, use its Python launcher and select the local runtime:
+The Docker route uses a disposable Linux container and runs tools as its `agent` user. On Linux with Landlock ABI 3
+or newer, `--runtime local` gives tools separate work and scratch directories and a minimal environment. Grading
+runs on a fresh snapshot in either runtime. Bundled graders and reference solutions are kept outside the agent's
+read access. Local task setup supports Dockerfiles with `COPY *.py ./` as the sole copy operation and uses host Git
+and the current Python interpreter. Landlock enforces filesystem restrictions. Use Docker when you need process and
+network namespace isolation.
+
+### Scripted control
 
 ```sh
-./python -m x.mini_agent_eval.minieval check --runtime local --tasks x/mini_agent_eval/tasks
-./python -m x.mini_agent_eval.minieval run --runtime local --tasks x/mini_agent_eval/tasks --agent oracle
+om llm evals run --runtime local --agent scripted --task intervals
 ```
 
-`check` creates fresh workspaces and a fresh grader for every trial. It verifies that all three starters fail and all
-three reference solutions pass. Local agent and grader processes inherit Linux Landlock rules that permit filesystem
-reads from the trial files, interpreter, installed packages, and required system files, and writes only in their
-workspace, temporary directory, and (for agents) artifacts directory. The runner gives them a trial HOME and
-TMPDIR, makes the project interpreter available as `python` and `python3`, and kills the process group after each
-command. No Docker socket or model credentials are needed for `check`.
-
-The local runtime currently supports task images with `COPY *.py ./` as their sole Dockerfile copy operation, as in the
-three included tasks. It copies those Python sources into each workspace and uses the host interpreter and Git. A task
-with build-time dependencies or other Dockerfile copy operations needs a local setup implementation before it can run
-locally. `local.json` records the host platform, Python version, executable, and Landlock ABI; results retain each task's
-content hash. Use the same host toolchain when comparing local runs.
-
-The local runtime does not grant the agent or grader access to the host's `om` secrets files or the bundled reference
-solutions, unless running the `oracle` control. Local processes receive a minimal environment; `--env` is rejected for
-local runs. Landlock does not isolate network access, processes, or every kernel interface. This runtime is useful for
-development and wiring checks; use Docker or a stronger sandbox for hostile agent code. Docker remains the default.
-
-The in-repo `omllm` agent can run with an internally configured scripted backend, without provider keys:
-
-```sh
-./python -m x.mini_agent_eval.minieval run --runtime local --tasks x/mini_agent_eval/tasks \
-    --task intervals --agent scripted
-```
-
-The default script calls `bash` to inspect the workspace and then ends; the grader should report `failed` because no
-repair was made. Supply `--script FILE` to replace those turns. The file is a JSON array: each turn has either a `text`
-string or a nonempty `tool_calls` array. Every tool call has a `name` and an `args` object. For example:
+The default script inspects the workspace and should fail grading. Supply `--script FILE` to replace it with a JSON
+array of turns. The same control works with Docker.
 
 ```json
 [
@@ -73,34 +51,8 @@ string or a nonempty `tool_calls` array. Every tool call has a `name` and an `ar
 ]
 ```
 
-The adapter builds an `omllm.llm.BackendScript`, injects a `ScriptedImmediateBackend` into the normal `omllm.ui` agent,
-and grants its tools access to the trial workspace. This is a deterministic integration control, not an agent score.
-`--agent scripted` is available from this monorepo checkout and requires `--runtime local`.
-
-To run the actual `omllm` coding harness with its configured default `gpt` model and the usual `om` secrets files:
-
-```sh
-./python -m x.mini_agent_eval.minieval run --runtime local --tasks x/mini_agent_eval/tasks \
-    --agent om --timeout 300
-```
-
-`--agent om` uses the same headless `omllm.ui` agent and file/shell tools as the scripted control. The trusted runner
-resolves one model API key from the usual `om` config, passes only that value to the agent on stdin, and injects the live
-backend explicitly. The agent receives neither the host secrets-file paths nor other environment secrets. The key is
-not written to request, result, or command logs; agent-generated output can still reveal what the agent sees. It
-defaults to at most 16 model turns per task. `--agent-arg` accepts `--model` and `--max-turns`, for example
-`--agent-arg=--model --agent-arg=OTHER_MODEL_ALIAS`. This makes real provider requests and requires `--runtime local`.
-The exact prompt is saved in each trial's `agent-artifacts/prompt.txt`.
-
-Ordinary runs use `run`:
-
-```sh
-python3 -m minieval run --agent oracle
-python3 -m minieval run --agent nop
-```
-
-The second command is expected to exit 1 because the supplied source is buggy. The first should exit 0.
-`oracle` is a reference implementation control, not a model or a useful agent score.
+The `oracle` control applies the reference fix and the `nop` control leaves the starter unchanged. Use `check` to run
+both with the expected grading outcomes.
 
 ## Your host agent
 
@@ -108,7 +60,7 @@ Supply a host command after `--`. With Docker, the runner starts the task contai
 task, sending a single JSON object followed by a newline to its stdin:
 
 ```sh
-python3 -m minieval run --agent external --task intervals -- \
+om llm evals run --agent external --task intervals -- \
     python3 -m your_agent.eval_adapter
 ```
 
@@ -119,6 +71,7 @@ request includes:
 ```json
 {
   "task_id": "intervals",
+  "runtime": "docker",
   "container_id": "<running Docker container ID>",
   "docker_executable": "docker",
   "workdir": "/work",
@@ -127,6 +80,7 @@ request includes:
   "instruction_file": "<absolute host path to the assignment>",
   "container_instruction_file": "/tmp/mini-eval-instruction.md",
   "output_dir": "<absolute host path to this attempt's output directory>",
+  "artifact_dir": "<absolute host path to the agent artifacts directory>",
   "timeout_seconds": 600
 }
 ```
@@ -157,7 +111,7 @@ If your program already accepts command-line arguments instead of JSON, placehol
 arguments. The JSON request is still sent to stdin:
 
 ```sh
-python3 -m minieval run --agent external -- \
+om llm evals run --agent external -- \
     my-agent --container-id '{container_id}' --prompt-file '{instruction_file}'
 ```
 
@@ -170,8 +124,8 @@ shell. Unknown braces remain literal.
 The included example reads the JSON request, drives Docker from the host, and installs the known reference fix:
 
 ```sh
-python3 -m minieval run --agent external -- \
-    python3 -m examples.externaloracle --solutions tasks
+om llm evals run --agent external -- \
+    python -m omllm.ui.evals.examples.externaloracle
 ```
 
 This should solve all three tasks. It deliberately reads the reference solution and exists only to test the integration
@@ -179,19 +133,19 @@ contract. Your real agent should use the instruction and the running container.
 
 ## Codex, Claude Code, and Pi
 
-Their small Dockerfile overlays install the CLI into the task image. The host runner remains dependency-free. Supply API
-credentials through environment variables, then select an adapter:
+Their small Dockerfile overlays install the CLI into the task image. Supply API credentials through environment
+variables, then select an adapter.
 
 ```sh
 # If OPENAI_API_KEY is already exported:
 export CODEX_API_KEY="$OPENAI_API_KEY"
-python3 -m minieval run --agent codex --task intervals
+om llm evals run --agent codex --task intervals
 
 # With ANTHROPIC_API_KEY already exported:
-python3 -m minieval run --agent claude --task intervals
+om llm evals run --agent claude --task intervals
 
 # With a supported provider's API key already exported:
-python3 -m minieval run --agent pi --task intervals
+om llm evals run --agent pi --task intervals
 ```
 
 These commands make real provider requests. The deterministic `check` and `externaloracle` commands do not.
@@ -199,10 +153,10 @@ These commands make real provider requests. The deterministic `check` and `exter
 No model is hardcoded. To choose one, append native agent arguments:
 
 ```sh
-python3 -m minieval run --agent codex --task intervals \
+om llm evals run --agent codex --task intervals \
     --agent-arg=--model --agent-arg=YOUR_MODEL_ID
 
-python3 -m minieval run --agent pi --task intervals \
+om llm evals run --agent pi --task intervals \
     --agent-arg=--provider --agent-arg=anthropic \
     --agent-arg=--model --agent-arg=YOUR_MODEL_ID
 ```
@@ -223,7 +177,7 @@ Additional provider environment variables can be forwarded with repeated `--env 
 exist in the host environment. Only selected variables reach the container's agent process. Use environment variables
 for credentials rather than `--agent-arg`.
 
-See [agents/README.md](agents/README.md) for package versions, current Pi naming, exact CLI commands, and source links.
+See [agents/README.md](eval-data/agents/README.md) for package versions, CLI commands, and source links.
 
 ### Another installed harness
 
@@ -304,8 +258,8 @@ components during the build. A macOS host runs Linux containers; Darwin agent bi
 An explicit platform is available when needed:
 
 ```sh
-python3 -m minieval check --platform linux/arm64
-python3 -m minieval check --platform linux/amd64
+om llm evals check --platform linux/arm64
+om llm evals check --platform linux/amd64
 ```
 
 An explicit nonnative platform relies on whatever emulation your normal Docker installation provides. Native execution
@@ -317,7 +271,7 @@ Each run has a fresh directory under `runs/`. A supplied `--run-id` must not alr
 resume behavior. Repeat task selection and attempt count as needed:
 
 ```sh
-python3 -m minieval run --agent codex \
+om llm evals run --agent codex \
     --task intervals --task lines --repeat 2 \
     --timeout 300 --test-timeout 60 --run-id codex-experiment-1
 ```
@@ -332,7 +286,7 @@ Important outputs:
 | `results.jsonl` and `summary.json` | Per-attempt records and outcome counts |
 | Per attempt: `request.json`, `instruction.md` | Exact external request and assignment |
 | Per attempt: `workspace/`, `patch.diff` | Submitted files and a diff against the starting tree |
-| Per local attempt: `agent-artifacts/` | Writable agent metrics and transcript directory |
+| Per attempt: `agent-artifacts/` | Native prompt and optional external-agent metrics |
 | Per attempt: `agent.log`, `agent-version.log` | Agent output and installed CLI version, when applicable |
 | Per attempt: `verifier.log`, `result.json` | Test output and final outcome |
 
@@ -350,37 +304,22 @@ Containers are removed after each attempt. `--keep-containers` keeps them stoppe
 cached in Docker for subsequent runs. This runner does not prune unrelated images or containers.
 
 For local runs, `local.json` replaces `docker.json`. Container images, container IDs, `--platform`, and
-`--keep-containers` do not apply. A local agent process receives PATH, HOME, TMPDIR, PYTHONPATH, the trial paths, and
-variables explicitly forwarded with `--env NAME`. The runner kills its process group when it exits.
+`--keep-containers` do not apply. Local tool processes receive a minimal environment with a trial HOME and TMPDIR. `--env NAME` is available for
+external Docker adapters.
 
 Exit status is 0 when every requested attempt meets its expected result, 1 for completed runs with a failed expectation,
 2 for configuration/setup errors, and 130 for an interrupt. For `check`, the expected no-op result is `failed`.
 
-## Verification included with this starting point
-
-Run the local standard-library tests with:
+## Verification
 
 ```sh
-python3 -m unittest discover -s tests -v
+./python -m pytest omllm/ui/evals/tests
+om llm evals check --runtime local
 ```
 
-Those tests exercise fixture behavior, runner helpers, local read and write restrictions, snapshot transfer, and the scripted
-`omllm` adapter without a Docker daemon. The live Docker integration check is `python3 -m minieval check`, and the
-external-interface integration check uses `examples.externaloracle` above. Both are intentionally model-free.
-
-For the extended Docker tests, including committed/staged/new/deleted file transfer and container cleanup:
+On a machine with a Docker daemon, this also exercises real Docker image builds, snapshot transfer, native
+tool execution, and cleanup. Set `MINIEVAL_DOCKER` or `MINIEVAL_PLATFORM` to select a Docker executable or platform.
 
 ```sh
-MINIEVAL_DOCKER_TESTS=1 python3 -m unittest tests.test_docker -v
+MINIEVAL_DOCKER_TESTS=1 ./python -m pytest omllm/ui/evals/tests/test_docker.py
 ```
-
-Those tests accept optional `MINIEVAL_DOCKER` and `MINIEVAL_PLATFORM` selectors. Explicitly enabling them with an
-unavailable Docker engine fails the tests rather than silently skipping them.
-
-In this development container, `check --runtime local` passed all six controls: three starter failures and three
-reference successes. A scripted `omllm` tool call installed the reference fix for `intervals`, and its trial passed
-grading. A live `--agent om` run with the `gpt` alias passed all three graders. Docker image builds, live container
-execution, and arm64 execution remain untested here because the Docker socket is unavailable.
-
-The next useful addition is a real repository task importer. The current version keeps the core loop small: task setup,
-agent invocation, snapshot transfer, independent grading, and files on disk.

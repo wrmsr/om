@@ -1,13 +1,14 @@
 """
 Apply known fixes through the external-agent contract to check the runner's wiring.
 
-Run from the project directory:
-    python3 -m minieval run --agent external -- python3 -m examples.externaloracle --solutions tasks
+Run through the external adapter:
+    om llm evals run --agent external -- python -m omllm.ui.evals.examples.externaloracle
 
 This reads solution files on the host and copies them into the provided container.
 Its success measures the smoke test, not a coding agent's performance.
 """
 import argparse
+import importlib.resources
 import json
 import os
 import re
@@ -15,6 +16,8 @@ import subprocess
 import sys
 import time
 import typing as ta
+
+from ..assets import eval_resources
 
 
 ##
@@ -56,14 +59,18 @@ def run_oracle(request: ta.Mapping[str, ta.Any], *, solutions: str) -> None:
 
 def _main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--solutions', default='tasks', help='Task root containing TASK_ID/solution/solve.sh')
+    parser.add_argument('--solutions', help='Task root containing TASK_ID/solution/solve.sh')
     args = parser.parse_args()
 
     try:
         request = json.load(sys.stdin)
         if not isinstance(request, dict):
             raise ValueError('Expected one JSON request object on stdin')  # noqa
-        run_oracle(request, solutions=args.solutions)
+        if args.solutions is None:
+            with importlib.resources.as_file(eval_resources().joinpath('tasks')) as tasks:
+                run_oracle(request, solutions=os.fspath(tasks))
+        else:
+            run_oracle(request, solutions=args.solutions)
     except (OSError, TypeError, ValueError, subprocess.SubprocessError) as exc:
         print(f'{type(exc).__name__}: {exc}', file=sys.stderr)
         raise SystemExit(1) from exc

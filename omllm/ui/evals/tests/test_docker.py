@@ -1,5 +1,6 @@
 # ruff: noqa: Q001
-"""Opt-in integration tests: MINIEVAL_DOCKER_TESTS=1 python -m unittest tests.test_docker -v."""
+"""Standalone Docker integration tests, enabled with MINIEVAL_DOCKER_TESTS=1."""
+import importlib.resources
 import json
 import os
 import shutil
@@ -9,7 +10,9 @@ import tempfile
 import textwrap
 import unittest
 
-from .. import minieval
+from .. import commands
+from .. import models
+from ..assets import eval_resources
 
 
 ##
@@ -33,7 +36,7 @@ class DockerTest(unittest.TestCase):
         directory = tempfile.TemporaryDirectory(prefix='mini eval docker tests ')
         self.addCleanup(directory.cleanup)
         self.directory = directory.name
-        self.root = os.path.dirname(os.path.abspath(minieval.__file__))
+        self.root = self.enterContext(importlib.resources.as_file(eval_resources()))
 
     def write(self, name, contents):
         path = os.path.join(self.directory, name)
@@ -54,7 +57,7 @@ class DockerTest(unittest.TestCase):
         args = [
             sys.executable,
             '-m',
-            'minieval',
+            'omllm.ui.evals',
             action,
             '--docker',
             self.docker,
@@ -70,7 +73,6 @@ class DockerTest(unittest.TestCase):
             args.extend(['--', *command])
         result = subprocess.run(  # noqa
             args,
-            cwd=self.root,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
@@ -95,19 +97,35 @@ class DockerTest(unittest.TestCase):
 
     def test_starter_tasks_have_valid_positive_and_negative_controls(self):
         _, results = self.invoke('check', run_id='controls')
-        tasks = minieval.load_tasks(os.path.join(self.root, 'tasks'))
+        tasks = models.load_tasks(os.path.join(self.root, 'tasks'))
         self.assertEqual(len(results), 2 * len(tasks))
         self.assertEqual(
             {(r['task'], r['agent'], r['status']) for r in results},
             {(t.name, 'nop', 'failed') for t in tasks} | {(t.name, 'oracle', 'passed') for t in tasks},
         )
 
+    def test_native_harness_writes_through_docker_tools(self):
+        solution = eval_resources().joinpath('tasks', 'intervals', 'solution', 'intervals.py').read_text()
+        script = self.write('script.json', json.dumps([
+            {'tool_calls': [{
+                'name': 'write',
+                'args': {'file_path': '/work/intervals.py', 'contents': solution, 'overwrite': True},
+            }]},
+            {'text': 'Done.'},
+        ]))
+        _, results = self.invoke(
+            'run',
+            run_id='native',
+            options=['--agent', 'scripted', '--task', 'intervals', '--script', script],
+        )
+        self.assertEqual([r['status'] for r in results], ['passed'])
+
     def test_external_reference_agent_and_repeats(self):
         run_dir, results = self.invoke(
             'run',
             run_id='external',
             options=['--agent', 'external', '--task', 'lines', '--repeat', '2'],
-            command=[sys.executable, '-m', 'examples.externaloracle', '--solutions', 'tasks'],
+            command=[sys.executable, '-m', 'omllm.ui.evals.examples.externaloracle'],
         )
         self.assertEqual([r['status'] for r in results], ['passed', 'passed'])
         self.assertNotEqual(results[0]['containers'], results[1]['containers'])
@@ -187,7 +205,7 @@ class DockerTest(unittest.TestCase):
             command=[sys.executable, driver],
         )
         self.assertEqual(results[0]['status'], 'passed', results)
-        patch = minieval.read_text(os.path.join(run_dir, 'snapshot-external-1', 'patch.diff'))
+        patch = commands.read_text(os.path.join(run_dir, 'snapshot-external-1', 'patch.diff'))
         for name in ('edit.txt', 'gone.txt', 'committed.txt', 'staged.txt', 'untracked.txt'):
             self.assertIn(name, patch)
 

@@ -65,6 +65,7 @@ all = [
 'omcore.manifests' = {omllm = 'omllm'}
 
 [tool.setuptools]
+include-package-data = false
 
 [tool.setuptools.packages.find]
 include = [
@@ -107,6 +108,15 @@ exclude = [
 'omllm.modeldb' = [
     '_cache/*.json',
     '_cache/*.json.*',
+]
+'omllm.ui.evals' = [
+    'eval-data/agents/*/Dockerfile',
+    'eval-data/agents/*/agent.json',
+    'eval-data/agents/README.md',
+    'eval-data/tasks/*/environment/*',
+    'eval-data/tasks/*/instruction.md',
+    'eval-data/tasks/*/solution/*',
+    'eval-data/tasks/*/tests/*',
 ]
 'omllm.ui.web' = [
     'resources/*',

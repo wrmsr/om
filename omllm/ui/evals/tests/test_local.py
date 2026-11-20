@@ -1,11 +1,16 @@
 import json
 import os
+import shlex
 import sys
 import tempfile
 import unittest
 from unittest import mock
 
-from .. import minieval
+from .. import commands
+from .. import landlock
+from .. import local
+from .. import models
+from ..assets import eval_resources
 
 
 ##
@@ -32,7 +37,7 @@ class LocalRuntimeTest(unittest.TestCase):
             'test ! -e "$MINIEVAL_WORKDIR/base.py"\n'
             'test "$(cat "$MINIEVAL_WORKDIR/answer.txt")" = ok\n'
         ))
-        self.task = minieval.Task('task', task_path, 'Replace the starting file with answer.txt.\n')
+        self.task = models.Task('task', task_path, 'Replace the starting file with answer.txt.\n')
 
     def write(self, name, contents):
         path = os.path.join(self.directory, name)
@@ -43,7 +48,7 @@ class LocalRuntimeTest(unittest.TestCase):
 
     def test_external_submission_is_graded_from_a_fresh_snapshot_and_cannot_write_outside(self):
         try:
-            minieval.check_local_runtime()
+            landlock.check_local_runtime()
         except ValueError as exc:
             self.skipTest(str(exc))
         outside = os.path.join(self.directory, 'outside.txt')
@@ -78,8 +83,8 @@ class LocalRuntimeTest(unittest.TestCase):
             'with open(os.path.join(request["artifact_dir"], "metrics.txt"), "w") as f:\n'
             '    f.write("wrote answer")\n'
         ))
-        agent = minieval.load_agent('external', self.directory, [sys.executable, adapter, outside, secret])
-        result = minieval.run_local_trial(
+        agent = models.load_agent('external', self.directory, [sys.executable, adapter, outside, secret])
+        result = local.run_local_trial(
             self.task,
             agent,
             output_dir=os.path.join(self.directory, 'attempt'),
@@ -91,63 +96,43 @@ class LocalRuntimeTest(unittest.TestCase):
         self.assertFalse(os.path.exists(outside))
         workspace = os.path.join(self.directory, 'attempt', 'workspace')
         self.assertFalse(os.path.exists(os.path.join(workspace, 'base.py')))
-        self.assertEqual(minieval.read_text(os.path.join(workspace, 'answer.txt')), 'ok')
+        self.assertEqual(commands.read_text(os.path.join(workspace, 'answer.txt')), 'ok')
         artifacts = os.path.join(self.directory, 'attempt', 'agent-artifacts', 'metrics.txt')
-        self.assertEqual(minieval.read_text(artifacts), 'wrote answer')
-        patch = minieval.read_text(os.path.join(self.directory, 'attempt', 'patch.diff'))
+        self.assertEqual(commands.read_text(artifacts), 'wrote answer')
+        patch = commands.read_text(os.path.join(self.directory, 'attempt', 'patch.diff'))
         self.assertIn('deleted file mode', patch)
         self.assertIn('new file mode', patch)
 
     def test_scripted_backend_invokes_a_tool_and_passes_the_grader(self):
         try:
-            minieval.check_local_runtime()
+            landlock.check_local_runtime()
         except ValueError as exc:
             self.skipTest(str(exc))
+        secret = self.write('host-secret.txt', 'private')
+        solution = eval_resources().joinpath('tasks', 'intervals', 'solution', 'intervals.py')
+        command = (
+            f'if cat {shlex.quote(secret)} >/dev/null 2>&1 || '
+            f'cat {shlex.quote(str(solution))} >/dev/null 2>&1 || test -n "$MINIEVAL_HOST_SECRET"; '
+            'then exit 1; fi; rm base.py && printf ok > answer.txt'
+        )
         script = self.write('script.json', json.dumps([
             {'tool_calls': [{
                 'name': 'bash',
-                'args': {'command': 'rm base.py && python -c "open(\'answer.txt\', \'w\').write(\'ok\')"'},
+                'args': {'command': command},
             }]},
             {'text': 'Done.'},
         ]))
-        result = minieval.run_local_trial(
-            self.task,
-            minieval.Agent('scripted', 'scripted'),
-            output_dir=os.path.join(self.directory, 'scripted-attempt'),
-            timeout=30,
-            test_timeout=30,
-            script=script,
-        )
+        with mock.patch.dict(os.environ, {'MINIEVAL_HOST_SECRET': 'private-value'}):
+            result = local.run_local_trial(
+                self.task,
+                models.Agent('scripted', 'scripted'),
+                output_dir=os.path.join(self.directory, 'scripted-attempt'),
+                timeout=30,
+                test_timeout=30,
+                script=script,
+            )
 
-        self.assertEqual(result['status'], 'passed', result.get('error'))
-        log = minieval.read_text(os.path.join(self.directory, 'scripted-attempt', 'agent.log'))
+        log = commands.read_text(os.path.join(self.directory, 'scripted-attempt', 'agent.log'))
+        self.assertEqual(result['status'], 'passed', result.get('error', log))
         self.assertIn('Agent end reason: COMPLETED', log)
         self.assertIn('Tool result script-0-0', log)
-
-    def test_live_agent_receives_only_selected_key_on_stdin(self):
-        request = {
-            'runtime': 'local',
-            'workdir': os.path.join(self.directory, 'work'),
-            'output_dir': self.directory,
-            'instruction_file': os.path.join(self.directory, 'instruction.md'),
-            'artifact_dir': os.path.join(self.directory, 'artifacts'),
-        }
-        with mock.patch.object(minieval, 'local_om_api_key', return_value='fake-selected-key') as key:
-            with mock.patch.object(minieval, 'run_command', return_value=minieval.CommandResult(0, 0)) as command:
-                minieval.run_local_agent(
-                    minieval.Agent('om', 'om'),
-                    self.task,
-                    request,
-                    scratch=os.path.join(self.directory, 'scratch'),
-                    timeout=30,
-                    extra_args=(),
-                    extra_env=(),
-                    script=None,
-                )
-        key.assert_called_once_with('gpt')
-        kwargs = command.call_args.kwargs
-        self.assertEqual(json.loads(kwargs['input_data']), {'request': request, 'api_key': 'fake-selected-key'})
-        self.assertNotIn('fake-selected-key', repr(kwargs['env']))
-        self.assertNotIn('OM_SECRETS', kwargs['env'])
-        self.assertNotIn('OPENAI_API_KEY', kwargs['env'])
-        self.assertIsNotNone(kwargs['local_read_access'])

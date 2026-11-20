@@ -21,7 +21,7 @@ from .web import bind_web
 ##
 
 
-def bind_agent(config: AgentConfig) -> inj.Elements:
+def bind_agent(config: AgentConfig, *, remote_client: agn.RemoteAgentClient | None = None) -> inj.Elements:
     lst: list[inj.Elemental] = []
 
     #
@@ -50,7 +50,7 @@ def bind_agent(config: AgentConfig) -> inj.Elements:
         bind_sessions(config),
         bind_subagents(config),
         bind_system_prompt(config),
-        bind_tools(config),
+        bind_tools(config, remote_client=remote_client),
         bind_web(config),
     ])
 

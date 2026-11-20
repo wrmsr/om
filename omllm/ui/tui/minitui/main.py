@@ -7,6 +7,7 @@ while a turn is in flight. Submissions made mid-turn queue and run in order. Qui
 end of input) drains the pump before the driver stops, so an interrupted turn's cards and marker land in scrollback
 rather than being dropped.
 """
+import argparse
 import asyncio
 
 from omcore import check
@@ -18,6 +19,7 @@ from omdev import minitui as mt
 from .... import agent as agn
 from ...agent.setup import AgentSetup
 from ...commands.manager import CommandsManager
+from ...jobs.tui import tui_jobs
 from ...logs import configure_tui_logging
 from ...paths import get_agent_cwd
 from ...types import UiId
@@ -38,7 +40,9 @@ log = logs.get_module_logger(globals())
 
 
 async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
-    config = TuiConfig.parse_from_arguments(argv)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--jobs', action='store_true', help='run scheduled jobs in this process')
+    config, args = TuiConfig.parse_from_arguments_(argv, parser=parser)
     config = yolo_process_config(config)
 
     #
@@ -99,7 +103,12 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
             ]:
                 pump.submit(ax)
 
-            await driver_task
+            async with tui_jobs(
+                    app.display_text,
+                    ready=lambda: not (agent.is_busy or app.is_busy),
+                    in_process=args.jobs,
+            ):
+                await driver_task
 
         finally:
             # Fallback for the paths that bypass the quit funnel - errors, in practice - in which the pump may still

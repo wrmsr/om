@@ -310,7 +310,7 @@ ignore = [
 'omcore/testing/*' = [
     'S101',  # assert
 ]
-'x/mini_agent_eval/tasks/*' = [
+'omllm/ui/evals/eval-data/tasks/*' = [
     'INP001',
 ]
 
@@ -385,7 +385,7 @@ show_traceback = true
 check_untyped_defs = true
 
 exclude = [
-    "^x/mini_agent_eval/tasks/",
+    "^omllm/ui/evals/eval-data/tasks/",
 ]
 
 [[tool.mypy.overrides]]
