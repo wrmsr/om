@@ -7,6 +7,7 @@ import random
 import sys
 import textwrap
 import types
+import warnings
 
 import pytest
 
@@ -2499,7 +2500,10 @@ def test_guest_errors(source, name):
     """,
 ])
 def test_exception_unwinding(source):
-    check(source)
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore', category=SyntaxWarning)
+
+        check(source)
 
 
 ##
@@ -4199,7 +4203,11 @@ def test_context_managers(body):
     """,
 ])
 def test_generators(source):
-    check(source)
+    with warnings.catch_warnings():
+        # the (type, exc, tb) signature of throw() is deprecated, use the single-arg signature instead.
+        warnings.filterwarnings('ignore', category=DeprecationWarning)
+
+        check(source)
 
 
 def test_generator_with_manager():
@@ -4886,7 +4894,12 @@ except ValueError as exc:
     answer=exc.args
 result=answer,events
 """
-    check(source)
+
+    with warnings.catch_warnings():
+        # 'continue' in a 'finally' block
+        warnings.filterwarnings('ignore', category=SyntaxWarning)
+
+        check(source)
 
 
 ##
@@ -4989,7 +5002,11 @@ result=answer,events
     """,
 ])
 def test_exception_lifecycle_regressions(source):
-    check(source)
+    with warnings.catch_warnings():
+        # the (type, exc, tb) signature of throw() is deprecated, use the single-arg signature instead.
+        warnings.filterwarnings('ignore', category=DeprecationWarning)
+
+        check(source)
 
 
 def test_host_handle_identity_is_stable_and_rollbackable():
