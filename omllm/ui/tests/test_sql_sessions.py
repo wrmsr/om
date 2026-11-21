@@ -66,12 +66,12 @@ async def test_sql_sessions():
                 immediate=True,
                 resume=resume,
             ),
+            host_rewriter=inj.overrider(
+                bind_scripted_backend(*turns),
+                inj.bind(db_sets),
+            ),
             agent_rewriter=lambda els: inj.as_elements(
-                inj.override(
-                    els,
-                    bind_scripted_backend(*turns),
-                    inj.bind(db_sets),
-                ),
+                els,
 
                 inj.bind(EchoTool, singleton=True),
                 bind_agent_tool_class(EchoTool),

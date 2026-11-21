@@ -248,6 +248,8 @@ class UsageFeedEvent(FeedEvent):
     output: int = 0
     reasoning: int = 0
 
+    cost: float | None = None
+
 
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)

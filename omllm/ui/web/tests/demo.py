@@ -242,7 +242,7 @@ async def _a_main() -> None:
 
         await serve_web(
             build_demo_config(cwd, port=args.port),
-            overrides=[bind_demo_backend(cwd, pace_s=args.pace)],
+            host_overrides=[bind_demo_backend(cwd, pace_s=args.pace)],
         )
 
 

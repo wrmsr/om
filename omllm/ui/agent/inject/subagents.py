@@ -1,12 +1,8 @@
 """
-Injector wiring for subagents: each spawn is a child injector of the app's, standing up an agent scope of its own - its
-own agent, turn and tool invocation scopes, tools, system prompt, event subscribers, and process scope - over the app's
-shared backends, permissions, and tool infrastructure. See `omllm/agent/subagents/DESIGN.md`.
-
-The child shadows the root's bindings of the per-agent things (the agent, the tool set, the system prompt manager, the
-event subscribers, the turn runner, the tool invoker) because the root injector is today also the root agent's
-injector. That shadowing is a known wart of child injectors, accepted here as the way to get an agent scope running
-ahead of the split of the root into an app injector and an agent injector per agent, the root agent's included.
+Injector wiring for subagents: each spawn is a sibling agent injector under `HostInjector` (standing up an agent scope
+of its own - its own `Agent`, `TURN_SCOPE`, `TOOL_INVOCATION_SCOPE`, tools, system prompt, event subscribers, and
+process scope - over the host's shared backends, permissions, and tool infrastructure). Subagents run headlessly with
+no `AgentUiInjector`. See `omllm/agent/subagents/DESIGN.md`.
 """
 import contextlib
 import typing as ta
@@ -17,21 +13,15 @@ from omcore import inject as inj
 
 from .... import agent as agn
 from ....agent.inject.events import event_subscribers_binder as agent_event_subscribers
-from ....agent.subagents.inject import SUBAGENT_TOOL_INVOCATION_SCOPE
-from ....agent.subagents.inject import SUBAGENT_TURN_SCOPE
-from ....agent.subagents.inject import provide_subagent_tool_invoker
-from ....agent.subagents.inject import provide_subagent_turn_runner
 from ....agent.tools.inject import AgentTools
 from ....agent.tools.inject import AgentToolSets
-from ....agent.tools.inject import ScopedToolInvoker
-from ....agent.turns.inject import ScopedTurnRunner
 from ....core import processes as procs
 from ..config import AgentConfig
 from ..setup import AgentSetup
 from ..systemprompt import EnvironmentSystemPromptContributor
+from .instance import bind_agent_instance
 from .systemprompt import system_prompt_contributors_binder
 from .tools import bind_agent_tool_class
-from .tools import bind_tool_classes
 
 
 ##
@@ -45,7 +35,7 @@ async def _provide_subagent_process_scope(
         run_id: agn.SubagentRunId,
         parent: ParentProcessScope,
 ) -> procs.ProcessScope:
-    # Closed with the child injector's stack: processes the subagent leaves behind die with it.
+    # Closed with the subagent injector's stack: processes the subagent leaves behind die with it.
     return await aes.enter_async_context(parent.child(agn.subagent_process_scope_name(run_id)))
 
 
@@ -56,7 +46,7 @@ def _provide_subagent_tool_set(
 ) -> agn.ToolSet:
     pool = agn.ToolSet([*tools, *(t for ts in tool_sets for t in ts)])
 
-    # Nesting is not supported yet: the subagent tool is bound in the root alone, and must not have found its way here.
+    # Nesting is not supported yet: the subagent tool is bound in the root agent alone, and must not appear here.
     check.not_in(agn.SubagentTool.name, pool.by_name)
 
     return profile.select_tools(pool)
@@ -69,48 +59,31 @@ def bind_subagent_agent(
         profile: agn.SubagentProfile,
         parent_process_scope: procs.ProcessScope,
         progress: agn.ToolProgressSink | None,
-        aes: contextlib.AsyncExitStack,
 ) -> inj.Elements:
-    """An agent scope for one subagent run, to be created as a child of the app's injector."""
+    """
+    A headless agent injector for one subagent run, created as a sibling child of `HostInjector` (no shadowing, no
+    `AgentUiInjector`).
+    """
 
     return inj.as_elements(
-        inj.bind(contextlib.AsyncExitStack, to_const=aes),
+        bind_agent_instance(config),
 
         inj.bind(run_id),
         inj.bind(profile),
 
-        # Its own turn scope, seeded and populated as the root agent's is.
-        inj.bind_scope(SUBAGENT_TURN_SCOPE),
-        inj.bind_scope_seed(agn.TurnParams, SUBAGENT_TURN_SCOPE),
-        inj.bind(agn.TurnLoop, in_=SUBAGENT_TURN_SCOPE),
-        inj.bind(ScopedTurnRunner, singleton=True, to_fn=provide_subagent_turn_runner),
-        inj.bind(agn.TurnRunner, to_key=ScopedTurnRunner),
-
-        # And its own tool invocation scope, likewise.
-        inj.bind_scope(SUBAGENT_TOOL_INVOCATION_SCOPE),
-        inj.bind_scope_seed(agn.Tool, SUBAGENT_TOOL_INVOCATION_SCOPE),
-        inj.bind_scope_seed(agn.ToolContext, SUBAGENT_TOOL_INVOCATION_SCOPE),
-        inj.bind(agn.DirectToolInvoker, in_=SUBAGENT_TOOL_INVOCATION_SCOPE),
-        inj.bind(ScopedToolInvoker, singleton=True, to_fn=provide_subagent_tool_invoker),
-        inj.bind(agn.ToolInvoker, to_key=ScopedToolInvoker),
-
-        inj.bind(agn.Agent, singleton=True),
-
-        # Its own tools: fresh instances of the configured tool classes over the shared infrastructure, of which the
-        # profile gets its pick.
-        bind_tool_classes(config),
+        # Profile-filtered tool set over this subagent's own tool instances.
         inj.bind(agn.ToolSet, singleton=True, to_fn=_provide_subagent_tool_set),
 
-        # Its own system prompt: what a subagent of its profile is told, then what the root agent is told of its
-        # surroundings.
-        system_prompt_contributors_binder().bind_items_provider(singleton=True),
+        # Its own system prompt: profile prompt + shared environment and fs guidance.
         inj.bind(agn.SubagentProfileSystemPromptContributor, singleton=True),
         system_prompt_contributors_binder().bind_item(to_key=agn.SubagentProfileSystemPromptContributor),
         system_prompt_contributors_binder().bind_item(to_key=EnvironmentSystemPromptContributor),
-        inj.bind(agn.SystemPromptManager, singleton=True),
+        *(
+            [system_prompt_contributors_binder().bind_item(to_key=agn.FsSystemPromptContributor)]
+            if config.fs else []
+        ),
 
         # Its own event subscribers: the relay to the parent's progress sink, and none of the root's.
-        agent_event_subscribers().bind_items_provider(singleton=True),
         inj.bind(agn.ToolProgressSink, to_const=progress if progress is not None else agn.NopToolProgressSink()),
         inj.bind(agn.SubagentEventRelay, singleton=True),
         agent_event_subscribers().bind_item(to_key=agn.SubagentEventRelay),
@@ -118,8 +91,6 @@ def bind_subagent_agent(
         # Its own process scope, under the parent's.
         inj.bind(ParentProcessScope, to_const=parent_process_scope),
         inj.bind(procs.ProcessScope, singleton=True, to_async_fn=_provide_subagent_process_scope),
-
-        inj.bind(AgentSetup, singleton=True),
     )
 
 
@@ -127,7 +98,10 @@ def bind_subagent_agent(
 
 
 class ChildInjectorSubagentRunner(agn.SubagentRunner):
-    """Runs each subagent in a child injector of the app's, created for the run and torn down with it."""
+    """
+    Bound in `HostInjector` so its `injector` is `HostInjector`: each subagent runs in a sibling managed child injector
+    created for the run and torn down with it.
+    """
 
     def __init__(
             self,
@@ -146,24 +120,17 @@ class ChildInjectorSubagentRunner(agn.SubagentRunner):
         # The parent's scope is where the subagent's goes. In the ui every agent has one, the root scope at the top.
         parent_process_scope = check.not_none(check.not_none(params.env).processes)
 
-        async with contextlib.AsyncExitStack() as aes:
-            child = await inj.create_asyncio_injector(
-                bind_subagent_agent(
-                    self._config,
-                    run_id=run_id,
-                    profile=params.profile,
-                    parent_process_scope=parent_process_scope,
-                    progress=params.progress,
-                    aes=aes,
-                ),
-                parent=self._injector,
-            )
-
-            # What a frontend's main does with its injector.
+        async with inj.create_asyncio_managed_injector(
+            bind_subagent_agent(
+                self._config,
+                run_id=run_id,
+                profile=params.profile,
+                parent_process_scope=parent_process_scope,
+                progress=params.progress,
+            ),
+            parent=self._injector,
+        ) as child:
             agent = await child[agn.Agent]
-
-            for el in await child[agn.EventSubscribers]:
-                agent.subscribe(el)
 
             await (await child[AgentSetup]).run()
 
@@ -216,7 +183,9 @@ def _provide_subagent_profiles(config: AgentConfig) -> agn.SubagentProfiles:
     return agn.SubagentProfiles(profiles)
 
 
-def bind_subagents(config: AgentConfig) -> inj.Elements:
+def bind_subagent_infrastructure(config: AgentConfig) -> inj.Elements:
+    """Host-level subagent infrastructure: profiles and `ChildInjectorSubagentRunner` (bound in `HostInjector`)."""
+
     if not config.subagents:
         return inj.as_elements()
 
@@ -225,7 +194,16 @@ def bind_subagents(config: AgentConfig) -> inj.Elements:
 
         inj.bind(ChildInjectorSubagentRunner, singleton=True),
         inj.bind(agn.SubagentRunner, to_key=ChildInjectorSubagentRunner),
+    )
 
+
+def bind_root_subagent_tool(config: AgentConfig) -> inj.Elements:
+    """Binds `SubagentTool` into the root agent injector alone (subagents do not nest yet)."""
+
+    if not config.subagents:
+        return inj.as_elements()
+
+    return inj.as_elements(
         inj.bind(agn.SubagentTool, singleton=True),
         bind_agent_tool_class(agn.SubagentTool),
     )

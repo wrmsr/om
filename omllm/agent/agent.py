@@ -188,34 +188,34 @@ class Agent(
 
         capture = _TerminalEventCapture(self._on_turn_event)
 
-        llm_backend = self._backends.get_backend(
-            llm.ImmediateBackend,  # type: ignore[type-abstract]
-            in_state.model,
-        )
+        async with self._backends.acquire_backend(
+                llm.ImmediateBackend,  # type: ignore[type-abstract]
+                in_state.model,
+        ) as llm_backend:
+            try:
+                result = await self._turn_runner.run_turn(TurnParams(
+                    state=in_state,
+                    new_messages=new_messages,
+                    llm_backend=llm_backend,
+                    subscriber=capture,
+                    inbox=self._inbox,
+                ))
 
-        try:
-            result = await self._turn_runner.run_turn(TurnParams(
-                state=in_state,
-                new_messages=new_messages,
-                llm_backend=llm_backend,
-                subscriber=capture,
-                inbox=self._inbox,
-            ))
+            except BaseException:
+                # The run raised - a cancellation, in practice - possibly after getting as far as its terminal event.
+                # That event carries the transcript as the loop left it, repaired, and it is applied here so the next
+                # prompt builds on what actually happened rather than on the state from before this one. The state
+                # assignment itself is synchronous; only the StateUpdateEvent publish can be lost to a second
+                # cancellation.
+                if (end := capture.end_event) is not None:
+                    await self._apply_turn(context=end.context)
 
-        except BaseException:
-            # The run raised - a cancellation, in practice - possibly after getting as far as its terminal event. That
-            # event carries the transcript as the loop left it, repaired, and it is applied here so the next prompt
-            # builds on what actually happened rather than on the state from before this one. The state assignment
-            # itself is synchronous; only the StateUpdateEvent publish can be lost to a second cancellation.
-            if (end := capture.end_event) is not None:
-                await self._apply_turn(context=end.context)
+                raise
 
-            raise
+            else:
+                await self._apply_turn(config=result.config, context=result.context)
 
-        else:
-            await self._apply_turn(config=result.config, context=result.context)
-
-            return result
+                return result
 
     async def prompt(
             self,

@@ -1,4 +1,5 @@
 import abc
+import contextlib
 import typing as ta
 
 from omcore import lang
@@ -10,6 +11,9 @@ from .options import Options
 from .streams import AiStream
 
 
+BackendT = ta.TypeVar('BackendT', bound='Backend')
+
+
 ##
 
 
@@ -18,6 +22,26 @@ class Backend(lang.Abstract):
     @abc.abstractmethod
     def model(self) -> Model:
         raise NotImplementedError
+
+
+@contextlib.asynccontextmanager
+async def manage_backend(backend: BackendT) -> ta.AsyncIterator[BackendT]:
+    """
+    Enters `backend` if it is an async or sync context manager, otherwise yields it as-is.
+
+    Backends may optionally implement async (or sync) context management when they own expensive resources such as
+    in-process model weights or persistent client pools.
+    """
+
+    obj: ta.Any = backend
+    if isinstance(obj, contextlib.AbstractAsyncContextManager):
+        async with obj as entered:
+            yield entered
+    elif isinstance(obj, contextlib.AbstractContextManager):
+        with obj as entered:
+            yield entered
+    else:
+        yield backend
 
 
 ##

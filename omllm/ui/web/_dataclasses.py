@@ -1852,7 +1852,7 @@ def _process_dataclass__67ed4652e78dd7a245986a82c90193b980912f8b():
 
 
 @_register(
-    installer_sha1='cbc0867f773f5fc4f82f5818d57244f68c0056f8',
+    installer_sha1='3145826fcf64cf4d35daf05bb1b3b85c58e5009d',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1861,15 +1861,16 @@ def _process_dataclass__67ed4652e78dd7a245986a82c90193b980912f8b():
             " None, False, False, False), (('input_cache_write', True, True, None, True, True, False, None), 'instance'"
             ", 'value', None, False, False, False), (('output', True, True, None, True, True, False, None), 'instance',"
             " 'value', None, False, False, False), (('reasoning', True, True, None, True, True, False, None), 'instance"
-            "', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, "
-            "()), ((),), (), (False,)))"
+            "', 'value', None, False, False, False), (('cost', True, True, None, True, True, False, None), 'instance', "
+            "'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ())"
+            ", ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.ui.web.feed.events', 'UsageFeedEvent'),
     ),
 )
-def _process_dataclass__cbc0867f773f5fc4f82f5818d57244f68c0056f8():
+def _process_dataclass__3145826fcf64cf4d35daf05bb1b3b85c58e5009d():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1886,6 +1887,8 @@ def _process_dataclass__cbc0867f773f5fc4f82f5818d57244f68c0056f8():
         __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
         __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
         __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__5__default = __dataclass__spec.fields[5].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -1901,6 +1904,7 @@ def _process_dataclass__cbc0867f773f5fc4f82f5818d57244f68c0056f8():
                 input_cache_write=self.input_cache_write,
                 output=self.output,
                 reasoning=self.reasoning,
+                cost=self.cost,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -1915,7 +1919,8 @@ def _process_dataclass__cbc0867f773f5fc4f82f5818d57244f68c0056f8():
                 self.input_cached == other.input_cached and
                 self.input_cache_write == other.input_cache_write and
                 self.output == other.output and
-                self.reasoning == other.reasoning
+                self.reasoning == other.reasoning and
+                self.cost == other.cost
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -1926,6 +1931,7 @@ def _process_dataclass__cbc0867f773f5fc4f82f5818d57244f68c0056f8():
             'input_cache_write',
             'output',
             'reasoning',
+            'cost',
         }
 
         def __setattr__(self, name, value):
@@ -1955,6 +1961,7 @@ def _process_dataclass__cbc0867f773f5fc4f82f5818d57244f68c0056f8():
                 self.input_cache_write,
                 self.output,
                 self.reasoning,
+                self.cost,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -1967,12 +1974,14 @@ def _process_dataclass__cbc0867f773f5fc4f82f5818d57244f68c0056f8():
             input_cache_write: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
             output: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
             reasoning: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            cost: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'input', input)
             __dataclass__object_setattr(self, 'input_cached', input_cached)
             __dataclass__object_setattr(self, 'input_cache_write', input_cache_write)
             __dataclass__object_setattr(self, 'output', output)
             __dataclass__object_setattr(self, 'reasoning', reasoning)
+            __dataclass__object_setattr(self, 'cost', cost)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -1984,6 +1993,7 @@ def _process_dataclass__cbc0867f773f5fc4f82f5818d57244f68c0056f8():
             parts.append(f"input_cache_write={self.input_cache_write!r}")
             parts.append(f"output={self.output!r}")
             parts.append(f"reasoning={self.reasoning!r}")
+            parts.append(f"cost={self.cost!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

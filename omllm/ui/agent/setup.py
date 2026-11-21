@@ -26,6 +26,7 @@ class AgentSetup:
             system_prompts: agn.SystemPromptManager,
             process_scope: procs.ProcessScope | None = None,
             initial_llm_options: InitialLlmOptions | None = None,
+            session_id: agn.SessionId | None = None,
     ) -> None:
         """The process scope is the agent's own: the root scope for the root agent, a child of its parent's beneath."""
 
@@ -40,6 +41,7 @@ class AgentSetup:
         self._system_prompts = system_prompts
         self._process_scope = process_scope
         self._initial_llm_options = initial_llm_options
+        self._session_id = session_id
 
     @lang.cached_function
     def pre_setup(self) -> None:
@@ -83,6 +85,15 @@ class AgentSetup:
                     llm_retry=agn.LlmRetryConfig(),
                 )
 
+            if turn_config.prompt_cache is None:
+                turn_config = dc.replace(
+                    turn_config,
+
+                    prompt_cache=agn.PromptCacheConfig(
+                        key=str(self._session_id.v) if self._session_id is not None else None,
+                    ),
+                )
+
             if self._initial_llm_options is not None:
                 turn_config = dc.replace(
                     turn_config,
@@ -92,12 +103,11 @@ class AgentSetup:
 
             #
 
-            llm_backend = self._backends.get_backend(
-                llm.ImmediateBackend,  # type: ignore[type-abstract]
-                state.model,
-            )
-
-            model = llm_backend.model
+            async with self._backends.acquire_backend(
+                    llm.ImmediateBackend,  # type: ignore[type-abstract]
+                    state.model,
+            ) as llm_backend:
+                model = llm_backend.model
 
             # An unsupported effort is rejected here, at startup, rather than by the first request - and against the
             # tools actually installed, as some models narrow their supported levels when tools are present.

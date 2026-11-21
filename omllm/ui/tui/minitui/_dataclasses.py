@@ -29,7 +29,7 @@ IMPLEMENTATION_KEY = 'b737c9e9784700f75d0a861cde465d33397d28232b0b31eac8c2d80a2e
 
 
 @_register(
-    installer_sha1='54052fabc28e9172e11f00c4a5b770fb04c58e2e',
+    installer_sha1='d522a799fa59006e5534b76f67178bc31828a301',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -38,43 +38,46 @@ IMPLEMENTATION_KEY = 'b737c9e9784700f75d0a861cde465d33397d28232b0b31eac8c2d80a2e
             " None, False, False, False), (('input_cache_write', True, True, None, True, True, False, None), 'instance'"
             ", 'value', None, False, False, False), (('output', True, True, None, True, True, False, None), 'instance',"
             " 'value', None, False, False, False), (('reasoning', True, True, None, True, True, False, None), 'instance"
-            "', 'value', None, False, False, False), (('context_input', True, True, None, True, True, False, None), 'in"
-            "stance', 'value', None, False, False, False), (('context_limit', True, True, None, True, True, False, None"
-            "), 'instance', 'value', None, False, False, False), (('context_estimated', True, True, None, True, True, F"
-            "alse, None), 'instance', 'value', None, False, False, False), (('_SUFFIXES', True, True, None, True, None,"
-            " False, None), 'class_var', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), "
-            "(False,), (False, False, ()), ((),), (), (False,)))"
+            "', 'value', None, False, False, False), (('cost', True, True, None, True, True, False, None), 'instance', "
+            "'value', None, False, False, False), (('context_input', True, True, None, True, True, False, None), 'insta"
+            "nce', 'value', None, False, False, False), (('context_limit', True, True, None, True, True, False, None), "
+            "'instance', 'value', None, False, False, False), (('context_estimated', True, True, None, True, True, Fals"
+            "e, None), 'instance', 'value', None, False, False, False), (('_SUFFIXES', True, True, None, True, None, Fa"
+            "lse, None), 'class_var', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (Fa"
+            "lse,), (False, False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.ui.tui.minitui.app', 'MinituiChatApp.Usage'),
     ),
 )
-def _process_dataclass__54052fabc28e9172e11f00c4a5b770fb04c58e2e():
+def _process_dataclass__d522a799fa59006e5534b76f67178bc31828a301():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
         __dataclass__ctx,
         __dataclass__globals,
     ):
-        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
-        __dataclass__init__fields__0__default = __dataclass__spec.fields[0].default.must()
-        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
-        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
-        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
-        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
-        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
-        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
-        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
-        __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
-        __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
-        __dataclass__init__fields__5__default = __dataclass__spec.fields[5].default.must()
-        __dataclass__init__fields__6__annotation = __dataclass__spec.fields[6].annotation
-        __dataclass__init__fields__6__default = __dataclass__spec.fields[6].default.must()
-        __dataclass__init__fields__7__annotation = __dataclass__spec.fields[7].annotation
-        __dataclass__init__fields__7__default = __dataclass__spec.fields[7].default.must()
-        __dataclass__init__fields__8__annotation = __dataclass__spec.fields[8].annotation
-        __dataclass__init__fields__8__default = __dataclass__spec.fields[8].default.must()
+        __dataclass__init__fields__00__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__00__default = __dataclass__spec.fields[0].default.must()
+        __dataclass__init__fields__01__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__01__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__02__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__02__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__03__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__03__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__04__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__04__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__init__fields__05__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__05__default = __dataclass__spec.fields[5].default.must()
+        __dataclass__init__fields__06__annotation = __dataclass__spec.fields[6].annotation
+        __dataclass__init__fields__06__default = __dataclass__spec.fields[6].default.must()
+        __dataclass__init__fields__07__annotation = __dataclass__spec.fields[7].annotation
+        __dataclass__init__fields__07__default = __dataclass__spec.fields[7].default.must()
+        __dataclass__init__fields__08__annotation = __dataclass__spec.fields[8].annotation
+        __dataclass__init__fields__08__default = __dataclass__spec.fields[8].default.must()
+        __dataclass__init__fields__09__annotation = __dataclass__spec.fields[9].annotation
+        __dataclass__init__fields__09__default = __dataclass__spec.fields[9].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -90,6 +93,7 @@ def _process_dataclass__54052fabc28e9172e11f00c4a5b770fb04c58e2e():
                 input_cache_write=self.input_cache_write,
                 output=self.output,
                 reasoning=self.reasoning,
+                cost=self.cost,
                 context_input=self.context_input,
                 context_limit=self.context_limit,
                 context_estimated=self.context_estimated,
@@ -108,6 +112,7 @@ def _process_dataclass__54052fabc28e9172e11f00c4a5b770fb04c58e2e():
                 self.input_cache_write == other.input_cache_write and
                 self.output == other.output and
                 self.reasoning == other.reasoning and
+                self.cost == other.cost and
                 self.context_input == other.context_input and
                 self.context_limit == other.context_limit and
                 self.context_estimated == other.context_estimated
@@ -121,6 +126,7 @@ def _process_dataclass__54052fabc28e9172e11f00c4a5b770fb04c58e2e():
             'input_cache_write',
             'output',
             'reasoning',
+            'cost',
             'context_input',
             'context_limit',
             'context_estimated',
@@ -154,6 +160,7 @@ def _process_dataclass__54052fabc28e9172e11f00c4a5b770fb04c58e2e():
                 self.input_cache_write,
                 self.output,
                 self.reasoning,
+                self.cost,
                 self.context_input,
                 self.context_limit,
                 self.context_estimated,
@@ -164,20 +171,22 @@ def _process_dataclass__54052fabc28e9172e11f00c4a5b770fb04c58e2e():
         def __init__(
             self,
             *,
-            input: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
-            input_cached: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
-            input_cache_write: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
-            output: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
-            reasoning: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
-            context_input: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
-            context_limit: __dataclass__init__fields__6__annotation = __dataclass__init__fields__6__default,
-            context_estimated: __dataclass__init__fields__7__annotation = __dataclass__init__fields__7__default,
+            input: __dataclass__init__fields__00__annotation = __dataclass__init__fields__00__default,
+            input_cached: __dataclass__init__fields__01__annotation = __dataclass__init__fields__01__default,
+            input_cache_write: __dataclass__init__fields__02__annotation = __dataclass__init__fields__02__default,
+            output: __dataclass__init__fields__03__annotation = __dataclass__init__fields__03__default,
+            reasoning: __dataclass__init__fields__04__annotation = __dataclass__init__fields__04__default,
+            cost: __dataclass__init__fields__05__annotation = __dataclass__init__fields__05__default,
+            context_input: __dataclass__init__fields__06__annotation = __dataclass__init__fields__06__default,
+            context_limit: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
+            context_estimated: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'input', input)
             __dataclass__object_setattr(self, 'input_cached', input_cached)
             __dataclass__object_setattr(self, 'input_cache_write', input_cache_write)
             __dataclass__object_setattr(self, 'output', output)
             __dataclass__object_setattr(self, 'reasoning', reasoning)
+            __dataclass__object_setattr(self, 'cost', cost)
             __dataclass__object_setattr(self, 'context_input', context_input)
             __dataclass__object_setattr(self, 'context_limit', context_limit)
             __dataclass__object_setattr(self, 'context_estimated', context_estimated)
@@ -192,6 +201,7 @@ def _process_dataclass__54052fabc28e9172e11f00c4a5b770fb04c58e2e():
             parts.append(f"input_cache_write={self.input_cache_write!r}")
             parts.append(f"output={self.output!r}")
             parts.append(f"reasoning={self.reasoning!r}")
+            parts.append(f"cost={self.cost!r}")
             parts.append(f"context_input={self.context_input!r}")
             parts.append(f"context_limit={self.context_limit!r}")
             parts.append(f"context_estimated={self.context_estimated!r}")

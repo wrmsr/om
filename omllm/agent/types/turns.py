@@ -48,6 +48,55 @@ class LlmRetryConfig:
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)
 @dc.extra_class_params(default_repr_fn=lang.opt_repr)
+class PromptCacheConfig:
+    """
+    Capability-aware prompt cache defaults applied per turn against the active model's CacheCapabilities.
+
+    Being present enables automatic prompt caching without pinning provider-specific controls onto `TurnConfig`:
+    switching models mid-session adapts to each model's declared capabilities rather than failing on unsupported fields.
+    Explicit cache fields set on `TurnConfig.llm_options` always take precedence.
+    """
+
+    # Preferred cache key (e.g. session id), sent only when the active model declares `cache.key`.
+    key: str | None = None
+
+    # Preferred retention for providers where prompt caching requires an explicit opt-in
+    # (`control_style == 'anthropic'`), sent only when the active model declares it in `cache.retentions`.
+    opt_in_retention: llm.CacheRetention | None = llm.CacheRetention.FIVE_MINUTES
+
+    def resolve_options(
+            self,
+            model: llm.Model,
+            options: llm.Options | None = None,
+    ) -> llm.Options | None:
+        if (cache := model.cache) is None:
+            return options
+
+        cache_key: str | None = None
+        if self.key is not None and cache.key:
+            cache_key = self.key
+
+        cache_retention: llm.CacheRetention | None = None
+        if (
+                self.opt_in_retention is not None and
+                cache.control_style == 'anthropic' and
+                self.opt_in_retention in (cache.retentions or ())
+        ):
+            cache_retention = self.opt_in_retention
+
+        if cache_key is None and cache_retention is None:
+            return options
+
+        defaults = llm.Options(
+            cache_key=cache_key,
+            cache_retention=cache_retention,
+        )
+        return defaults.merge(options)
+
+
+@ta.final
+@dc.dataclass(frozen=True, kw_only=True)
+@dc.extra_class_params(default_repr_fn=lang.opt_repr)
 class TurnConfig:
     llm_options: llm.Options | None = None
 
@@ -58,6 +107,9 @@ class TurnConfig:
     # When present, LLM calls failing with llm.TransientBackendError are retried with backoff. Absent, they fail the
     # run.
     llm_retry: LlmRetryConfig | None = None
+
+    # When present, applies capability-aware prompt caching defaults per turn against the active model.
+    prompt_cache: PromptCacheConfig | None = None
 
     context_lifecycle: ContextLifecycleConfig | None = None
 

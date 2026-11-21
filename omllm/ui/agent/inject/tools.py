@@ -81,15 +81,14 @@ def bind_tool_infrastructure(config: AgentConfig) -> inj.Elements:
     if config.cwd is not None:
         lst.append(inj.bind(RequestedCwd(config.cwd)))
 
-    # Tools are given a process scope, not the root one in particular: the root agent's is the root scope, and an agent
-    # scope beneath it binds a child of its parent's over this.
-    lst.append(inj.bind(processes.ProcessScope, to_key=processes.RootProcessScope))
-
     if config.exec:
         lst.extend([
             inj.bind(agn.ProcessesExecOps, singleton=True),
             inj.bind(agn.ExecOps, to_key=agn.ProcessesExecOps),
         ])
+
+    if config.fs:
+        lst.append(inj.bind(agn.FsPathLocks, singleton=True))
 
     if config.fs and config.container is None:
         lst.extend([

@@ -113,6 +113,7 @@ class AgentEventFeeder:
                 input_cache_write=usage.cache_write,
                 output=usage.visible_output,
                 reasoning=usage.reasoning,
+                cost=usage.cost,
             ))
 
         if (budget := ev.context_budget) is not None and budget.input is not None:

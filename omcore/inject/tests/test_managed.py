@@ -84,6 +84,46 @@ async def test_async_managed(use_asyncio, eager):
     assert sam.xc == 1
 
 
+@pytest.mark.asyncs('asyncio')
+async def test_async_managed_child_stack_isolation():
+    events: list[str] = []
+
+    class ParentRes:
+        async def __aenter__(self) -> ta.Self:
+            events.append('parent_enter')
+            return self
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            events.append('parent_exit')
+
+    class ChildRes:
+        def __init__(self, parent_res: ParentRes) -> None:
+            self.parent_res = parent_res
+
+        async def __aenter__(self) -> ta.Self:
+            events.append('child_enter')
+            return self
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            events.append('child_exit')
+
+    async with inj.create_asyncio_managed_injector(
+        inj.bind(ParentRes, singleton=True, to_async_fn=inj.make_async_managed_provider(ParentRes)),
+    ) as parent:
+        async with inj.create_asyncio_managed_injector(
+            inj.bind(ChildRes, singleton=True, to_async_fn=inj.make_async_managed_provider(ChildRes)),
+            parent=parent,
+        ) as child:
+            cr = await child[ChildRes]
+            assert cr.parent_res is await parent[ParentRes]
+            assert events == ['parent_enter', 'child_enter']
+
+        # Exiting child closes only child's resource; parent's stays alive until parent exits.
+        assert events == ['parent_enter', 'child_enter', 'child_exit']
+
+    assert events == ['parent_enter', 'child_enter', 'child_exit', 'parent_exit']
+
+
 ##
 
 

@@ -29,7 +29,7 @@ async def test_compact_command_through_the_uis_wiring():
             immediate=True,
             in_memory=True,
         ),
-        agent_rewriter=inj.overrider(
+        host_rewriter=inj.overrider(
             bind_scripted_backend(
                 text_message('hello'),
                 text_message('The user said hi.'),

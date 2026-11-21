@@ -86,7 +86,7 @@ class _Run:
                     ],
                 ),
 
-                agent_rewriter=inj.overrider(
+                host_rewriter=inj.overrider(
                     bind_scripted_backend(
                         tool_call_message(llm.ToolCall(
                             id='edit-1',

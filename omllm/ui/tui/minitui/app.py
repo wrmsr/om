@@ -386,6 +386,7 @@ class MinituiChatApp(mt.App):
         self._input_mode: InputMode = self._chat_mode
 
         self._usage = self.Usage()
+        self._model: str | None = None
 
         # The submit hook - `main` points this at the session prompt pump.
         self.on_submit: ta.Callable[[str], None] | None = None
@@ -1229,6 +1230,8 @@ class MinituiChatApp(mt.App):
         output: int = 0
         reasoning: int = 0
 
+        cost: float | None = None
+
         context_input: int | None = None
         context_limit: int | None = None
         context_estimated: bool = False
@@ -1264,8 +1267,16 @@ class MinituiChatApp(mt.App):
                     unit += 1
                     continue
 
-                s = f'{value:.{places}f}'.rstrip('0').rstrip('.')
+                s = f'{value:.{places}f}'
+                if '.' in s:
+                    s = s.rstrip('0').rstrip('.')
                 return f'{s}{suffix}'
+
+        @classmethod
+        def render_cost(cls, cost: float) -> str:
+            if 0. < abs(cost) < .01:
+                return f'${cost:.4f}'
+            return f'${cost:.2f}'
 
         def render_session(self) -> str:
             parts = [
@@ -1280,6 +1291,8 @@ class MinituiChatApp(mt.App):
                 ]
                 if v
             ]
+            if self.cost is not None:
+                parts.append(self.render_cost(self.cost))
             return ' '.join(parts) if parts else ''
 
         def render_context(self) -> str:
@@ -1296,6 +1309,7 @@ class MinituiChatApp(mt.App):
             input_cache_write: int,
             output: int,
             reasoning: int,
+            cost: float | None = None,
             context_input: int | None,
             context_limit: int | None,
             context_estimated: bool = False,
@@ -1306,10 +1320,18 @@ class MinituiChatApp(mt.App):
             input_cache_write=input_cache_write,
             output=output,
             reasoning=reasoning,
+            cost=cost,
             context_input=context_input,
             context_limit=context_limit,
             context_estimated=context_estimated,
         )
+        self._refresh_status()
+        self._driver.invalidate()
+
+    def set_model(self, model: str | None) -> None:
+        if self._model == model:
+            return
+        self._model = model
         self._refresh_status()
         self._driver.invalidate()
 
@@ -1356,11 +1378,18 @@ class MinituiChatApp(mt.App):
 
         session_usage = self._usage.render_session()
         context_usage = self._usage.render_context()
-        self._status.set_right([
-            (session_usage, 'status.text'),
-            (' ' if session_usage and context_usage else '', 'status.dim'),
-            (context_usage, 'status.text'),
-        ])
+        right: list[tuple[str, str]] = []
+        if self._model:
+            right.append((self._model, 'status.dim'))
+        if session_usage:
+            if right:
+                right.append(('  ', 'status.dim'))
+            right.append((session_usage, 'status.text'))
+        if context_usage:
+            if right:
+                right.append((' ' if session_usage else '  ', 'status.dim'))
+            right.append((context_usage, 'status.text'))
+        self._status.set_right(right)
 
     def _handle_mouse(self, event: mt.MouseEvent) -> None:
         if self._layout is None or (hit := self._layout.hit(event.y)) is None:

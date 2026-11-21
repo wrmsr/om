@@ -54,7 +54,7 @@ async def test_unsupported_effort_is_rejected_at_startup():
                 in_memory=True,
                 effort=llm.ReasoningEffort.LOW,
             ),
-            agent_rewriter=inj.overrider(
+            host_rewriter=inj.overrider(
                 bind_scripted_backend(text_message('hello')),
             ),
         )):
@@ -78,7 +78,7 @@ async def test_effort_is_validated_against_installed_tools():
                 effort=llm.ReasoningEffort.LOW,
                 **kwargs,
             ),
-            agent_rewriter=inj.overrider(
+            host_rewriter=inj.overrider(
                 _bind_backend(model),
             ),
         )

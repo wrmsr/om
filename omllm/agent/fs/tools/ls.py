@@ -26,6 +26,8 @@ class LsToolParams:
 class LsTool(ToolClass[LsToolParams]):
     name: ta.Final = 'ls'
 
+    prunable: ta.ClassVar[bool] = True
+
     params_cls: ta.Final = LsToolParams
 
     description: ta.Final = ToolDescription(

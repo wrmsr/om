@@ -154,12 +154,18 @@ class StandardContextLifecycleManager(ContextLifecycleManager):
         else:
             projected = {}
 
+        prunable_names = config.prunable_tool_names
+        if prunable_names is None and context.tools is not None:
+            prunable_names = frozenset(t.name for t in context.tools if t.prunable)
+        if not prunable_names:
+            return
+
         for index, message in enumerate(context.messages or ()):
             if not isinstance(message, llm.ToolResultMessage):
                 continue
             if message.is_error:
                 continue
-            if message.tool_name not in (config.prunable_tool_names or ()):
+            if message.tool_name not in prunable_names:
                 continue
             if self._tool_result_chars(message) < config.prune_min_chars:
                 continue

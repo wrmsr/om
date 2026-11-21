@@ -6,13 +6,6 @@ Near-term first: what v1 punted on and has to be nailed down before building hig
 
 ## Near-term
 
-- **Split the root injector into an app injector and an agent injector per agent**, the root agent's included.
-  `bind_subagent_agent` is the shape of the per-agent module; the root agent moves onto it, declares `TURN_SCOPE` and
-  `TOOL_INVOCATION_SCOPE` for itself, and the subagent injector becomes a sibling under the app rather than a child
-  shadowing the root's `Agent`, `ToolSet`, `SystemPromptManager`, `AgentEventSubscribers`, `TurnRunner`,
-  `ToolInvoker`, `AgentSetup` and `ProcessScope`. Then `SUBAGENT_TURN_SCOPE` and `SUBAGENT_TOOL_INVOCATION_SCOPE`
-  collapse into `TURN_SCOPE` and `TOOL_INVOCATION_SCOPE`, and the child shadowing wart in `omcore/inject/TODO.md` is no
-  longer relied on here.
 - **Tool membership by concern, not by name.** The `fs` concern should contribute its read-only tools to an explorer's
   tool set through the injector the way every concern contributes to `AgentTools`; `_explore_tool_names` in the tui
   wiring and `SubagentProfile.tool_names` go away, and the subagent package stops knowing that `ls` exists. Until then

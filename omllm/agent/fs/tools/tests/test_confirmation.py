@@ -2,9 +2,13 @@
 Writes are asked for with the change in hand: the fs tools read what they are about to change - having been allowed to
 read it - and ask to write with a preview of exactly what will be written, which the result then displays.
 """
+import asyncio
 import os.path
 
+import pytest
+
 from omcore import lang
+from omcore.asyncs.asynclite import all as asl
 
 from .....core import ui
 from ....permissions.types import PermissionDecider
@@ -13,6 +17,7 @@ from ....permissions.types import PermissionState
 from ....types.tools import ToolContext
 from ....types.tools import ToolEnvironment
 from ...local import LocalFsOps
+from ...locks import FsPathLocks
 from ..details import WriteToolResultDetails
 from ..edit import EditTool
 from ..write import WriteTool
@@ -246,3 +251,38 @@ def test_write_over_non_text_says_so_rather_than_diffing(tmp_path):
     assert not isinstance(preview, ui.DiffText)
     assert '2 bytes of non-text content' in str(preview)
     assert result.display == preview
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_parallel_edits_to_same_file_serialize_cleanly(tmp_path):
+    root = os.path.realpath(tmp_path)
+    path = os.path.join(root, 'shared.py')
+    _write_local(path, b'alpha = 1\nbeta = 2\n')
+
+    class _YieldingFsOps(LocalFsOps):
+        async def read_file(self, p):
+            res = await super().read_file(p)
+            await asyncio.sleep(0)
+            return res
+
+    log: list = []
+    perms = _Decider(log)
+    fs = _YieldingFsOps()
+    path_locks = FsPathLocks(asl.asyncio.Locks())
+    tool = EditTool(permissions=perms, fs=fs, path_locks=path_locks)
+
+    r1, r2 = await asyncio.gather(
+        tool.execute_context(ToolContext(
+            args={'file_path': path, 'old_string': 'alpha = 1', 'new_string': 'alpha = 10'},
+            env=ToolEnvironment(cwd=root),
+        )),
+        tool.execute_context(ToolContext(
+            args={'file_path': path, 'old_string': 'beta = 2', 'new_string': 'beta = 20'},
+            env=ToolEnvironment(cwd=root),
+        )),
+    )
+
+    assert r1.error is None, r1.content.text
+    assert r2.error is None, r2.content.text
+    assert _read_local(path) == b'alpha = 10\nbeta = 20\n'
+    assert not path_locks._entries  # noqa: SLF001

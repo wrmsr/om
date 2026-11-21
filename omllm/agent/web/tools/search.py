@@ -25,6 +25,8 @@ class WebSearchToolParams:
 class WebSearchTool(ToolClass[WebSearchToolParams]):
     name: ta.Final = 'web_search'
 
+    prunable: ta.ClassVar[bool] = True
+
     params_cls: ta.Final = WebSearchToolParams
 
     description: ta.Final = ToolDescription(

@@ -17,6 +17,7 @@ from ..commands.manager import CommandsManager
 from ..config import UiConfig
 from ..inject.inject import AgentInjector
 from ..inject.inject import AgentUiInjector
+from ..inject.inject import HostInjector
 from ..inject.inject import UiBinder
 
 
@@ -36,6 +37,7 @@ def bind_headless_ui(
         config: UiConfig,
         *,
         ui_rewriter: inj.ElementsRewriter | None = None,
+        host_rewriter: inj.ElementsRewriter | None = None,
         agent_rewriter: inj.ElementsRewriter | None = None,
         agent_ui_rewriter: inj.ElementsRewriter | None = None,
 ) -> inj.Elements:
@@ -54,6 +56,7 @@ def bind_headless_ui(
                 inj.bind(DenyingPermissionAsker()),
                 inj.bind(agn.PermissionAsker, to_key=DenyingPermissionAsker),
             )),
+            host_rewriter=host_rewriter,
             agent_rewriter=agent_rewriter,
             agent_ui_rewriter=agent_ui_rewriter,
         ).bind_ui(),
@@ -75,6 +78,7 @@ def bind_scripted_backend(*turns: ta.Any) -> inj.Elemental:
 @dc.dataclass(frozen=True, kw_only=True)
 class HeadlessUi:
     ui_injector: inj.AsyncInjector
+    host_injector: inj.AsyncInjector
     agent_injector: inj.AsyncInjector
     agent_ui_injector: inj.AsyncInjector
 
@@ -88,6 +92,7 @@ async def headless_ui(*els: inj.Elemental) -> ta.AsyncIterator[HeadlessUi]:
     async with inj.create_asyncio_managed_injector(
         *els,
     ) as ui_injector:
+        host_injector = (await ui_injector[HostInjector]).v
         agent_injector = (await ui_injector[AgentInjector]).v
         agent_ui_injector = (await agent_injector[AgentUiInjector]).v
 
@@ -123,6 +128,7 @@ async def headless_ui(*els: inj.Elemental) -> ta.AsyncIterator[HeadlessUi]:
 
         yield HeadlessUi(
             ui_injector=ui_injector,
+            host_injector=host_injector,
             agent_injector=agent_injector,
             agent_ui_injector=agent_ui_injector,
 

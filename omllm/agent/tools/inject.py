@@ -65,9 +65,8 @@ TOOL_INVOCATION_SCOPE: ta.Final = inj.DelimitedScope(
 class ScopedToolInvoker(agn.ToolInvoker):
     """
     The turn's seam, one level down: each tool call is invoked in an opening of the agent's tool invocation scope,
-    seeded with the tool and its context, so what an invocation is built from may be bound per tool call. Which scope
-    is the agent's goes as it does for `ScopedTurnRunner`: the root agent's is `TOOL_INVOCATION_SCOPE`, and an agent
-    scope of its own - a subagent's - has one of its own.
+    seeded with the tool and its context, so what an invocation is built from may be bound per tool call. Every agent
+    injector registers `TOOL_INVOCATION_SCOPE` for itself, keeping sibling agents and subagents mutually isolated.
     """
 
     def __init__(

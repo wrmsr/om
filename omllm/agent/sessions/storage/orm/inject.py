@@ -28,12 +28,16 @@ def _provide_registry() -> orm.Registry:
     return orm.registry(*orm_session_mappers())
 
 
-def bind_orm_session_storage() -> inj.Elements:
-    """Wants an `Orm` bound for it."""
-
+def bind_orm_session_registry() -> inj.Elements:
     return inj.as_elements(
         inj.bind(_provide_registry, singleton=True),
+    )
 
+
+def bind_orm_session_storage() -> inj.Elements:
+    """Wants an `Orm` bound for it (typically in the host injector)."""
+
+    return inj.as_elements(
         inj.bind(OrmSessionStorage, singleton=True),
         inj.bind(SessionStorage, to_key=OrmSessionStorage),
     )
@@ -112,6 +116,8 @@ async def _provide_db_sets_orm(
 
 def bind_db_sets_orm(sets: sql.DbSets) -> inj.Elements:
     return inj.as_elements(
+        bind_orm_session_registry(),
+
         inj.bind(sets),
 
         inj.bind(SqlOrm, singleton=True, to_async_fn=_provide_db_sets_orm),
@@ -121,6 +127,8 @@ def bind_db_sets_orm(sets: sql.DbSets) -> inj.Elements:
 
 def bind_asyncio_sqlite_orm(config: SqliteDbConfig) -> inj.Elements:
     return inj.as_elements(
+        bind_orm_session_registry(),
+
         inj.bind(config),
         inj.bind(_provide_sqlite_db_sets, singleton=True),
 

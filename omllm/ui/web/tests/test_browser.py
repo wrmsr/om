@@ -53,7 +53,7 @@ async def test_browser():
 
         async with running_web(
                 build_demo_config(cwd, port=0),
-                agent_overrides=[bind_demo_backend(cwd, pace_s=0.)],
+                host_overrides=[bind_demo_backend(cwd, pace_s=0.)],
         ) as rw:
             def drive() -> tuple[dict, dict]:
                 with headless_firefox() as m:
@@ -106,7 +106,7 @@ async def test_browser_interruptions():
 
         async with running_web(
                 build_demo_config(cwd, port=0),
-                agent_overrides=[bind_demo_backend(cwd, pace_s=.005)],
+                host_overrides=[bind_demo_backend(cwd, pace_s=.005)],
         ) as rw:
             def drive() -> dict:
                 out: dict = {}

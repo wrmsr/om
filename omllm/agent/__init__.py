@@ -149,6 +149,10 @@ with _lang.auto_proxy_init(
         LocalFsOps,
     )
 
+    from .fs.locks import (  # noqa
+        FsPathLocks,
+    )
+
     from .fs.ops import (  # noqa
         FsEntry,
         FsFile,
@@ -549,6 +553,7 @@ with _lang.auto_proxy_init(
 
     from .types.turns import (  # noqa
         LlmRetryConfig,
+        PromptCacheConfig,
         TurnConfig,
 
         AgentEndReason,
@@ -604,7 +609,13 @@ with _lang.auto_proxy_init(
     )
 
     from .backends import (  # noqa
+        BackendTypeUnsupportedError,
+        BackendManagerClosedError,
+
         BackendManager,
 
         DictBackendManager,
+
+        BackendOpener,
+        ManagedBackendManager,
     )

@@ -23,7 +23,7 @@ async def test_cancelled_before_it_starts():
             in_memory=True,
             port=0,
         ),
-        agent_rewriter=inj.overrider(
+        host_rewriter=inj.overrider(
             inj.bind(agn.BackendManager, to_const=agn.DictBackendManager.of(scripted_backend(text_message('hi')))),
         ),
     )) as injector:

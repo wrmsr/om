@@ -106,6 +106,9 @@ class Tool:
 
     summarizer: ToolSummarizer | None = None
 
+    # Whether older results of this tool may be proactively pruned from the model projection under context pressure.
+    prunable: bool = False
+
 
 @ta.final
 @dc.dataclass(frozen=True)

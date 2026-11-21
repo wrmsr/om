@@ -90,17 +90,17 @@ async def test_sqlite_sessions_replicate_to_postgres(harness):
                 model='scripted',
                 immediate=True,
             ),
-            agent_rewriter=lambda els: inj.as_elements(
-                inj.override(
-                    els,
-                    bind_scripted_backend(
-                        text_message('before'),
-                        tool_call_message(llm.ToolCall('t1', 'echo', {'text': 'x'})),
-                        text_message('after'),
-                        RuntimeError('boom'),
-                    ),
-                    inj.bind(sql.be.sqlite.connecting.SqliteDbConfig(file_path=edge_db_path)),
+            host_rewriter=inj.overrider(
+                bind_scripted_backend(
+                    text_message('before'),
+                    tool_call_message(llm.ToolCall('t1', 'echo', {'text': 'x'})),
+                    text_message('after'),
+                    RuntimeError('boom'),
                 ),
+                inj.bind(sql.be.sqlite.connecting.SqliteDbConfig(file_path=edge_db_path)),
+            ),
+            agent_rewriter=lambda els: inj.as_elements(
+                els,
 
                 inj.bind(EchoTool, singleton=True),
                 bind_agent_tool_class(EchoTool),

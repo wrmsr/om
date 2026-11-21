@@ -58,6 +58,7 @@ async def running_web(
         config: WebConfig,
         *,
         ui_overrides: ta.Sequence[inj.Elemental] = (),
+        host_overrides: ta.Sequence[inj.Elemental] = (),
         agent_overrides: ta.Sequence[inj.Elemental] = (),
         agent_ui_overrides: ta.Sequence[inj.Elemental] = (),
 ) -> ta.AsyncIterator[RunningWeb]:
@@ -66,6 +67,7 @@ async def running_web(
     els = bind_web(
         config,
         ui_rewriter=inj.overrider(*ui_overrides) if ui_overrides else None,
+        host_rewriter=inj.overrider(*host_overrides) if host_overrides else None,
         agent_rewriter=inj.overrider(*agent_overrides) if agent_overrides else None,
         agent_ui_rewriter=inj.overrider(*agent_ui_overrides) if agent_ui_overrides else None,
     )

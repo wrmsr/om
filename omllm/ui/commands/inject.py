@@ -11,6 +11,7 @@ from .base import Commands
 from .compact import CompactCommand
 from .effort import EffortCommand
 from .manager import CommandsManager
+from .model import ModelCommand
 from .permissions import PermissionsCommand
 from .processes import ProcessesCommand
 from .simple import EchoCommand
@@ -66,6 +67,7 @@ def bind_commands(config: UiConfig) -> inj.Elements:
         bind_agent_ui_injector_bindings(
             bind_command_singleton(CompactCommand),
             bind_command_singleton(EffortCommand),
+            bind_command_singleton(ModelCommand),
             bind_command_singleton(PermissionsCommand),
             bind_command_singleton(StatusCommand),
             bind_command_singleton(SteerCommand),

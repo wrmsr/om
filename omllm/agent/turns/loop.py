@@ -207,11 +207,19 @@ class TurnLoop:
 
     #
 
+    def _resolved_llm_options(self) -> llm.Options | None:
+        options = self._config.llm_options
+        if (prompt_cache := self._config.prompt_cache) is not None:
+            options = prompt_cache.resolve_options(self._llm_backend.model, options)
+        return options
+
     async def _llm_complete_once(self, llm_context: llm.Context) -> llm.AiMessage:
+        options = self._resolved_llm_options()
+
         if isinstance(llm_backend := self._llm_backend, llm.StreamBackend):
             async with (await llm_backend.stream(
                     llm_context,
-                    self._config.llm_options,
+                    options,
             )) as it:
                 async for e in it:
                     if isinstance(e, llm.ContentAiStreamEvent):
@@ -222,7 +230,7 @@ class TurnLoop:
         else:
             return await self._llm_backend.immediate(
                 llm_context,
-                self._config.llm_options,
+                options,
             )
 
     async def _apply_context_lifecycle_result(self, result: ContextLifecycleResult) -> None:
@@ -242,7 +250,7 @@ class TurnLoop:
             self._context,
             builder=self._context_builder,
             backend=self._llm_backend,
-            options=self._config.llm_options,
+            options=self._resolved_llm_options(),
             config=self._config.context_lifecycle,
         )
         await self._apply_context_lifecycle_result(result)
@@ -273,7 +281,7 @@ class TurnLoop:
                     self._context,
                     builder=self._context_builder,
                     backend=self._llm_backend,
-                    options=self._config.llm_options,
+                    options=self._resolved_llm_options(),
                     config=lifecycle,
                 )
                 if recovered.reduction is None:

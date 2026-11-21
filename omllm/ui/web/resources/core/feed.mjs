@@ -42,6 +42,7 @@
  * @property {number} inputCacheWrite
  * @property {number} output
  * @property {number} reasoning
+ * @property {number | null} cost
  * @property {number} turns
  */
 
@@ -68,7 +69,7 @@ export class FeedModel {
     this.status = {
       /** @type {Map<string, {kind: string, text: string, exclusive: boolean}>} */ running: new Map(),
 
-      /** @type {Usage} */ usage: {input: 0, inputCached: 0, inputCacheWrite: 0, output: 0, reasoning: 0, turns: 0},
+      /** @type {Usage} */ usage: {input: 0, inputCached: 0, inputCacheWrite: 0, output: 0, reasoning: 0, cost: null, turns: 0},
       /** @type {{input: number, limit: number | null, estimated: boolean} | null} */ context: null,
 
       shutdown: false,
@@ -299,6 +300,9 @@ export class FeedModel {
     u.inputCacheWrite += e.input_cache_write ?? 0
     u.output += e.output ?? 0
     u.reasoning += e.reasoning ?? 0
+    if (e.cost != null) {
+      u.cost = e.cost
+    }
     u.turns += 1
     changes.status = true
   }

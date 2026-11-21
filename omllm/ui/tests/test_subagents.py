@@ -43,7 +43,7 @@ def _bind(cwd, *turns, autoexec=None, subagents=True):
             cwd=cwd,
             autoexec=autoexec if autoexec is not None else _allow_rules(cwd),
         ),
-        agent_rewriter=inj.overrider(
+        host_rewriter=inj.overrider(
             bind_scripted_backend(*turns),
         ),
     )

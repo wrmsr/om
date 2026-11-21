@@ -3,6 +3,7 @@ import os.path
 from omcore import lang
 
 from ... import agent as agn
+from ... import llm
 from ...core import ui
 from ..commands.base import Commands
 from ..commands.manager import CommandsManager
@@ -90,3 +91,25 @@ def test_yolo_grants_nothing_beside_the_working_directory():
 
             for mode in ('r', 'w'):
                 assert _fs_state(permissions, os.path.join(sibling, 'a.py'), mode) is None, (cwd, sibling, mode)
+
+
+def test_diet_yolo_allows_ripgrep_and_asks_for_other_exec():
+    permissions = _run_autoexec(UiConfig(diet_yolo=True), '/w/plain')
+
+    async def noop(ctx):
+        raise AssertionError
+
+    rg_tool = agn.Tool(llm_tool=llm.Tool(name='ripgrep'), executor=noop)
+    bash_tool = agn.Tool(llm_tool=llm.Tool(name='bash'), executor=noop)
+
+    rg_rule = permissions.match(agn.PermissionMatchContext(
+        agn.ExecPermissionTarget(['rg', 'foo']),
+        requestor=agn.PermissionRequestor(tool_context=agn.ToolContext(tool=rg_tool, args={})),
+    ))
+    assert rg_rule is not None and rg_rule.result is agn.PermissionState.ALLOW
+
+    bash_rule = permissions.match(agn.PermissionMatchContext(
+        agn.ExecPermissionTarget(['bash', '-c', 'ls']),
+        requestor=agn.PermissionRequestor(tool_context=agn.ToolContext(tool=bash_tool, args={})),
+    ))
+    assert bash_rule is not None and bash_rule.result is agn.PermissionState.ASK

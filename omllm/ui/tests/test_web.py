@@ -79,7 +79,7 @@ async def test_web_tools_make_http_requests_and_ask_permission(tmp_path):
                     '/permissions add ask regex_url \'{"pat":"https?://.*",methods:["GET"]}\'',
                 ],
             ),
-            agent_rewriter=inj.overrider(
+            host_rewriter=inj.overrider(
                 inj.bind(agn.PermissionAsker, to_const=asker),
                 inj.bind(agn.WebSearcher, to_const=_Searcher()),
                 bind_scripted_backend(
@@ -117,7 +117,7 @@ async def test_live_search_and_fetch_through_the_ui_tools():
                 '/permissions add allow regex_url \'{"pat":"https?://.*",methods:["GET"]}\'',
             ],
         ),
-        agent_rewriter=inj.overrider(
+        host_rewriter=inj.overrider(
             inj.bind(agn.PermissionAsker, to_const=_AllowingAsker()),
         ),
     )) as hui:

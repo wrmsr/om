@@ -4,6 +4,7 @@ TODO:
  - accept diff format impl
  - injectable diff format
 """
+import contextlib
 import typing as ta
 
 from omcore import dataclasses as dc
@@ -18,6 +19,7 @@ from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
 from ...types.tools import ToolResult
 from ..common import FsFileChangedError
+from ..locks import FsPathLocks
 from ..ops import FsOps
 from ..permissions import FsPermissionTarget
 from .details import EditToolResultDetails
@@ -78,11 +80,13 @@ class EditTool(ToolClass[EditToolParams]):
             *,
             permissions: PermissionDecider,
             fs: FsOps,
+            path_locks: FsPathLocks | None = None,
     ) -> None:
         super().__init__()
 
         self._permissions = permissions
         self._fs = fs
+        self._path_locks = path_locks
 
     def summarize(self, ctx: ToolContext, params: EditToolParams) -> str:
         return params.file_path
@@ -95,46 +99,52 @@ class EditTool(ToolClass[EditToolParams]):
 
         requestor = PermissionRequestor(tool_context=ctx)
 
-        await self._permissions.check_allowed(PermissionRequest(
-            requestor,
-            FsPermissionTarget(file_path, 'r'),
-        ))
+        lock_cm = self._path_locks.lock(file_path) if self._path_locks is not None else contextlib.nullcontext()
+        async with lock_cm:
+            await self._permissions.check_allowed(PermissionRequest(
+                requestor,
+                FsPermissionTarget(file_path, 'r'),
+            ))
 
-        old_file_data = await self._fs.read_file(file_path)
-        old_file = old_file_data.data.decode('utf-8')
+            old_file_data = await self._fs.read_file(file_path)
+            old_file = old_file_data.data.decode('utf-8')
 
-        n = old_file.count(params.old_string)
-        if not n:
-            raise ValueError('The requested file to edit to did not contain the given "old_string" parameter.')
+            n = old_file.count(params.old_string)
+            if not n:
+                raise ValueError('The requested file to edit to did not contain the given "old_string" parameter.')
 
-        if not params.replace_all and n != 1:
-            raise ValueError('The requested file to edit contained the given "old_string" parameter multiple times.')
+            if not params.replace_all and n != 1:
+                raise ValueError(
+                    'The requested file to edit contained the given "old_string" parameter multiple times.',
+                )
 
-        new_file = old_file.replace(params.old_string, params.new_string)
+            new_file = old_file.replace(params.old_string, params.new_string)
 
-        # Asked with the change in hand, so what is shown is exactly what gets written - and the write fails rather than
-        # clobber the file if it changed while the decision was pending.
-        diff = ui.DiffText(
-            old=old_file,
-            new=new_file,
-            path=file_path,
-        )
-
-        await self._permissions.check_allowed(PermissionRequest(
-            requestor,
-            FsPermissionTarget(file_path, 'w'),
-            preview=diff,
-        ))
-
-        try:
-            await self._fs.write_file(
-                file_path,
-                new_file.encode('utf-8'),
-                overwrite=True,
-                expected_digest=old_file_data.digest,
+            # Asked with the change in hand, so what is shown is exactly what gets written - and the write fails rather
+            # than clobber the file if it changed while the decision was pending.
+            diff = ui.DiffText(
+                old=old_file,
+                new=new_file,
+                path=file_path,
             )
-        except FsFileChangedError:
-            raise ValueError('The requested file to edit changed before the edit was written. Read it again.') from None
+
+            await self._permissions.check_allowed(PermissionRequest(
+                requestor,
+                FsPermissionTarget(file_path, 'w'),
+                preview=diff,
+            ))
+
+            try:
+                await self._fs.write_file(
+                    file_path,
+                    new_file.encode('utf-8'),
+                    overwrite=True,
+                    expected_digest=old_file_data.digest,
+                )
+            except FsFileChangedError:
+                raise ValueError(
+                    'The requested file to edit changed before the edit was written. Read it again.',
+                ) from None
 
         return ToolResult(
             content=llm.TextContent('The file has been edited successfully.'),

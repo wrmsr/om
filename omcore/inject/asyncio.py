@@ -47,8 +47,10 @@ create_asyncio_injector = _InjectorCreator[AsyncInjector, ta.Awaitable[AsyncInje
 
 def create_asyncio_managed_injector(
         *args: Elemental,
+        parent: AsyncInjector | None = None,
 ) -> ta.AsyncContextManager[_injector.AsyncInjector]:
     return _managed.create_async_managed_injector(
         *args,
+        parent=parent,
         factory=create_asyncio_injector,
     )

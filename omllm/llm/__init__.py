@@ -119,6 +119,7 @@ with _lang.auto_proxy_init(
 
     from .types.backends import (  # noqa
         Backend,
+        manage_backend,
 
         ImmediateBackend,
 

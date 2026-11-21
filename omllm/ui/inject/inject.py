@@ -10,7 +10,8 @@ from ...agent.inject.events import event_subscribers_binder as agent_event_subsc
 from ...core import ui
 from ...core.asyncs.inject import bind_asyncio_job_runner
 from ...core.asyncs.inject import bind_asyncio_runtime
-from ..agent.inject.inject import bind_agent
+from ..agent.inject.inject import bind_agent_host
+from ..agent.inject.inject import bind_root_agent
 from ..agent.setup import AgentSetup
 from ..backends.inject import bind_backends
 from ..commands.inject import bind_commands
@@ -20,10 +21,13 @@ from .injectors import AgentInjector
 from .injectors import AgentInjectorBindings
 from .injectors import AgentUiInjector
 from .injectors import AgentUiInjectorBindings
+from .injectors import HostInjector
+from .injectors import HostInjectorBindings
 from .injectors import UiInjector
 from .injectors import agent_injector_bindings_binder
 from .injectors import agent_ui_injector_bindings_binder
 from .injectors import bind_injector_import
+from .injectors import host_injector_bindings_binder
 
 
 ##
@@ -35,6 +39,7 @@ class UiBinder:
             config: UiConfig,
             *,
             ui_rewriter: inj.ElementsRewriter | None = None,
+            host_rewriter: inj.ElementsRewriter | None = None,
             agent_rewriter: inj.ElementsRewriter | None = None,
             agent_ui_rewriter: inj.ElementsRewriter | None = None,
     ) -> None:
@@ -43,6 +48,7 @@ class UiBinder:
         self._config = config
 
         self._ui_rewriter = ui_rewriter or lang.identity
+        self._host_rewriter = host_rewriter or lang.identity
         self._agent_rewriter = agent_rewriter or lang.identity
         self._agent_ui_rewriter = agent_ui_rewriter or lang.identity
 
@@ -78,34 +84,59 @@ class UiBinder:
 
     #
 
-    def bind_agent(self) -> inj.Elements:
-        return self._agent_rewriter(inj.as_elements(
+    def bind_host(self) -> inj.Elements:
+        return self._host_rewriter(inj.as_elements(
             inj.bind(UiConfig, to_const=self._config),
 
-            bind_agent(self._config),
+            bind_agent_host(self._config),
             bind_backends(self._config),
 
             #
 
             bind_injector_import(UiInjector, agn.PermissionAsker),
-
             bind_injector_import(UiInjector, AgentUiInjectorBindings),
+        ))
+
+    async def _provide_host_injector(
+            self,
+            *,
+            ui_injector: inj.AsyncInjector,
+            aes: contextlib.AsyncExitStack,
+    ) -> HostInjector:
+        host_injector = await aes.enter_async_context(inj.create_asyncio_managed_injector(
+            self.bind_host(),
+
+            inj.bind(UiInjector(ui_injector)),
+
+            *(await ui_injector[HostInjectorBindings]),
+        ))
+
+        return HostInjector(host_injector)
+
+    #
+
+    def bind_agent(self) -> inj.Elements:
+        return self._agent_rewriter(inj.as_elements(
+            bind_root_agent(self._config),
         ))
 
     async def _provide_agent_injector(
             self,
             *,
             ui_injector: inj.AsyncInjector,
+            host_injector: HostInjector,
             aes: contextlib.AsyncExitStack,
     ) -> AgentInjector:
+        # Entered on `ui_injector`'s stack AFTER `host_injector`, so LIFO teardown unwinds the root agent before the
+        # host's shared backends, process manager, and database.
         agent_injector = await aes.enter_async_context(inj.create_asyncio_managed_injector(
             self.bind_agent(),
-
-            inj.bind(UiInjector(ui_injector)),
 
             *(await ui_injector[AgentInjectorBindings]),
 
             inj.bind(AgentUiInjector, to_async_fn=self._provide_agent_ui_injector, singleton=True, eager=True),
+
+            parent=host_injector.v,
         ))
 
         return AgentInjector(agent_injector)
@@ -127,10 +158,12 @@ class UiBinder:
 
             #
 
+            inj.bind(HostInjector, to_async_fn=self._provide_host_injector, singleton=True),
             inj.bind(AgentInjector, to_async_fn=self._provide_agent_injector, singleton=True),
 
             #
 
+            host_injector_bindings_binder().bind_items_provider(singleton=True),
             agent_injector_bindings_binder().bind_items_provider(singleton=True),
             agent_ui_injector_bindings_binder().bind_items_provider(singleton=True),
 

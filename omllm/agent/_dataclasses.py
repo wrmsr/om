@@ -131,6 +131,123 @@ def _process_dataclass__0bbc572461db0e8cf0bb47b4bfb151a4488764ea():
 
 
 @_register(
+    installer_sha1='add3c885d9bd2107465e984a03428877fed5de93',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('base_url', True, True, None, True, True, False, None), 'instance', 'value', N"
+            "one, False, False, False), (('model_id', True, True, None, True, True, False, None), 'instance', 'value', "
+            "None, False, False, False)), True, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), ("
+            "), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('omllm.agent.inject.backends', 'BackendModelOverrides'),
+    ),
+)
+def _process_dataclass__add3c885d9bd2107465e984a03428877fed5de93():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__0__default = __dataclass__spec.fields[0].default.must()
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__repr__default_fn = __dataclass__spec.default_repr_fn
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                base_url=self.base_url,
+                model_id=self.model_id,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.base_url == other.base_url and
+                self.model_id == other.model_id
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'base_url',
+            'model_id',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.base_url,
+                self.model_id,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            base_url: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
+            model_id: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'base_url', base_url)
+            __dataclass__object_setattr(self, 'model_id', model_id)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            if (s := __dataclass__repr__default_fn(self.base_url)) is not None:
+                parts.append(f"base_url={s}")
+            if (s := __dataclass__repr__default_fn(self.model_id)) is not None:
+                parts.append(f"model_id={s}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
     installer_sha1='018fdc061046af08399a06df8437ed8b94609eb6',
     spec_keys=(
         (
@@ -3337,7 +3454,7 @@ def _process_dataclass__a759ae59fd3fc2a3a35c7e17e91dc06c76d882f0():
 
 
 @_register(
-    installer_sha1='78adff5f335086083b17d0a1ff962c9c3975ebdf',
+    installer_sha1='e48dec8a7f0a5cafcde3dde17fd03b0636fd3c8f',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -3347,15 +3464,16 @@ def _process_dataclass__a759ae59fd3fc2a3a35c7e17e91dc06c76d882f0():
             " False, False, False), (('reasoning', True, True, None, True, True, False, None), 'instance', 'value', Non"
             "e, False, False, False), (('cache_read', True, True, None, True, True, False, None), 'instance', 'value', "
             "None, False, False, False), (('cache_write', True, True, None, True, True, False, None), 'instance', 'valu"
-            "e', None, False, False, False)), True, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),"
-            "), (), (False,)))"
+            "e', None, False, False, False), (('cost', True, True, None, True, True, False, None), 'instance', 'value',"
+            " None, False, False, False)), True, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), "
+            "(), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.agent.types.lifecycle', 'UsageLedger'),
     ),
 )
-def _process_dataclass__78adff5f335086083b17d0a1ff962c9c3975ebdf():
+def _process_dataclass__e48dec8a7f0a5cafcde3dde17fd03b0636fd3c8f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3373,6 +3491,8 @@ def _process_dataclass__78adff5f335086083b17d0a1ff962c9c3975ebdf():
         __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
         __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
         __dataclass__init__fields__5__default = __dataclass__spec.fields[5].default.must()
+        __dataclass__init__fields__6__annotation = __dataclass__spec.fields[6].annotation
+        __dataclass__init__fields__6__default = __dataclass__spec.fields[6].default.must()
         __dataclass__repr__default_fn = __dataclass__spec.default_repr_fn
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
@@ -3389,6 +3509,7 @@ def _process_dataclass__78adff5f335086083b17d0a1ff962c9c3975ebdf():
                 reasoning=self.reasoning,
                 cache_read=self.cache_read,
                 cache_write=self.cache_write,
+                cost=self.cost,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -3403,7 +3524,8 @@ def _process_dataclass__78adff5f335086083b17d0a1ff962c9c3975ebdf():
                 self.output == other.output and
                 self.reasoning == other.reasoning and
                 self.cache_read == other.cache_read and
-                self.cache_write == other.cache_write
+                self.cache_write == other.cache_write and
+                self.cost == other.cost
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -3415,6 +3537,7 @@ def _process_dataclass__78adff5f335086083b17d0a1ff962c9c3975ebdf():
             'reasoning',
             'cache_read',
             'cache_write',
+            'cost',
         }
 
         def __setattr__(self, name, value):
@@ -3444,6 +3567,7 @@ def _process_dataclass__78adff5f335086083b17d0a1ff962c9c3975ebdf():
                 self.reasoning,
                 self.cache_read,
                 self.cache_write,
+                self.cost,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -3456,12 +3580,14 @@ def _process_dataclass__78adff5f335086083b17d0a1ff962c9c3975ebdf():
             reasoning: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
             cache_read: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
             cache_write: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
+            cost: __dataclass__init__fields__6__annotation = __dataclass__init__fields__6__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'input', input)
             __dataclass__object_setattr(self, 'output', output)
             __dataclass__object_setattr(self, 'reasoning', reasoning)
             __dataclass__object_setattr(self, 'cache_read', cache_read)
             __dataclass__object_setattr(self, 'cache_write', cache_write)
+            __dataclass__object_setattr(self, 'cost', cost)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -3478,6 +3604,8 @@ def _process_dataclass__78adff5f335086083b17d0a1ff962c9c3975ebdf():
                 parts.append(f"cache_read={s}")
             if (s := __dataclass__repr__default_fn(self.cache_write)) is not None:
                 parts.append(f"cache_write={s}")
+            if (s := __dataclass__repr__default_fn(self.cost)) is not None:
+                parts.append(f"cost={s}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -3853,22 +3981,23 @@ def _process_dataclass__805461898627314a0912c5682c019aef914669d1():
 
 
 @_register(
-    installer_sha1='e9e97322e81fdcecb16325026328dee49c6c816d',
+    installer_sha1='a4c019a03c275e7212af27368693ce004fd9cbbe',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
             "e, False, False, False), ((('llm_tool', True, True, None, True, True, False, None), 'instance', 'missing',"
             " None, False, False, False), (('executor', True, True, None, True, True, False, None), 'instance', 'missin"
             "g', None, False, False, False), (('summarizer', True, True, None, True, True, False, None), 'instance', 'v"
-            "alue', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), "
-            "((),), (), (False,)))"
+            "alue', None, False, False, False), (('prunable', True, True, None, True, True, False, None), 'instance', '"
+            "value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()),"
+            " ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.agent.types.tools', 'Tool'),
     ),
 )
-def _process_dataclass__e9e97322e81fdcecb16325026328dee49c6c816d():
+def _process_dataclass__a4c019a03c275e7212af27368693ce004fd9cbbe():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3879,6 +4008,8 @@ def _process_dataclass__e9e97322e81fdcecb16325026328dee49c6c816d():
         __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
         __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
         __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -3892,6 +4023,7 @@ def _process_dataclass__e9e97322e81fdcecb16325026328dee49c6c816d():
                 llm_tool=self.llm_tool,
                 executor=self.executor,
                 summarizer=self.summarizer,
+                prunable=self.prunable,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -3904,7 +4036,8 @@ def _process_dataclass__e9e97322e81fdcecb16325026328dee49c6c816d():
             return (
                 self.llm_tool == other.llm_tool and
                 self.executor == other.executor and
-                self.summarizer == other.summarizer
+                self.summarizer == other.summarizer and
+                self.prunable == other.prunable
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -3913,6 +4046,7 @@ def _process_dataclass__e9e97322e81fdcecb16325026328dee49c6c816d():
             'llm_tool',
             'executor',
             'summarizer',
+            'prunable',
         }
 
         def __setattr__(self, name, value):
@@ -3940,6 +4074,7 @@ def _process_dataclass__e9e97322e81fdcecb16325026328dee49c6c816d():
                 self.llm_tool,
                 self.executor,
                 self.summarizer,
+                self.prunable,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -3950,10 +4085,12 @@ def _process_dataclass__e9e97322e81fdcecb16325026328dee49c6c816d():
             llm_tool: __dataclass__init__fields__0__annotation,
             executor: __dataclass__init__fields__1__annotation,
             summarizer: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            prunable: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'llm_tool', llm_tool)
             __dataclass__object_setattr(self, 'executor', executor)
             __dataclass__object_setattr(self, 'summarizer', summarizer)
+            __dataclass__object_setattr(self, 'prunable', prunable)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -3963,6 +4100,7 @@ def _process_dataclass__e9e97322e81fdcecb16325026328dee49c6c816d():
             parts.append(f"llm_tool={self.llm_tool!r}")
             parts.append(f"executor={self.executor!r}")
             parts.append(f"summarizer={self.summarizer!r}")
+            parts.append(f"prunable={self.prunable!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -4720,26 +4858,144 @@ def _process_dataclass__697c3085651cffe35ad77cb93eaa2d09df9d6d7c():
 
 
 @_register(
-    installer_sha1='768114af10393989818894df60399fdcae369695',
+    installer_sha1='a6dd50ea61f84559a190928688ecab41eee1b15a',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('key', True, True, None, True, True, False, None), 'instance', 'value', None, "
+            "False, False, False), (('opt_in_retention', True, True, None, True, True, False, None), 'instance', 'value"
+            "', None, False, False, False)), True, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),)"
+            ", (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('omllm.agent.types.turns', 'PromptCacheConfig'),
+    ),
+)
+def _process_dataclass__a6dd50ea61f84559a190928688ecab41eee1b15a():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__0__default = __dataclass__spec.fields[0].default.must()
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__repr__default_fn = __dataclass__spec.default_repr_fn
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                key=self.key,
+                opt_in_retention=self.opt_in_retention,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.key == other.key and
+                self.opt_in_retention == other.opt_in_retention
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'key',
+            'opt_in_retention',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.key,
+                self.opt_in_retention,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            key: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
+            opt_in_retention: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'key', key)
+            __dataclass__object_setattr(self, 'opt_in_retention', opt_in_retention)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            if (s := __dataclass__repr__default_fn(self.key)) is not None:
+                parts.append(f"key={s}")
+            if (s := __dataclass__repr__default_fn(self.opt_in_retention)) is not None:
+                parts.append(f"opt_in_retention={s}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    installer_sha1='cfedad558dc57737b3e01a5c6937ab424768148b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
             "e, False, False, False), ((('llm_options', True, True, None, True, True, False, None), 'instance', 'value'"
             ", None, False, False, False), (('max_turns', True, True, None, True, True, False, None), 'instance', 'valu"
             "e', None, False, False, False), (('llm_retry', True, True, None, True, True, False, None), 'instance', 'va"
-            "lue', None, False, False, False), (('context_lifecycle', True, True, None, True, True, False, None), 'inst"
-            "ance', 'value', None, False, False, False), (('max_concurrent_tool_calls', True, True, None, True, True, F"
-            "alse, None), 'instance', 'value', None, True, False, False), (('cancel_timeout_s', True, True, None, True,"
-            " True, False, None), 'instance', 'value', None, True, False, False), (('steering_skips_pending_tool_calls'"
-            ", True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False)), True, 0, ("
-            ")), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (False,)))"
+            "lue', None, False, False, False), (('prompt_cache', True, True, None, True, True, False, None), 'instance'"
+            ", 'value', None, False, False, False), (('context_lifecycle', True, True, None, True, True, False, None), "
+            "'instance', 'value', None, False, False, False), (('max_concurrent_tool_calls', True, True, None, True, Tr"
+            "ue, False, None), 'instance', 'value', None, True, False, False), (('cancel_timeout_s', True, True, None, "
+            "True, True, False, None), 'instance', 'value', None, True, False, False), (('steering_skips_pending_tool_c"
+            "alls', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False)), True,"
+            " 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.agent.types.turns', 'TurnConfig'),
     ),
 )
-def _process_dataclass__768114af10393989818894df60399fdcae369695():
+def _process_dataclass__cfedad558dc57737b3e01a5c6937ab424768148b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4756,12 +5012,14 @@ def _process_dataclass__768114af10393989818894df60399fdcae369695():
         __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
         __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
         __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
-        __dataclass__init__fields__4__validate = __dataclass__spec.fields[4].validate
         __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
         __dataclass__init__fields__5__default = __dataclass__spec.fields[5].default.must()
         __dataclass__init__fields__5__validate = __dataclass__spec.fields[5].validate
         __dataclass__init__fields__6__annotation = __dataclass__spec.fields[6].annotation
         __dataclass__init__fields__6__default = __dataclass__spec.fields[6].default.must()
+        __dataclass__init__fields__6__validate = __dataclass__spec.fields[6].validate
+        __dataclass__init__fields__7__annotation = __dataclass__spec.fields[7].annotation
+        __dataclass__init__fields__7__default = __dataclass__spec.fields[7].default.must()
         __dataclass__repr__default_fn = __dataclass__spec.default_repr_fn
         __dataclass__FieldFnValidationError = __dataclass__globals['__dataclass__FieldFnValidationError']
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
@@ -4777,6 +5035,7 @@ def _process_dataclass__768114af10393989818894df60399fdcae369695():
                 llm_options=self.llm_options,
                 max_turns=self.max_turns,
                 llm_retry=self.llm_retry,
+                prompt_cache=self.prompt_cache,
                 context_lifecycle=self.context_lifecycle,
                 max_concurrent_tool_calls=self.max_concurrent_tool_calls,
                 cancel_timeout_s=self.cancel_timeout_s,
@@ -4794,6 +5053,7 @@ def _process_dataclass__768114af10393989818894df60399fdcae369695():
                 self.llm_options == other.llm_options and
                 self.max_turns == other.max_turns and
                 self.llm_retry == other.llm_retry and
+                self.prompt_cache == other.prompt_cache and
                 self.context_lifecycle == other.context_lifecycle and
                 self.max_concurrent_tool_calls == other.max_concurrent_tool_calls and
                 self.cancel_timeout_s == other.cancel_timeout_s and
@@ -4806,6 +5066,7 @@ def _process_dataclass__768114af10393989818894df60399fdcae369695():
             'llm_options',
             'max_turns',
             'llm_retry',
+            'prompt_cache',
             'context_lifecycle',
             'max_concurrent_tool_calls',
             'cancel_timeout_s',
@@ -4837,6 +5098,7 @@ def _process_dataclass__768114af10393989818894df60399fdcae369695():
                 self.llm_options,
                 self.max_turns,
                 self.llm_retry,
+                self.prompt_cache,
                 self.context_lifecycle,
                 self.max_concurrent_tool_calls,
                 self.cancel_timeout_s,
@@ -4851,28 +5113,30 @@ def _process_dataclass__768114af10393989818894df60399fdcae369695():
             llm_options: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
             max_turns: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
             llm_retry: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
-            context_lifecycle: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
-            max_concurrent_tool_calls: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
-            cancel_timeout_s: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
-            steering_skips_pending_tool_calls: __dataclass__init__fields__6__annotation = __dataclass__init__fields__6__default,
+            prompt_cache: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            context_lifecycle: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            max_concurrent_tool_calls: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
+            cancel_timeout_s: __dataclass__init__fields__6__annotation = __dataclass__init__fields__6__default,
+            steering_skips_pending_tool_calls: __dataclass__init__fields__7__annotation = __dataclass__init__fields__7__default,
         ) -> __dataclass__None:
-            if not __dataclass__init__fields__4__validate(max_concurrent_tool_calls): 
-                raise __dataclass__FieldFnValidationError(
-                    obj=self,
-                    fn=__dataclass__init__fields__4__validate,
-                    field='max_concurrent_tool_calls',
-                    value=max_concurrent_tool_calls,
-                )
-            if not __dataclass__init__fields__5__validate(cancel_timeout_s): 
+            if not __dataclass__init__fields__5__validate(max_concurrent_tool_calls): 
                 raise __dataclass__FieldFnValidationError(
                     obj=self,
                     fn=__dataclass__init__fields__5__validate,
+                    field='max_concurrent_tool_calls',
+                    value=max_concurrent_tool_calls,
+                )
+            if not __dataclass__init__fields__6__validate(cancel_timeout_s): 
+                raise __dataclass__FieldFnValidationError(
+                    obj=self,
+                    fn=__dataclass__init__fields__6__validate,
                     field='cancel_timeout_s',
                     value=cancel_timeout_s,
                 )
             __dataclass__object_setattr(self, 'llm_options', llm_options)
             __dataclass__object_setattr(self, 'max_turns', max_turns)
             __dataclass__object_setattr(self, 'llm_retry', llm_retry)
+            __dataclass__object_setattr(self, 'prompt_cache', prompt_cache)
             __dataclass__object_setattr(self, 'context_lifecycle', context_lifecycle)
             __dataclass__object_setattr(self, 'max_concurrent_tool_calls', max_concurrent_tool_calls)
             __dataclass__object_setattr(self, 'cancel_timeout_s', cancel_timeout_s)
@@ -4889,6 +5153,8 @@ def _process_dataclass__768114af10393989818894df60399fdcae369695():
                 parts.append(f"max_turns={s}")
             if (s := __dataclass__repr__default_fn(self.llm_retry)) is not None:
                 parts.append(f"llm_retry={s}")
+            if (s := __dataclass__repr__default_fn(self.prompt_cache)) is not None:
+                parts.append(f"prompt_cache={s}")
             if (s := __dataclass__repr__default_fn(self.context_lifecycle)) is not None:
                 parts.append(f"context_lifecycle={s}")
             if (s := __dataclass__repr__default_fn(self.max_concurrent_tool_calls)) is not None:

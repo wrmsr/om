@@ -22,7 +22,9 @@ def bind_asyncio_runtime() -> inj.Elements:
     lst.extend([
         inj.bind(asl.asyncio.All, singleton=True),
         inj.bind(asl.Cancellation, to_key=asl.asyncio.All),
+        inj.bind(asl.Events, to_key=asl.asyncio.All),
         inj.bind(asl.Locks, to_key=asl.asyncio.All),
+        inj.bind(asl.Promises, to_key=asl.asyncio.All),
         inj.bind(asl.Sleeps, to_key=asl.asyncio.All),
 
         inj.bind(AsyncioGroupRunner, singleton=True),

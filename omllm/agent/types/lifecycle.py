@@ -33,6 +33,9 @@ class UsageLedger:
     cache_read: int = 0
     cache_write: int = 0
 
+    # Cumulative USD cost across turns which reported or estimated a total cost. None when no turn carried cost.
+    cost: float | None = None
+
     @cached.property
     def uncached_input(self) -> int:
         return max(self.input - self.cache_read - self.cache_write, 0)
@@ -45,6 +48,10 @@ class UsageLedger:
         if usage is None:
             return self
 
+        cost = self.cost
+        if usage.cost is not None and usage.cost.total is not None:
+            cost = (cost or 0.) + usage.cost.total
+
         return dc.replace(
             self,
             input=self.input + (usage.input or 0),
@@ -52,6 +59,7 @@ class UsageLedger:
             reasoning=self.reasoning + (usage.reasoning or 0),
             cache_read=self.cache_read + (usage.cache_read or 0),
             cache_write=self.cache_write + (usage.cache_write or 0),
+            cost=cost,
         )
 
 

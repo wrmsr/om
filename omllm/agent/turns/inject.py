@@ -28,8 +28,8 @@ TURN_SCOPE: ta.Final = inj.DelimitedScope(
 class ScopedTurnRunner(agn.TurnRunner):
     """
     The **sEaM** between an agent and its injector: each turn is run in an opening of the agent's turn scope, seeded
-    with its parameters, so what the loop is built from may be bound per turn. Which scope is the agent's: the root
-    agent's is `TURN_SCOPE`, and an agent scope of its own - a subagent's - has one of its own.
+    with its parameters, so what the loop is built from may be bound per turn. Every agent injector registers
+    `TURN_SCOPE` for itself (scope state is keyed per injector, so sibling agents and subagents are mutually isolated).
     """
 
     def __init__(

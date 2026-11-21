@@ -109,3 +109,17 @@ def test_system_prompt_arguments():
 
     assert UiConfig.parse_from_arguments([]).system_prompt is None
     assert UiConfig.parse_from_arguments(['--system-prompt', '']).system_prompt == ''
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_fs_system_prompt_contributor_is_bound_when_fs_enabled():
+    async with headless_ui(bind_headless_ui(_config())) as hui:
+        prompt = check.not_none(hui.agent.state.context.system_prompt)
+        assert 'Strongly prefer to use a simple fs tool' not in prompt
+        turn_config = check.not_none(hui.agent.state.turn_config)
+        assert turn_config.prompt_cache is not None
+        assert turn_config.prompt_cache.key == str(hui.session.id.v)
+
+    async with headless_ui(bind_headless_ui(_config(fs=True))) as hui:
+        prompt = check.not_none(hui.agent.state.context.system_prompt)
+        assert 'Strongly prefer to use a simple fs tool' in prompt

@@ -1,3 +1,4 @@
+import contextlib
 import typing as ta
 
 from omcore import dataclasses as dc
@@ -12,6 +13,7 @@ from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
 from ...types.tools import ToolResult
 from ..common import FsFileChangedError
+from ..locks import FsPathLocks
 from ..ops import FsFile
 from ..ops import FsOps
 from ..permissions import FsPermissionTarget
@@ -56,11 +58,13 @@ class WriteTool(ToolClass[WriteToolParams]):
             *,
             permissions: PermissionDecider,
             fs: FsOps,
+            path_locks: FsPathLocks | None = None,
     ) -> None:
         super().__init__()
 
         self._permissions = permissions
         self._fs = fs
+        self._path_locks = path_locks
 
     def summarize(self, ctx: ToolContext, params: WriteToolParams) -> str:
         return params.file_path
@@ -115,36 +119,38 @@ class WriteTool(ToolClass[WriteToolParams]):
 
         requestor = PermissionRequestor(tool_context=ctx)
 
-        replaced = await self._read_replaced(
-            requestor,
-            file_path,
-            overwrite=params.overwrite,
-        )
-
-        change = self._build_change_text(file_path, replaced, params.contents)
-
-        await self._permissions.check_allowed(PermissionRequest(
-            requestor,
-            FsPermissionTarget(file_path, 'w'),
-            preview=change,
-        ))
-
-        # The write replaces exactly what was shown, or creates the file shown as new: anything else appearing there
-        # while the decision was pending fails it.
-        contents_b = params.contents.encode('utf-8')
-        try:
-            wr = await self._fs.write_file(
+        lock_cm = self._path_locks.lock(file_path) if self._path_locks is not None else contextlib.nullcontext()
+        async with lock_cm:
+            replaced = await self._read_replaced(
+                requestor,
                 file_path,
-                contents_b,
-                overwrite=replaced is not None,
-                expected_digest=replaced.digest if replaced is not None else None,
+                overwrite=params.overwrite,
             )
-        except FileExistsError:
-            raise ValueError('Path already exists') from None
-        except IsADirectoryError:
-            raise ValueError('Path already exists and is not a file') from None
-        except FsFileChangedError:
-            raise ValueError('The file changed before the write was made. Read it again.') from None
+
+            change = self._build_change_text(file_path, replaced, params.contents)
+
+            await self._permissions.check_allowed(PermissionRequest(
+                requestor,
+                FsPermissionTarget(file_path, 'w'),
+                preview=change,
+            ))
+
+            # The write replaces exactly what was shown, or creates the file shown as new: anything else appearing there
+            # while the decision was pending fails it.
+            contents_b = params.contents.encode('utf-8')
+            try:
+                wr = await self._fs.write_file(
+                    file_path,
+                    contents_b,
+                    overwrite=replaced is not None,
+                    expected_digest=replaced.digest if replaced is not None else None,
+                )
+            except FileExistsError:
+                raise ValueError('Path already exists') from None
+            except IsADirectoryError:
+                raise ValueError('Path already exists and is not a file') from None
+            except FsFileChangedError:
+                raise ValueError('The file changed before the write was made. Read it again.') from None
 
         return ToolResult(
             content=llm.TextContent('The file has been written successfully.'),

@@ -29,8 +29,10 @@ async def test_fs_session_resume():
                     jsonl=True,
                     resume=resume,
                 ),
-                agent_rewriter=inj.overrider(
+                host_rewriter=inj.overrider(
                     bind_scripted_backend(*turns),
+                ),
+                agent_rewriter=inj.overrider(
                     inj.bind(agn.FsSessionStorage.Config(dir_path=session_dir)),
                 ),
             )

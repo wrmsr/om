@@ -75,6 +75,8 @@ class RipgrepToolParams:
 class RipgrepTool(ToolClass[RipgrepToolParams]):
     name: ta.Final = 'ripgrep'
 
+    prunable: ta.ClassVar[bool] = True
+
     params_cls: ta.Final = RipgrepToolParams
 
     description: ta.Final = ToolDescription(

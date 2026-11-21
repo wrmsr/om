@@ -25,6 +25,15 @@ export function formatTokens(/** @type {number} */ n) {
 }
 
 
+/** @returns {string} */
+export function formatCost(/** @type {number} */ cost) {
+  if (Math.abs(cost) > 0 && Math.abs(cost) < 0.01) {
+    return `$${cost.toFixed(4)}`
+  }
+  return `$${cost.toFixed(2)}`
+}
+
+
 /** The bar along the top: what the session is, what it has cost, and whether it is busy. */
 export class StatusBar {
   constructor(
@@ -79,6 +88,9 @@ export class StatusBar {
     const usageParts = []
     if (usage.input || usage.inputCached || usage.output) {
       usageParts.push(`in ${formatTokens(usage.input + usage.inputCached)} out ${formatTokens(usage.output)}`)
+    }
+    if (usage.cost != null) {
+      usageParts.push(formatCost(usage.cost))
     }
     if (context && context.limit) {
       const pct = Math.round(100 * context.input / context.limit)

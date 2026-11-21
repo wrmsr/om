@@ -9,6 +9,10 @@ from ...types.errors import NoContextCompactorError
 from ...types.lifecycle import ContextLifecycleConfig
 from ...types.lifecycle import ContextProjection
 from ...types.lifecycle import ContextReductionReason
+from ...types.lifecycle import UsageLedger
+from ...types.tools import Tool
+from ...types.tools import ToolResult
+from ...types.tools import ToolSet
 from ..compactors import ContextCompactor
 from ..managers import StandardContextLifecycleManager
 
@@ -257,3 +261,75 @@ async def test_compaction_on_request_with_nothing_to_compact_or_nothing_to_compa
             builder=StandardLlmContextBuilder(),
             backend=backend,
         )
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_threshold_prunes_tools_marked_prunable_when_names_not_explicitly_set():
+    async def noop(ctx):
+        return ToolResult(content=llm.TextContent(''))
+
+    tools = ToolSet([
+        Tool(llm_tool=llm.Tool(name='read'), executor=noop, prunable=True),
+        Tool(llm_tool=llm.Tool(name='write'), executor=noop, prunable=False),
+    ])
+
+    context = Context(
+        tools=tools,
+        messages=[
+            llm.UserMessage('old'),
+            *_tool_group('t1', 'write', 'w' * 4_000),
+            *_tool_group('t2', 'read', 'r' * 4_000),
+            llm.UserMessage('recent'),
+            *_tool_group('t3', 'read', 'n' * 4_000),
+        ],
+    )
+    model = llm.Model(
+        key=llm.ModelKey('test', 'small'),
+        backend='test',
+        limits=llm.ModelLimits(
+            context=3_200,
+            input=2_900,
+            output=100,
+        ),
+    )
+
+    result = await StandardContextLifecycleManager().prepare(
+        context,
+        builder=StandardLlmContextBuilder(),
+        backend=_backend(model),
+        options=None,
+        config=ContextLifecycleConfig(
+            max_tool_result_chars=None,
+            keep_recent_tokens=1_000,
+            prune_headroom_tokens=100,
+            safety_margin_tokens=0,
+        ),
+    )
+
+    assert result.reduction is not None
+    assert result.reduction.tool_result_indices == (4,)
+    projected = result.llm_context.messages or []
+    assert check.isinstance(projected[2], llm.ToolResultMessage).content[0].text == 'w' * 4_000
+    assert 'Earlier read result pruned' in check.isinstance(projected[4], llm.ToolResultMessage).content[0].text
+
+
+def test_usage_ledger_accumulates_token_cost():
+    ledger = UsageLedger.ZERO
+    assert ledger.cost is None
+
+    ledger = ledger.add(llm.TokenUsage(input=100, output=50))
+    assert ledger.cost is None
+
+    ledger = ledger.add(llm.TokenUsage(
+        input=200,
+        output=80,
+        cost=llm.TokenCost(source='estimated', total=.0025),
+    ))
+    assert ledger.cost == pytest.approx(.0025)
+
+    ledger = ledger.add(llm.TokenUsage(
+        input=300,
+        output=100,
+        cost=llm.TokenCost(source='reported', total=.01),
+    ))
+    assert ledger.cost == pytest.approx(.0125)

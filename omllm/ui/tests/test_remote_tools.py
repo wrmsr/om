@@ -101,7 +101,7 @@ async def test_docker_remote_tool_bindings(tmp_path):
 
     async with headless_ui(bind_headless_ui(
         _container_config(),
-        agent_rewriter=inj.overrider(
+        host_rewriter=inj.overrider(
             inj.bind(agn.DockerRemoteAgentConfig(docker=docker)),
         ),
     )) as hui:
@@ -145,7 +145,7 @@ async def test_bash_tool_runs_in_the_container_through_the_agent(tmp_path):
 
     async with headless_ui(bind_headless_ui(
         _container_config(),
-        agent_rewriter=inj.overrider(
+        host_rewriter=inj.overrider(
             inj.bind(agn.DockerRemoteAgentConfig(docker=docker)),
             bind_scripted_backend(
                 tool_call_message(llm.ToolCall(
@@ -183,7 +183,7 @@ async def test_ripgrep_tool_runs_in_the_container_through_the_agent(tmp_path):
 
     async with headless_ui(bind_headless_ui(
         _container_config(),
-        agent_rewriter=inj.overrider(
+        host_rewriter=inj.overrider(
             inj.bind(agn.DockerRemoteAgentConfig(docker=docker)),
             bind_scripted_backend(
                 tool_call_message(llm.ToolCall(

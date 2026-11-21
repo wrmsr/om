@@ -100,13 +100,15 @@ async def test_each_tool_call_is_invoked_in_an_opening_of_its_own():
             immediate=True,
             in_memory=True,
         ),
+        host_rewriter=inj.overrider(
+            bind_scripted_backend(
+                tool_call_message(llm.ToolCall('t1', 'probe', {}), llm.ToolCall('t2', 'probe', {})),
+                text_message('done'),
+            ),
+        ),
         agent_rewriter=lambda els: inj.as_elements(
             inj.override(
                 els,
-                bind_scripted_backend(
-                    tool_call_message(llm.ToolCall('t1', 'probe', {}), llm.ToolCall('t2', 'probe', {})),
-                    text_message('done'),
-                ),
                 _bind_recording_direct_tool_invoker(provided),
             ),
 
@@ -172,13 +174,15 @@ async def test_a_subagents_tool_calls_are_invoked_in_a_scope_of_its_own():
                     f'/permissions add allow glob_fs \'{{"glob":"{td}/**","modes":["r"]}}\'',
                 ],
             ),
-            agent_rewriter=inj.overrider(
+            host_rewriter=inj.overrider(
                 bind_scripted_backend(
                     tool_call_message(llm.ToolCall('p1', 'subagent', {'prompt': 'look', 'profile': 'explore'})),
                     tool_call_message(llm.ToolCall('c1', 'ls', {'dir_path': td})),
                     text_message('one file: note.txt'),
                     text_message('parent done'),
                 ),
+            ),
+            agent_rewriter=inj.overrider(
                 _bind_recording_direct_tool_invoker(provided),
             ),
         )) as hui:

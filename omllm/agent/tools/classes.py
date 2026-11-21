@@ -47,12 +47,15 @@ class ToolClass(lang.Abstract, ta.Generic[P]):
             return_type=llm.ToolDtype.of(str),
         )
 
+    prunable: ta.ClassVar[bool] = False
+
     @lang.cached_function
     def tool(self) -> Tool:
         return Tool(
             llm_tool=self.llm_tool(),
             executor=self.execute_context,
             summarizer=self.summarize_context if self.can_summarize else None,
+            prunable=self.prunable,
         )
 
     #

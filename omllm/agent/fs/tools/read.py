@@ -40,6 +40,8 @@ class ReadToolParams:
 class ReadTool(ToolClass[ReadToolParams]):
     name: ta.Final = 'read'
 
+    prunable: ta.ClassVar[bool] = True
+
     params_cls: ta.Final = ReadToolParams
 
     description: ta.Final = ToolDescription(

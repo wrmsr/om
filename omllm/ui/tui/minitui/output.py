@@ -112,6 +112,8 @@ class AgentEventRenderer:
         if (usage := details.usage) is not None:
             render_int = MinituiChatApp.Usage.render_int
             notes.append(f'tokens in {render_int(usage.input)} out {render_int(usage.output)}')
+            if usage.cost is not None:
+                notes.append(MinituiChatApp.Usage.render_cost(usage.cost))
 
         return '; '.join(notes)
 
@@ -203,6 +205,17 @@ class AgentEventRenderer:
                 if ev.reason is agn.AgentEndReason.FAILED:
                     app.display_text(f'error: {ev.error!r}', 'error')
 
+        elif isinstance(ev, agn.StateUpdateEvent):
+            if (model := ev.new_state.model) is not None:
+                label = (
+                    model.short_ids.short_id
+                    if model.short_ids is not None and model.short_ids.short_id is not None
+                    else (model.key.id if model.key is not None else model.name)
+                )
+                app.set_model(label)
+            if ev.old_state.model != ev.new_state.model and ev.new_state.context.context_budget is None:
+                app.set_context_usage(None, None, estimated=False)
+
         elif not app.is_busy:
             # A straggler from a turn that already ended - a detached tool finishing after its turn aborted, a delta
             # racing the end event. It must not reopen the tail or resurrect a finalized card.
@@ -243,6 +256,7 @@ class AgentEventRenderer:
                     input_cache_write=ev_usage.cache_write if ev_usage is not None else 0,
                     output=ev_usage.visible_output if ev_usage is not None else 0,
                     reasoning=ev_usage.reasoning if ev_usage is not None else 0,
+                    cost=ev_usage.cost if ev_usage is not None else None,
                     context_input=budget.input if budget is not None else None,
                     context_limit=budget.input_limit if budget is not None else None,
                     context_estimated=budget.is_estimated if budget is not None else False,

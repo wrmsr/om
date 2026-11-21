@@ -76,6 +76,7 @@ def yolo_autoexec(config: UiConfig, cwd: str) -> list[str]:
             '/permissions clear',
 
             '/permissions add allow tool \'{"tool":"ripgrep","child":{"exec": {}}}\'',
+            '/permissions add ask exec {}',
 
             _add_cwd_tree_rule_command(cwd, state='allow', modes=['r']),
             _add_cwd_tree_rule_command(cwd, state='ask', modes=['w']),

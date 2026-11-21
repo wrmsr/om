@@ -49,7 +49,7 @@ async def test_steer_reaches_running_prompt_ahead_of_queued_input():
         ui_rewriter=inj.overrider(
             inj.bind(ui.TextDisplayer, to_const=display),
         ),
-        agent_rewriter=inj.overrider(
+        host_rewriter=inj.overrider(
             inj.bind(agn.BackendManager, to_const=agn.DictBackendManager.of(backend)),
         ),
     )) as tui:
@@ -171,7 +171,7 @@ async def test_shutdown_owns_immediate_command_tasks(start_command):
         ui_rewriter=inj.overrider(
             inj.bind(ui.TextDisplayer, to_const=display),
         ),
-        agent_rewriter=inj.overrider(
+        host_rewriter=inj.overrider(
             inj.bind(agn.BackendManager, to_const=agn.DictBackendManager.of(backend)),
         ),
     )) as tui:

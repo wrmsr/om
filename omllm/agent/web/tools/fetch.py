@@ -30,6 +30,8 @@ class WebFetchToolParams:
 class WebFetchTool(ToolClass[WebFetchToolParams]):
     name: ta.Final = 'web_fetch'
 
+    prunable: ta.ClassVar[bool] = True
+
     params_cls: ta.Final = WebFetchToolParams
 
     description: ta.Final = ToolDescription(

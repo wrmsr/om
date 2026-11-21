@@ -32,6 +32,8 @@ class GlobToolParams:
 class GlobTool(ToolClass[GlobToolParams]):
     name: ta.Final = 'glob'
 
+    prunable: ta.ClassVar[bool] = True
+
     params_cls: ta.Final = GlobToolParams
 
     description: ta.Final = ToolDescription(

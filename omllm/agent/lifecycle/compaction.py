@@ -54,20 +54,21 @@ class ContextCompactionRunner:
         reductions: list[ContextReduction | None] = []
 
         async def fn(state: State) -> State:
-            backend = self._backends.get_backend(
-                llm.ImmediateBackend,  # type: ignore[type-abstract]
-                state.model,
-            )
             turn_config = state.turn_config if state.turn_config is not None else TurnConfig()
 
-            result = await self._context_lifecycle_manager.compact(
-                state.context,
-                builder=self._context_builder,
-                backend=backend,
-                options=turn_config.llm_options,
-                config=turn_config.context_lifecycle,
-                instructions=instructions,
-            )
+            async with self._backends.acquire_backend(
+                    llm.ImmediateBackend,  # type: ignore[type-abstract]
+                    state.model,
+            ) as backend:
+                result = await self._context_lifecycle_manager.compact(
+                    state.context,
+                    builder=self._context_builder,
+                    backend=backend,
+                    options=turn_config.llm_options,
+                    config=turn_config.context_lifecycle,
+                    instructions=instructions,
+                )
+
             reductions.append(result.reduction)
 
             return dc.replace(state, context=result.context)

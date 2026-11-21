@@ -27,6 +27,7 @@ T = ta.TypeVar('T')
 
 def create_async_managed_injector(
         *args: Elemental,
+        parent: _injector.AsyncInjector | None = None,
         factory: ta.Callable[..., ta.Awaitable[_injector.AsyncInjector]] | None = None,
 ) -> ta.AsyncContextManager[_injector.AsyncInjector]:
     if factory is None:
@@ -38,6 +39,7 @@ def create_async_managed_injector(
             yield await factory(
                 bind(contextlib.AsyncExitStack, to_const=aes),
                 *args,
+                parent=parent,
             )
     return inner()
 
@@ -68,6 +70,7 @@ def make_async_managed_provider(
 
 def create_managed_injector(
         *args: Elemental,
+        parent: _sync.Injector | None = None,
         factory: ta.Callable[..., _sync.Injector] | None = None,
 ) -> ta.ContextManager[_sync.Injector]:
     if factory is None:
@@ -79,6 +82,7 @@ def create_managed_injector(
             yield factory(
                 bind(contextlib.ExitStack, to_const=es),
                 *args,
+                parent=parent,
             )
     return inner()
 
