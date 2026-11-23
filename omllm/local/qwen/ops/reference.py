@@ -113,6 +113,18 @@ class NumpyOps(Ops):
     def log(self, x):
         return np.log(x)
 
+    def tanh(self, x):
+        return np.tanh(x)
+
+    def sqrt(self, x):
+        return np.sqrt(x)
+
+    def maximum(self, x, v):
+        return np.maximum(x, np.asarray(v, dtype=x.dtype))
+
+    def minimum(self, x, v):
+        return np.minimum(x, np.asarray(v, dtype=x.dtype))
+
     def argmax(self, x, axis):
         return np.argmax(x, axis=axis).astype(np.int32)
 

@@ -100,6 +100,40 @@ class StateLayout(lang.Abstract):
 
         raise NotImplementedError
 
+    def buffers(self, ops: Ops, state: tuple[Array, ...]) -> tuple[Array, ...]:
+        """
+        The arrays of `state` that live in capacity buffers -- written in place by the static steps, so the ones a
+        captured step is bound to and a decoder leaves for the next (core/slab.py). Default: all of a state that has
+        a capacity, none of a fixed-size one.
+        """
+
+        return tuple(state) if self.capacity(ops, state) is not None else ()
+
+
+class EmptyStateLayout(StateLayout):
+    """No decode state: a layer or sublayer that sees nothing but its own position."""
+
+    def arity(self, ops: Ops) -> int:
+        return 0
+
+    def empty(self, ops: Ops, dtype: ta.Any) -> tuple[Array, ...]:
+        return ()
+
+    def adapt(self, ops: Ops, state: tuple[Array, ...], dtype: ta.Any) -> tuple[Array, ...]:
+        return ()
+
+    def pad(self, ops: Ops, state: tuple[Array, ...], capacity: int) -> tuple[Array, ...]:
+        return ()
+
+    def export(self, ops: Ops, state: tuple[Array, ...], seq_len: int) -> tuple[Array, ...]:
+        return ()
+
+    def commit(self, ops: Ops, state: tuple[Array, ...], n: int, stacked: bool) -> tuple[Array, ...]:
+        return ()
+
+    def capacity(self, ops: Ops, state: tuple[Array, ...]) -> int | None:
+        return None
+
 
 class CompositeStateLayout(StateLayout):
     """Several parts' states side by side, in order: a block whose layer embedding has state of its own."""
@@ -138,9 +172,17 @@ class CompositeStateLayout(StateLayout):
             into: tuple[Array, ...] | None = None,
     ) -> tuple[Array, ...]:
         parts = self._split(ops, state)
-        intos: ta.Sequence[tuple[Array, ...] | None] = [None] * len(parts)
-        if into is not None and len(into) == len(state):
-            intos = self._split(ops, into)
+
+        # `into` is the parts' buffers side by side (`buffers`): each part gets back its own
+        intos: list[tuple[Array, ...] | None] = [None] * len(parts)
+        if into is not None:
+            counts = [len(p.buffers(ops, s)) for p, s in zip(self._parts, parts)]
+            if sum(counts) == len(into):
+                o = 0
+                for i, n in enumerate(counts):
+                    intos[i] = tuple(into[o:o + n]) if n else None
+                    o += n
+
         return tuple(a for p, s, i in zip(self._parts, parts, intos) for a in p.reserve(ops, s, capacity, i))
 
     def export(self, ops: Ops, state: tuple[Array, ...], seq_len: int) -> tuple[Array, ...]:
@@ -152,6 +194,9 @@ class CompositeStateLayout(StateLayout):
     def capacity(self, ops: Ops, state: tuple[Array, ...]) -> int | None:
         caps = [c for p, s in zip(self._parts, self._split(ops, state)) if (c := p.capacity(ops, s)) is not None]
         return caps[0] if caps else None
+
+    def buffers(self, ops: Ops, state: tuple[Array, ...]) -> tuple[Array, ...]:
+        return tuple(a for p, s in zip(self._parts, self._split(ops, state)) for a in p.buffers(ops, s))
 
 
 class Mixer(lang.Abstract):
@@ -224,6 +269,39 @@ class LayerEmbedding(lang.Abstract):
         raise NotImplementedError
 
 
+class Layer(lang.Abstract):
+    """
+    One entry of a model's execution order: it takes the residual stream as the entry before it left it and hands it
+    on, with a slot of decode state of its own. A `Block` (core/block.py) is the usual one -- a mixer and a
+    feed-forward -- and a model's entries need not be distinct sets of weights: a layer run several times a token is
+    several entries built over the same parts, each with its own state (core/inkling2/).
+    """
+
+    @property
+    @abc.abstractmethod
+    def state(self) -> StateLayout:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def __call__(
+            self,
+            ops: Ops,
+            r: ta.Any,
+            pos: int,
+            state: ta.Any,
+            ids: ta.Any = None,
+    ) -> tuple[ta.Any, ta.Any]:
+        """The functional form: the stream at positions pos.., the entry's growing state in and out."""
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def step(self, ops: Ops, r: ta.Any, ctx: StepContext, state: ta.Any) -> tuple[ta.Any, ta.Any]:
+        """The static form: T tokens against fixed-shape state."""
+
+        raise NotImplementedError
+
+
 class Connection(lang.Abstract):
     """
     How one sublayer meets the residual stream: what it reads as its input -- the pre-norm included -- and how its
@@ -253,6 +331,14 @@ class ResidualStream(lang.Abstract):
         """What the output head reads: final-normed."""
 
         raise NotImplementedError
+
+    def tail(self, ops: Ops, r: Array, n: int) -> Array:
+        """
+        The stream at its last n positions only (a prefill that wants nothing but the last position's logits).
+        Default: a stream that is one array [B, T, ...], sliced.
+        """
+
+        return r[:, -n:]
 
 
 class PlainConnection(Connection):

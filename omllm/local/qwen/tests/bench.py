@@ -9,6 +9,13 @@ coverage) -- plus reference greedy transcripts, so "identical output" is a diff 
         --kv-dtype fp8 --cache-dir ./.cache/qwen --triton-tuned ./.cache/qwen/gemv-int4.json --long 32768 \\
         --save bench-27b.json
     python -m omllm.local.qwen.tests.bench ... --check bench-27b.json   # compare transcripts against a saved run
+    python -m omllm.local.qwen.tests.bench --model ~/hf/Inkling-2-Mini --prompts protocol --no-spec --lookup 6 \\
+        --lookup-k 15 --capacity 65536 -n 512 --transcript 256 --long 32768 --save bench-inkling2-mini.json
+
+The prompts are ChatML's legacy rendering by default -- what the saved Qwen baselines were recorded with, so not to be
+changed under them; `--prompts protocol` writes them through the checkpoint's own chat protocol instead, which is the
+only way a checkpoint that does not speak ChatML can be given one. `--no-spec`: a checkpoint with no draft head.
+`--lookup` adds a copy task decoded under prompt-lookup drafts.
 
 A test-support utility, not a test: it imports the synthetic builder from the tests.
 """
@@ -24,12 +31,15 @@ from omcore import lang
 
 from ..api import generate
 from ..arch.qwen35 import load_qwen35
+from ..core.block import Block
 from ..core.model import Qwen35
 from ..decode.generation import Generated
 from ..decode.sampling import Sampler
 from ..entrypoints.common import add_model_args
 from ..entrypoints.common import load_model
 from ..prefix.cache import PrefixCache
+from ..serve.registry import chat_protocol_for
+from ..tokenizer import Tokenizer
 
 
 if ta.TYPE_CHECKING:
@@ -46,6 +56,54 @@ PROMPTS = (
     'Write a short story about a lighthouse keeper.',
     'Explain how a hash map works, with an example in C.',
 )
+
+FOLLOW_UP = 'Thanks. And?'
+
+# what the lookup measurement copies: fixed text (a transcript is pinned to its prompt), regular enough to be code
+COPY_PROMPT = (
+    'Repeat the following file exactly, in one code block, with nothing before or after it:\n\n```python\n' +
+    ''.join(f'def step_{i}(x):\n    return x * {i * 7 + 3} + {i % 5}\n\n\n' for i in range(48)) +
+    '```'
+)
+
+
+def chat_prompts(
+        tok: Tokenizer,
+        how: str,
+) -> tuple[ta.Callable[[str], list[int]], list[int], ta.Callable[[], ta.Any]]:
+    """
+    (a user message's text -> the prompt's ids, the ids that continue a cut-off answer with a follow-up question, a
+    generation's grammar constraint or None), written one of two ways: 'legacy', ChatML's legacy rendering with
+    thinking closed, and 'protocol', the checkpoint's own chat protocol with thinking off -- which a protocol may
+    need a constraint to hold a generation to.
+    """
+
+    if how == 'legacy':
+        def legacy(text: str) -> list[int]:
+            return tok.encode(tok.apply_chat([{'role': 'user', 'content': text}]))
+
+        return (
+            legacy,
+            tok.encode('<|im_end|>\n' + tok.apply_chat([{'role': 'user', 'content': FOLLOW_UP}])),
+            lambda: None,
+        )
+
+    if how != 'protocol':
+        raise ValueError(how)
+
+    protocol = chat_protocol_for(tok)
+
+    def prompt(text: str) -> list[int]:
+        return tok.encode(protocol.render([{'role': 'user', 'content': text}], enable_thinking=False))
+
+    return prompt, [
+        *protocol.close_answer([]),
+        *tok.encode(protocol.render(
+            [{'role': 'user', 'content': FOLLOW_UP}],
+            enable_thinking=False,
+            continuation=True,
+        )),
+    ], lambda: protocol.constraint(None, None, None, enable_thinking=False)
 
 
 class SyncCounter:
@@ -122,8 +180,9 @@ def _all_weights(model: Qwen35) -> list[ta.Any]:
         out.append(model.mtp.fc)
         blocks.append(model.mtp.block)
     for blk in blocks:
-        out.extend(v for v in vars(blk.mixer).values() if v is not None)
-        out.extend(v for v in vars(blk.ffn).values() if v is not None)
+        if isinstance(blk, Block):  # (the layers whose weights this knows how to find)
+            out.extend(v for v in vars(blk.mixer).values() if v is not None)
+            out.extend(v for v in vars(blk.ffn).values() if v is not None)
     return out
 
 
@@ -154,24 +213,41 @@ def run(
         n_transcript: int,
         long_ids: list[int] | None = None,
         follow_up: list[int] | None = None,
+        lookup: tuple[int, int] | None = None,
+        copy_ids: list[int] | None = None,
+        constraint: ta.Callable[[], ta.Any] | None = None,
 ) -> dict[str, ta.Any]:
+    """
+    `lookup`: (n-gram, draft length), with `copy_ids` a prompt whose answer repeats it. `constraint`: makes the
+    grammar constraint each generation runs under (they keep state), where the prompts' protocol needs one.
+    """
+
     ops = model.ops
     has_spec = bool(spec) and model.mtp is not None
-    common: dict[str, ta.Any] = dict(capacity=capacity, draft_vocab=draft_vocab)
+
+    def opts(**more: ta.Any) -> dict[str, ta.Any]:
+        """The options every generation takes, with a constraint of its own."""
+
+        return dict(
+            capacity=capacity,
+            draft_vocab=draft_vocab,
+            constraint=constraint() if constraint is not None else None,
+            **more,
+        )
     res: dict[str, ta.Any] = {'backend': ops.name}
 
     # warm-up: every step shape the measurements use is captured / compiled here -- and a prompt long enough for the
     # prefill's dense linears (past the GEMV kernel's rows), whose one-time setup otherwise lands in the first
     # measurement with such a prompt: the follow-up's (0.2 s there on an idle machine, over a second on a loaded one)
-    generate(model, prompts[0], max_new_tokens=8, sampler=Sampler(), **common)
-    generate(model, (list(prompts[0]) * 64)[:96], max_new_tokens=1, sampler=Sampler(), **common)
+    generate(model, prompts[0], max_new_tokens=8, sampler=Sampler(), **opts())
+    generate(model, (list(prompts[0]) * 64)[:96], max_new_tokens=1, sampler=Sampler(), **opts())
     if has_spec:
         # (with several draft lengths, enough rounds for the head to draft at each)
         warm = 8 if isinstance(spec, int) else sum(k + 1 for k in spec) + 2
-        generate(model, prompts[0], max_new_tokens=warm, sampler=Sampler(), spec=spec, **common)
+        generate(model, prompts[0], max_new_tokens=warm, sampler=Sampler(), spec=spec, **opts())
 
     # plain decode, and prefill per prompt token (time to the first token over the prompt length)
-    out, first, total = _timed_generate(model, prompts[0], max_new_tokens=n_decode, sampler=Sampler(), **common)
+    out, first, total = _timed_generate(model, prompts[0], max_new_tokens=n_decode, sampler=Sampler(), **opts())
     res['prefill_ms_per_token'] = first * 1e3 / len(prompts[0])
     res['plain_tok_s'] = (len(out.tokens) - 1) / max(1e-9, total - first)
 
@@ -184,7 +260,7 @@ def run(
             max_new_tokens=n_decode,
             sampler=Sampler(),
             spec=spec,
-            **common,
+            **opts(),
         )
         rounds = out.rounds
         res['spec_tok_s'] = len(out.tokens) / max(1e-9, total - first)
@@ -203,7 +279,7 @@ def run(
                 max_new_tokens=16,
                 sampler=Sampler(),
                 prefix_cache=pc,
-                **common,
+                **opts(),
             )
             _, first, _ = _timed_generate(
                 model,
@@ -211,7 +287,7 @@ def run(
                 max_new_tokens=4,
                 sampler=Sampler(),
                 prefix_cache=pc,
-                **common,
+                **opts(),
             )
             res[f'follow_up_first_token_ms_{name}'] = first * 1e3
 
@@ -222,13 +298,24 @@ def run(
     # `spec_equals_plain` is reported, not required; what `--check` requires is each transcript against its own
     # reference.
     transcripts: dict[str, list[int]] = {}
+
+    # prompt-lookup drafting, on a copy: the drafts are the prompt's own tokens (no draft head in it)
+    if lookup is not None and copy_ids is not None:
+        look: dict[str, ta.Any] = dict(lookup_ngram=lookup[0], lookup_k=lookup[1])
+        generate(model, copy_ids, max_new_tokens=lookup[1] + 2, sampler=Sampler(), **opts(**look))  # (its step shape)
+        out, first, total = _timed_generate(model, copy_ids, max_new_tokens=n_decode, sampler=Sampler(), **opts(**look))
+        res['lookup_tok_s'] = len(out.tokens) / max(1e-9, total - first)
+        res['lookup_tokens_per_round'] = out.tokens_per_round
+        res['lookup_accepted'] = out.accepted / max(1, out.drafted)
+        transcripts['copy/lookup'] = list(out.tokens[:n_transcript])
+
     for i, ids in enumerate(prompts):
         transcripts[f'{i}/plain'] = list(generate(
             model,
             ids,
             max_new_tokens=n_transcript,
             sampler=Sampler(),
-            **common,
+            **opts(),
         ).tokens)
         if has_spec:
             transcripts[f'{i}/spec'] = list(generate(
@@ -237,7 +324,7 @@ def run(
                 max_new_tokens=n_transcript,
                 sampler=Sampler(),
                 spec=spec,
-                **common,
+                **opts(),
             ).tokens)
     res['transcripts'] = transcripts
     res['spec_equals_plain'] = all(
@@ -254,7 +341,7 @@ def run(
             max_new_tokens=4,
             sampler=Sampler(),
             spec=spec if has_spec else 0,
-            **common,
+            **opts(),
         )
         res['long_prompt_tokens'] = len(long_ids)
         res['long_prefill_tok_s'] = len(long_ids) / max(1e-9, first)
@@ -300,6 +387,14 @@ def _main() -> None:
     ap.add_argument('-n', type=int, default=256, help='tokens for the decode timings')
     ap.add_argument('--transcript', type=int, default=128, help='tokens per reference transcript')
     ap.add_argument('--long', type=int, default=0, help='also prefill a prompt of this many tokens')
+    ap.add_argument(
+        '--prompts',
+        choices=['legacy', 'protocol'],
+        default='legacy',
+        help="how the prompts are written: 'legacy', ChatML's legacy rendering (what the saved Qwen baselines were "
+             "recorded with); 'protocol', the checkpoint's own chat protocol, thinking off",
+    )
+    ap.add_argument('--no-spec', action='store_true', help='load no draft head (a checkpoint without one)')
     ap.add_argument('--save', default=None, help='write the results (with transcripts) as JSON')
     ap.add_argument('--check', default=None, help='compare transcripts against a saved run; exit 1 on a difference')
     args = ap.parse_args()
@@ -315,17 +410,20 @@ def _main() -> None:
         prompts = [rng.integers(0, cfg.vocab_size, 12).tolist() for _ in range(3)]
         follow_up = rng.integers(0, cfg.vocab_size, 6).tolist()
         long_ids = rng.integers(0, cfg.vocab_size, args.long).tolist() if args.long else None
+        copy_ids = (rng.integers(0, cfg.vocab_size, 24).tolist() * 4) if args.lookup else None
+        constraint = None
         spec = args.spec_lengths or args.spec or 3
         capacity = 1024
 
     else:
         if args.model is None:
             ap.error('--model or --synthetic')
-        if not args.spec:
+        if not args.spec and not args.no_spec:
             args.spec = 3
         ops, src, tok, model = load_model(args)
-        prompts = [tok.encode(tok.apply_chat([{'role': 'user', 'content': p}])) for p in PROMPTS]
-        follow_up = tok.encode('<|im_end|>\n' + tok.apply_chat([{'role': 'user', 'content': 'Thanks. And?'}]))
+        prompt, follow_up, constraint = chat_prompts(tok, args.prompts)
+        prompts = [prompt(p) for p in PROMPTS]
+        copy_ids = prompt(COPY_PROMPT) if args.lookup else None
         long_ids = None
         if args.long:
             long_ids = tok.encode(_corpus())[:args.long]
@@ -342,6 +440,9 @@ def _main() -> None:
         n_transcript=args.transcript,
         long_ids=long_ids,
         follow_up=follow_up,
+        lookup=(args.lookup, args.lookup_k) if args.lookup else None,
+        copy_ids=copy_ids,
+        constraint=constraint,
     )
     _report(res)
 

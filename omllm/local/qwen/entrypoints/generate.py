@@ -24,13 +24,15 @@ from ..load.weights import describe_gguf
 from ..load.weights import open_source
 from ..load.weights import resolve_weights
 from ..prefix.cache import PrefixCache
-from ..serve.chat import chat_format_for
+from ..serve.registry import ChatOptions
+from ..serve.registry import chat_protocol_for
 from ..tokenizer import DEFAULT_REASONING_EFFORT
 from ..tokenizer import REASONING_EFFORT_INSTRUCTIONS
 from ..tokenizer import Tokenizer
 from .common import GenerationSetup
 from .common import SpecLengthsAction
 from .common import load_model
+from .common import reasoning_effort_arg
 from .common import warmup_tokens
 from .inject import assemble_generation
 
@@ -67,7 +69,7 @@ def main() -> None:
     ap.add_argument(
         '--think',
         action='store_true',
-        help='leave reasoning enabled in the chat template',
+        help='leave reasoning enabled in the chat prompt',
     )
     ap.add_argument(
         '--open-think',
@@ -79,10 +81,12 @@ def main() -> None:
     )
     ap.add_argument(
         '--reasoning-effort',
-        choices=list(REASONING_EFFORT_INSTRUCTIONS),
+        type=reasoning_effort_arg,
         default=None,
-        help='with --think, on a checkpoint whose chat template takes a reasoning effort (qwen3.8): the level; '
-             f"default: the template's own, {DEFAULT_REASONING_EFFORT}",
+        help='with --think, on a checkpoint whose chat protocol takes a reasoning effort: the level -- '
+             f"{', '.join(REASONING_EFFORT_INSTRUCTIONS)} for qwen3.8 (default: the template's own, "
+             f'{DEFAULT_REASONING_EFFORT}); none, minimal, low, medium, high, xhigh or a number in [0, 0.99] for '
+             'inkling2 (default: high)',
     )
     ap.add_argument(
         '-n',
@@ -340,30 +344,27 @@ def main() -> None:
         _assemble_by_hand(args, prefix_cache=use_prefix)
     )
     tok, runner, prefix_cache = setup.tok, setup.runner, setup.prefix_cache
-    if args.open_think is None:
-        args.open_think = chat_format_for(tok).open_think
+
+    # how this checkpoint's conversations are written (serve/protocols.py): the prompt, where a turn ends
+    protocol = chat_protocol_for(tok, ChatOptions(open_think=args.open_think))
+    try:
+        effort, effort_thinks = protocol.reasoning_effort(args.reasoning_effort)
+    except ValueError as e:
+        raise SystemExit(f'--reasoning-effort: {e}') from None
+    think = args.think if effort_thinks is None else effort_thinks
 
     text = (
         args.prompt
         if args.raw
-        else tok.apply_chat(
+        else protocol.render(
             [{'role': 'user', 'content': args.prompt}],
-            think=args.think,
-            reasoning_effort=args.reasoning_effort,
-            open_think=args.open_think,
+            enable_thinking=think,
+            reasoning_effort=effort,
         )
     )
     ids = tok.encode(text)
-    print(f'[gen] {len(ids)} prompt tokens')
-    eos = frozenset(
-        i
-        for i in (
-            tok.eos_id,
-            tok.special.get('<|im_end|>'),
-            tok.special.get('<|endoftext|>'),
-        )
-        if i is not None
-    )
+    print(f'[gen] {len(ids)} prompt tokens ({protocol.name})')
+    eos = frozenset(protocol.eos_ids)
 
     if args.warmup:
         t0 = time.time()
@@ -402,7 +403,8 @@ def main() -> None:
             if save_compile_cache(setup.ops.compile_cache):  # type: ignore[attr-defined]
                 print(f'[gen] saved compile cache to {setup.ops.compile_cache}')  # type: ignore[attr-defined]
 
-    opened = args.think and args.open_think and not args.raw  # the prompt ends inside the reasoning block
+    # what of the answer the prompt has written already (an opened reasoning block), put back in what is printed
+    opened = '' if args.raw else protocol.answer_prefix(enable_thinking=think)
 
     def run(ids: list[int]) -> list[int]:
         streamer = Tokenizer.Streamer(tok)
@@ -410,7 +412,7 @@ def main() -> None:
         n = [0]
         first = [0.0]
         if opened:
-            sys.stdout.write('<think>\n')
+            sys.stdout.write(opened)
 
         def on_token(i):
             if not n[0]:
@@ -430,6 +432,8 @@ def main() -> None:
             presence_penalty=args.presence_penalty,
             eos_ids=eos,
             on_token=on_token,
+            # (what the protocol needs a grammar for even here: thinking off, where its prompt cannot say so)
+            constraint=None if args.raw else protocol.constraint(None, None, None, enable_thinking=think),
         ))
         sys.stdout.write(streamer.flush())
         dt = time.time() - t0
@@ -449,17 +453,12 @@ def main() -> None:
     out = run(ids)
     if args.follow_up:
         # the second turn continues the exact ids of the first (a harness must keep ids, not re-tokenise text)
-        im_end = tok.special.get('<|im_end|>')
-        tail = list(out)
-        if tail and tail[-1] == im_end:
-            tail = tail[:-1]
-        cont = tok.apply_chat(
+        cont = protocol.render(
             [{'role': 'user', 'content': args.follow_up}],
-            think=args.think,
-            open_think=args.open_think,
-            continuation=True,  # (the first turn's system turn carries the reasoning-effort instruction, if any)
+            enable_thinking=think,
+            continuation=True,  # (the first turn carries the reasoning-effort instruction, if any)
         )
-        ids2 = ids + tail + tok.encode('<|im_end|>\n' + cont)
+        ids2 = ids + protocol.close_answer(out) + tok.encode(cont)
         print(f'\n[gen] follow-up: {len(ids2)} prompt tokens')
         run(ids2)
 

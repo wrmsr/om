@@ -36,7 +36,6 @@ from ..api import generate
 from ..arch.qwen35 import load_qwen35
 from ..backends import BACKENDS
 from ..backends import make_ops
-from ..core.cache import Cache
 from ..load.weights import MT_GGUF
 from ..load.weights import open_source
 from ..load.weights import resolve_ollama
@@ -200,7 +199,7 @@ def main() -> None:
 
     model = load_qwen35(src, ops, dtype=args.dtype, quant=args.quant, cache_dir=args.cache_dir)
     seq = prompt_ids + ref_tokens[:-1]
-    cache = Cache(src.config)
+    cache = model.new_cache()
     t0 = time.time()
     logits = ops.numpy(model.forward(np.array([seq]), cache))  # [1, L, V]
     print(f'[ours] forward over {len(seq)} tokens in {time.time() - t0:.1f}s')

@@ -44,7 +44,8 @@ def open_param_cache(cache_dir: str, src: ta.Any, recipe: LoadRecipe) -> ParamCa
 @dc.dataclass(frozen=True)
 class LoadReport:
     params: int
-    acquired: ta.Mapping[str, int]  # 'cache' / 'repack' / 'quantize' / 'dense' -> parameters obtained that way
+    # 'cache' / 'native' / 'repack' / 'quantize' / 'dense' -> parameters obtained that way
+    acquired: ta.Mapping[str, int]
     quantized: int  # parameters held quantized
     nbytes: int
     backend: str
@@ -62,6 +63,9 @@ class LoadReport:
                 f', {self.quantized} of {self.params} held at {self.recipe.quant} ({self.recipe.describe()}): '
                 f'{n.get("repack", 0)} re-packed, {n.get("quantize", 0)} quantized, {n.get("cache", 0)} cached'
             )
+
+        if (native := self.acquired.get('native', 0)):
+            out += f', {native} held as the source stores them (microscaled)'
 
         if self.cache_root is not None:
             out += f'; cache {self.cache_root}: {self.cache_hits} hit / {self.cache_misses} miss'

@@ -54,6 +54,16 @@ PRE_REGEX = {
         r"\s+(?!\S)|"
         r"\s+"
     ),
+    # Inkling 2's split pattern, as its tokenizer.json has it (cased runs, numbers three digits at a time)
+    'inkling2': (
+        r"[^\r\n\p{L}\p{N}]?[\p{Lu}\p{Lt}\p{Lm}\p{Lo}\p{M}]*[\p{Ll}\p{Lm}\p{Lo}\p{M}]+(?i:'s|'t|'re|'ve|'m|'ll|'d)?|"
+        r"[^\r\n\p{L}\p{N}]?[\p{Lu}\p{Lt}\p{Lm}\p{Lo}\p{M}]+[\p{Ll}\p{Lm}\p{Lo}\p{M}]*(?i:'s|'t|'re|'ve|'m|'ll|'d)?|"
+        r"\p{N}{1,3}|"
+        r" ?[^\s\p{L}\p{N}]+[\r\n/]*|"
+        r"\s*[\r\n]+|"
+        r"\s+(?!\S)|"
+        r"\s+"
+    ),
 }
 
 # GGUF token types (gguf.TokenType)
@@ -93,7 +103,13 @@ class Tokenizer:
             bos_id: int | None = None,
             add_bos: bool = False,
             chat_template: str | None = None,
+            ignore_merges: bool = False,
     ) -> None:
+        """
+        `ignore_merges`: a pre-tokenized word that is a token as it stands is that token, whatever the merges would
+        make of it (tokenizer.json's BPE option of the same name: vocabularies converted from tiktoken have it).
+        """
+
         super().__init__()
 
         self.tokens = tokens
@@ -107,6 +123,7 @@ class Tokenizer:
         self.bos_id = bos_id
         self.add_bos = add_bos
         self.chat_template = chat_template
+        self.ignore_merges = ignore_merges
         b2u = bytes_to_unicode()
         self.b2u = b2u
         self.u2b = {v: k for k, v in b2u.items()}
@@ -127,6 +144,8 @@ class Tokenizer:
             spec['tokenizer_json'],
             spec.get('tokenizer_config'),
             spec.get('eos_id'),
+            pre=spec.get('pre'),
+            chat_template=spec.get('chat_template'),
         )
 
     @classmethod
@@ -160,7 +179,16 @@ class Tokenizer:
             tj: dict,
             tcfg: dict | None = None,
             eos_id: int | None = None,
+            *,
+            pre: str | None = None,
+            chat_template: str | None = None,
     ) -> Tokenizer:
+        """
+        `pre`: the pre-tokenizer (a `PRE_REGEX` name) when the source knows it; None picks it by the pattern
+        tokenizer.json ships, 'qwen35' when that is none of them. `chat_template`: the checkpoint's, when it is kept
+        outside tokenizer_config.json.
+        """
+
         model = tj['model']
         check.state(model.get('type') == 'BPE')
         vocab: dict[str, int] = model['vocab']
@@ -178,18 +206,20 @@ class Tokenizer:
         merges = []
         for m in model['merges']:
             merges.append(tuple(m) if isinstance(m, list) else tuple(m.split(' ', 1)))
-        pre = 'qwen35'
-        # prefer the regex shipped in tokenizer.json when it is one we know
-        try:
-            for p in tj['pre_tokenizer']['pretokenizers']:
-                pat = p.get('pattern', {}).get('Regex')
-                if pat:
-                    for k, v in PRE_REGEX.items():
-                        if pat == v:
-                            pre = k
-        except (KeyError, TypeError):
-            pass
-        chat_template = (tcfg or {}).get('chat_template')
+        if pre is None:
+            pre = 'qwen35'
+            # prefer the regex shipped in tokenizer.json when it is one we know
+            try:
+                for p in tj['pre_tokenizer']['pretokenizers']:
+                    pat = p.get('pattern', {}).get('Regex')
+                    if pat:
+                        for k, v in PRE_REGEX.items():
+                            if pat == v:
+                                pre = k
+            except (KeyError, TypeError):
+                pass
+        if chat_template is None:
+            chat_template = (tcfg or {}).get('chat_template')
         eos_tok = (tcfg or {}).get('eos_token')
         if eos_id is None and isinstance(eos_tok, str) and eos_tok in special:
             eos_id = special[eos_tok]
@@ -202,6 +232,7 @@ class Tokenizer:
             pre=pre,
             eos_id=eos_id,
             chat_template=chat_template,
+            ignore_merges=bool(model.get('ignore_merges', False)),
         )
 
     # BPE core
@@ -241,6 +272,9 @@ class Tokenizer:
         b2u = self.b2u
         for piece in self.pattern.findall(text):
             word = ''.join(b2u[b] for b in piece.encode('utf-8'))
+            if self.ignore_merges and (whole := vocab.get(word)) is not None:
+                ids.append(whole)
+                continue
             for sym in self._bpe(word):
                 i = vocab.get(sym)
                 if i is None:  # should not happen with a complete byte vocab

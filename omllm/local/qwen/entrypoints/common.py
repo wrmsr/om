@@ -47,6 +47,18 @@ class SpecLengthsAction(argparse.Action):
         namespace.spec_lengths = lengths if len(lengths) > 1 else None
 
 
+def reasoning_effort_arg(value: str) -> str | float:
+    """
+    `--reasoning-effort`: a level's name as given, or a number as one (Inkling 2's protocol takes either; which
+    levels exist is the checkpoint's chat protocol's to say: serve/protocols.py).
+    """
+
+    try:
+        return float(value)
+    except ValueError:
+        return value
+
+
 def warmup_tokens(args: argparse.Namespace) -> int:
     """
     The new tokens a warm-up generation needs for its rounds to use every step shape the draft sources have: two rounds

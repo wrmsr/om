@@ -33,7 +33,7 @@ class GenerationParams:
     frequency_penalty: float = 0.
 
     eos_ids: ta.AbstractSet[int] = frozenset()
-    constraint: ta.Any = None  # a constrain.grammar ToolConstraint / JsonConstraint
+    constraint: ta.Any = None  # a constrain.grammar Constraint
 
     on_token: ta.Callable[[int], None] | None = None
     should_stop: ta.Callable[[], bool] | None = None

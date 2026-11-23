@@ -10,6 +10,7 @@ import numpy as np
 
 from ...api import generate
 from ...backends.torch import TorchOps
+from ...core.block import Block
 from ...core.mixing import Connection
 from ...core.mixing import PlainConnection
 from ...core.mixing import ResidualStream
@@ -70,7 +71,8 @@ def test_every_path_goes_through_the_residual_stream():
     plain, _ = Qwen35Architecture().load(src, ops, recipe=recipe, dtype='f32', mtp=True)
     branched, _ = TwoBranchArchitecture().load(src, ops, recipe=recipe, dtype='f32', mtp=True)
     assert isinstance(branched.residual, TwoBranchResidual)
-    assert isinstance(branched.blocks[0].mixer_conn, TwoBranchConnection)
+    first = branched.blocks[0]
+    assert isinstance(first, Block) and isinstance(first.mixer_conn, TwoBranchConnection)
     assert branched.mtp is not None and isinstance(branched.mtp.residual, TwoBranchResidual)
     assert Qwen35Architecture().layout is QWEN35_LAYOUT
 

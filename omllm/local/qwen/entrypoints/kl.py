@@ -27,7 +27,6 @@ import typing as ta
 from omcore import lang
 from omcore.logs import all as logs
 
-from ..core.cache import Cache
 from ..core.model import Qwen35
 from .common import add_model_args
 from .common import load_model
@@ -46,7 +45,7 @@ def logprobs(model: Qwen35, ids: list[int], chunk: int = 512) -> np.ndarray:
     """Log-softmax of the model's logits at every position of `ids`, teacher-forced: [T, V] float16."""
 
     ops = model.ops
-    cache = Cache(model.cfg)
+    cache = model.new_cache()
     out: list[np.ndarray] = []
     for s in range(0, len(ids), chunk):
         logits = model.forward(np.asarray([ids[s:s + chunk]], dtype=np.int32), cache)

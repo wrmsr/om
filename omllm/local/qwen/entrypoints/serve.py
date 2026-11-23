@@ -27,6 +27,7 @@ from ..serve.serving import serve
 from ..tokenizer import DEFAULT_REASONING_EFFORT
 from ..tokenizer import REASONING_EFFORT_INSTRUCTIONS
 from .common import add_model_args
+from .common import reasoning_effort_arg
 from .common import warmup_tokens
 from .inject import backend_config
 from .inject import load_config
@@ -88,10 +89,12 @@ def main() -> None:
     )
     ap.add_argument(
         '--reasoning-effort',
-        choices=list(REASONING_EFFORT_INSTRUCTIONS),
+        type=reasoning_effort_arg,
         default=None,
         help='the reasoning effort of a request that names none (`reasoning_effort`), for a checkpoint whose chat '
-             f"template takes one (qwen3.8); default: the template's own, {DEFAULT_REASONING_EFFORT}",
+             f"protocol takes one: {', '.join(REASONING_EFFORT_INSTRUCTIONS)} for qwen3.8 (default: the template's "
+             f"own, {DEFAULT_REASONING_EFFORT}); none, minimal, low, medium, high, xhigh or a number in [0, 0.99] for "
+             'inkling2 (default: high)',
     )
     ap.add_argument(
         '--chat-format',

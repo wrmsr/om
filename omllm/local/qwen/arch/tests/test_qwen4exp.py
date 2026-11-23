@@ -14,7 +14,7 @@ import pytest
 
 from ...api import generate
 from ...arch.qwen35 import load_qwen35
-from ...core.cache import Cache
+from ...core.block import Block
 from ...core.config import Qwen4ExpConfig
 from ...core.ple import NGramLayerEmbedding
 from ...load.weights import open_source
@@ -108,7 +108,7 @@ def test_qwen4exp_matches_the_reference():
         ple = ref_model.model.layers[1].ple.ple_embedding
         for ops in backends()[:1]:
             m = load_qwen35(src, ops, dtype='f32', verbose=False)
-            emb = m.blocks[1].embedding
+            emb = ta.cast(Block, m.blocks[1]).embedding
             assert isinstance(emb, NGramLayerEmbedding)
             assert emb.multipliers == ple.layer_multipliers.tolist()
             assert emb.sizes == ple.ngram_heads_vocab_sizes.tolist()
@@ -121,7 +121,7 @@ def test_qwen4exp_matches_the_reference():
             assert err < 1e-4, (ops.name, err)
 
             # two chunks through the functional cache == one pass (the second chunk crosses into QSA's selection)
-            cache = Cache(model.cfg)
+            cache = model.new_cache()
             a = ops.numpy(model.forward(ids[:, :9], cache))
             b = ops.numpy(model.forward(ids[:, 9:], cache))
             err2 = float(np.abs(np.concatenate([a, b], 1) - ref).max() / np.abs(ref).max())

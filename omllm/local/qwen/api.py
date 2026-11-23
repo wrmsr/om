@@ -4,8 +4,7 @@ bindings (inject/) assemble for the server. The only module besides the bindings
 """
 import typing as ta
 
-from .constrain.grammar import JsonConstraint
-from .constrain.grammar import ToolConstraint
+from .constrain.grammar import Constraint
 from .constrain.processors import GrammarProcessor
 from .core.model import Qwen35
 from .decode.drafts import DraftSource
@@ -69,7 +68,7 @@ def generate(
         lookup_k: int = 3,
         draft: DraftSource | None = None,
         prefix_cache: PrefixCache | None = None,
-        constraint: ToolConstraint | JsonConstraint | None = None,
+        constraint: Constraint | None = None,
         prefill_chunk: int = 4096,
         prefill_checkpoints: int = 0,
         step_prefill_max: int = 0,

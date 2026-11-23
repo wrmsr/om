@@ -19,6 +19,7 @@ from ..core.mlp import MLP
 from ..core.model import Qwen35
 from ..core.moe import MoE
 from ..core.ple import NGramLayerEmbedding
+from ..core.positions import RopeStepPositions
 from ..core.qsa import IndexedAttention
 from ..load.plan import LayoutRules
 from ..load.policies import FUSIONS
@@ -187,5 +188,6 @@ class Qwen4ExpArchitecture(Qwen35Architecture):
             residual=GatedResidualStream(
                 self._gated_connection(c, params, ops, 'hyper_connection_mixer.', inject=False),
             ),
+            positions=RopeStepPositions(rope_dim=c.rope_dim, rope_theta=c.rope_theta),
             nbytes=sum(ops.nbytes(p) for p in params.values()),
         )

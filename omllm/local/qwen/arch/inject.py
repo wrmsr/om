@@ -7,7 +7,7 @@ from ..load.inject import LoadConfig
 from ..load.recipe import LoadRecipe
 from ..load.weights import TensorSource
 from ..ops.base import Ops
-from .qwen35 import Qwen35Architecture
+from .base import Architecture
 from .registry import architecture_for
 
 
@@ -17,12 +17,12 @@ from .registry import architecture_for
 log = logs.get_module_logger(globals())
 
 
-def _architecture(src: TensorSource) -> Qwen35Architecture:
+def _architecture(src: TensorSource) -> Architecture:
     return architecture_for(src.config)
 
 
 def _model(
-        arch: Qwen35Architecture,
+        arch: Architecture,
         src: TensorSource,
         ops: Ops,
         recipe: LoadRecipe,
@@ -42,6 +42,6 @@ def _model(
 
 def bind_arch() -> inj.Elements:
     return inj.as_elements(
-        inj.bind(Qwen35Architecture, to_fn=_architecture, singleton=True),
+        inj.bind(Architecture, to_fn=_architecture, singleton=True),
         inj.bind(Qwen35, to_fn=_model, singleton=True),
     )

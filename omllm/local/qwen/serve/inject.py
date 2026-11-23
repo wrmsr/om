@@ -1,3 +1,5 @@
+import typing as ta
+
 from omcore import dataclasses as dc
 from omcore import inject as inj
 
@@ -17,7 +19,7 @@ class ServeConfig:
     defaults: SamplingDefaults = dc.field(default_factory=SamplingDefaults)
     enable_thinking: bool = True
     preserve_thinking: bool = True
-    reasoning_effort: str | None = None  # None: the chat template's default, where it takes one
+    reasoning_effort: ta.Any = None  # a level of the chat protocol's; None: its default, where it takes one
     open_think: bool | None = None  # the generation prompt opens the reasoning block; None: as the chat format has it
     chat_format: str | None = None  # a name in serve.chat.CHAT_FORMATS; None: the checkpoint's own, by its template
     max_queue: int = 4

@@ -5,9 +5,8 @@ from ..decode.processors import Contribution
 from ..decode.processors import LogitProcessor
 from ..ops.base import Array
 from ..ops.base import Ops
-from .grammar import JsonConstraint
+from .grammar import Constraint
 from .grammar import MaskCache
-from .grammar import ToolConstraint
 
 
 ##
@@ -27,7 +26,7 @@ class GrammarProcessor(LogitProcessor):
             ops: Ops,
             *,
             vocab_size: int,
-            constraint: ToolConstraint | JsonConstraint,
+            constraint: Constraint,
     ) -> None:
         super().__init__()
 

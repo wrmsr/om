@@ -34,7 +34,11 @@ given schema (any value for `json_object`), and then only the end-of-turn tokens
 Supported schema features: object (properties, required, additionalProperties), string (enum, minLength / maxLength
 ignored), integer, number, boolean, null, array (items), anyOf / oneOf, const, and `{}` / no type for any JSON value.
 Whitespace is allowed where JSON allows it.
+
+The controllers here are ChatML's (its `<tool_call>` and `<think>` tags). constrain/framed.py has the same pair for a
+protocol of framed messages, over the same acceptor; `Constraint` is what a generation loop is handed of either.
 """
+import abc
 import json
 import typing as ta
 
@@ -75,6 +79,20 @@ def _ws() -> Frame:
     return ('ws',)
 
 
+@dc.dataclass(frozen=True)
+class JsonCallSpelling:
+    """
+    How a chat protocol spells a call in the JSON syntax: `open` "name": NAME, `args_key`: ARGUMENTS } `close`, with
+    whitespace wherever JSON allows it. The default is the legacy ChatML one; `close` may be empty, where what ends
+    a call is not text.
+    """
+
+    open: str = '\n{'
+    name_key: str = '"name"'
+    args_key: str = '"arguments"'
+    close: str = '\n</tool_call>'
+
+
 class Acceptor:
     """
     Prefix acceptor for one tool-call body (after `<tool_call>`), compiled from the tools' schemas.
@@ -92,11 +110,6 @@ class Acceptor:
     (`additionalProperties`, or no `properties` at all): names of identifier characters, values as text.
     """
 
-    OPEN = '\n{'
-    NAME_KEY = '"name"'
-    ARGS_KEY = '"arguments"'
-    CLOSE = '\n</tool_call>'
-
     FUNCTION_OPEN = '\n<function='
     FUNCTION_CLOSE = '</function>\n</tool_call>'
     PARAMETER_OPEN = '<parameter='
@@ -109,15 +122,18 @@ class Acceptor:
             only: str | None = None,
             value_schema: ta.Any = None,
             syntax: str = 'json',
+            spelling: JsonCallSpelling | None = None,
     ) -> None:
         """
-        Tool-call bodies for `tools` (optionally just the function `only`) in the given `syntax`, or, with
-        `value_schema`, one bare JSON value of that schema (`{}` for any) -- JSON mode.
+        Tool-call bodies for `tools` (optionally just the function `only`) in the given `syntax` (the 'json' one as
+        `spelling` spells it), or, with `value_schema`, one bare JSON value of that schema (`{}` for any) -- JSON
+        mode.
         """
 
         if syntax not in ('json', 'function'):
             raise ValueError(f'unknown call syntax {syntax!r}')
         self.syntax = syntax
+        self.spelling = spelling if spelling is not None else JsonCallSpelling()
 
         self.schemas: list[ta.Any] = []  # id -> schema (dict) ; shared across frames to keep them small
         self._ids: dict[str, int] = {}
@@ -158,7 +174,9 @@ class Acceptor:
 
     # states
 
-    def initial(self) -> State:
+    def initial(self, names: ta.Iterable[str] | None = None) -> State:
+        """Before a call's first byte (or a value's). `names`: the functions it may name, of the acceptor's own."""
+
         if self.value_sid is not None:
             return frozenset([(
                 _ws(),
@@ -166,37 +184,42 @@ class Acceptor:
                 _ws(),
             )])
 
+        opts = tuple(sorted(self.functions if names is None else names))
+        if not opts or any(o not in self.functions for o in opts):
+            raise ValueError(f'not functions of this grammar: {opts!r}')
+
         if self.syntax == 'function':
             return frozenset([(
                 _lit(self.FUNCTION_CLOSE),
                 ('fparams',),  # replaced by the chosen function's parameters once the name is known
                 _lit('>\n'),
-                ('name', tuple(sorted(self.functions)), 0),
+                ('name', opts, 0),
                 _lit(self.FUNCTION_OPEN),
             )])
 
-        return frozenset([(
-            _lit(self.CLOSE),
+        sp = self.spelling
+        return frozenset([tuple(fr for fr in (
+            _lit(sp.close),
             _lit('}'),
             _ws(),
             ('argsvalue',),  # replaced by the chosen function's parameter schema once the name is known
             _ws(),
             _lit(':'),
             _ws(),
-            _lit(self.ARGS_KEY),
+            _lit(sp.args_key),
             _ws(),
             _lit(','),
             _ws(),
             _lit('"'),
-            ('name', tuple(sorted(self.functions)), 0),
+            ('name', opts, 0),
             _lit('"'),
             _ws(),
             _lit(':'),
             _ws(),
-            _lit(self.NAME_KEY),
+            _lit(sp.name_key),
             _ws(),
-            _lit(self.OPEN),
-        )])
+            _lit(sp.open),
+        ) if fr != _lit(''))])
 
     @staticmethod
     def is_complete(state: State) -> bool:
@@ -230,6 +253,25 @@ class Acceptor:
     @staticmethod
     def is_dead(state: State) -> bool:
         return len(state) == 0
+
+    # the frames that are text of their own: a string, a key, a name, a literal
+    TEXT_KINDS: ta.ClassVar[ta.AbstractSet[str]] = frozenset([
+        'str',
+        'keystr',
+        'keyname',
+        'name',
+        'lit',
+        'alts',
+        'ptext',
+        'pfree',
+        'pkey',
+    ])
+
+    @classmethod
+    def in_text(cls, state: State) -> bool:
+        """Whether every alternative stands inside text of its own, where whitespace is content and not layout."""
+
+        return bool(state) and all(st and st[-1][0] in cls.TEXT_KINDS for st in state)
 
     # advancing
 
@@ -868,26 +910,27 @@ class TokenMasks:
 ##
 
 
-_COMPILED: dict[tuple[str, str | None, int, str], tuple[Acceptor, TokenMasks]] = {}
+_COMPILED: dict[tuple[str, str | None, int, str, JsonCallSpelling | None], tuple[Acceptor, TokenMasks]] = {}
 
 
-def _compiled(
+def compiled_calls(
         tools: ta.Sequence[dict],
         only: str | None,
         vocab: Vocab,
         syntax: str = 'json',
+        spelling: JsonCallSpelling | None = None,
 ) -> tuple[Acceptor, TokenMasks]:
     """
     The acceptor and its memoised masks for a tool set, shared across requests: an agent sends the same tools every
     turn, and the expensive states (free strings) are then computed once per process.
     """
 
-    key = (json.dumps(tools, sort_keys=True), only, id(vocab), syntax)
+    key = (json.dumps(tools, sort_keys=True), only, id(vocab), syntax, spelling)
     got = _COMPILED.get(key)
     if got is None:
         if len(_COMPILED) >= 16:
             _COMPILED.pop(next(iter(_COMPILED)))
-        acc = Acceptor(tools, only, syntax=syntax)
+        acc = Acceptor(tools, only, syntax=syntax, spelling=spelling)
         got = _COMPILED[key] = (acc, TokenMasks(acc, vocab))
     return got
 
@@ -895,7 +938,7 @@ def _compiled(
 _COMPILED_JSON: dict[tuple[str, int], tuple[Acceptor, TokenMasks]] = {}
 
 
-def _compiled_json(schema: ta.Any, vocab: Vocab) -> tuple[Acceptor, TokenMasks]:
+def compiled_json(schema: ta.Any, vocab: Vocab) -> tuple[Acceptor, TokenMasks]:
     """
     The acceptor and its memoised masks for a JSON-mode schema, shared across requests like a tool set's: without it
     every request walked the vocabulary again for every state it met (0.2 s a token on a 248k vocabulary).
@@ -911,8 +954,51 @@ def _compiled_json(schema: ta.Any, vocab: Vocab) -> tuple[Acceptor, TokenMasks]:
     return got
 
 
+def tool_choice_function(tool_choice: ta.Any) -> str | None:
+    """The one function a `tool_choice` names, if it names one."""
+
+    if not isinstance(tool_choice, dict):
+        return None
+    return str((tool_choice.get('function') or {}).get('name') or tool_choice.get('name'))
+
+
+def response_format_schema(response_format: ta.Any) -> ta.Any:
+    """The schema a `response_format` holds the content to (`{}`: any JSON value), or None where it asks for none."""
+
+    rf = response_format
+    if not isinstance(rf, dict) or rf.get('type') not in ('json_object', 'json_schema'):
+        return None
+    if rf.get('type') == 'json_schema':
+        js = rf.get('json_schema') or {}
+        return js.get('schema', js) if isinstance(js, dict) else {}
+    return {}
+
+
+class Constraint(abc.ABC):
+    """
+    What a generation loop is handed: a controller fed every generated token and asked what the next one may be.
+    Speculative lookahead works on clones.
+    """
+
+    @abc.abstractmethod
+    def allowed(self) -> frozenset[int] | None:
+        """The ids the next token may take, or None for no restriction."""
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def feed(self, token_id: int) -> None:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def clone(self) -> Constraint:
+        """A cheap copy (states are immutable; the memos are shared)."""
+
+        raise NotImplementedError
+
+
 @dc.dataclass()
-class ToolConstraint:
+class ToolConstraint(Constraint):
     """
     The generation-side controller: feed it every generated token, ask it what the next one may be.
 
@@ -929,15 +1015,13 @@ class ToolConstraint:
     syntax: str = 'json'          # the call syntax the checkpoint was trained on: 'json' | 'function' (Acceptor)
 
     def __post_init__(self) -> None:
-        only = None
-        if isinstance(self.tool_choice, dict):
-            only = str((self.tool_choice.get('function') or {}).get('name') or self.tool_choice.get('name'))
+        only = tool_choice_function(self.tool_choice)
         self.forced = self.tool_choice == 'required' or only is not None
         self.vocab = Vocab.for_tokenizer(self.tok)
         self.acc: Acceptor | None = None
         self.masks: TokenMasks | None = None
         if self.tool_choice != 'none':
-            self.acc, self.masks = _compiled(self.tools, only, self.vocab, self.syntax)
+            self.acc, self.masks = compiled_calls(self.tools, only, self.vocab, self.syntax)
         self.mode = 'free'
         self.state: State | None = None
         self.tail = b''  # last bytes of free text, for tag detection
@@ -1064,7 +1148,7 @@ class ToolConstraint:
 
 
 @dc.dataclass()
-class JsonConstraint:
+class JsonConstraint(Constraint):
     """
     JSON mode (`response_format`): after the reasoning block, if any, the content is one JSON value of `schema` (`{}`
     for any value) and then the turn ends. Same protocol as ToolConstraint: feed every generated token, ask for the
@@ -1078,7 +1162,7 @@ class JsonConstraint:
 
     def __post_init__(self) -> None:
         self.vocab = Vocab.for_tokenizer(self.tok)
-        self.acc, self.masks = _compiled_json(self.schema if self.schema is not None else {}, self.vocab)
+        self.acc, self.masks = compiled_json(self.schema if self.schema is not None else {}, self.vocab)
         self.state: State | None = None  # None until the value starts (after the reasoning block)
         self.done = False
         self.in_think = self.thinking and self.think_open

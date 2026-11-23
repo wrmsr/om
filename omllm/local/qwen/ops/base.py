@@ -24,6 +24,7 @@ import typing as ta
 
 from omcore import lang
 
+from .microscaled import MicroscaledWeight
 from .quant import QWeight
 from .quant import quantize as quantize_np
 
@@ -225,6 +226,24 @@ class Ops(lang.Abstract):
     def log(self, x: Array) -> Array:
         pass
 
+    def tanh(self, x: Array) -> Array:
+        return 2 * self.sigmoid(2 * x) - 1
+
+    def sqrt(self, x: Array) -> Array:
+        return 1.0 / self.rsqrt(x)  # (0 -> 1 / inf -> 0, where x * rsqrt(x) would be a NaN)
+
+    def maximum(self, x: Array, v: float) -> Array:
+        """max(x, v) elementwise against a scalar, in x's dtype (integer arrays included)."""
+
+        m = self.cast(x > v, x.dtype)
+        return x * m + v * (1 - m)
+
+    def minimum(self, x: Array, v: float) -> Array:
+        """min(x, v) elementwise against a scalar, in x's dtype (integer arrays included)."""
+
+        m = self.cast(x < v, x.dtype)
+        return x * m + v * (1 - m)
+
     # sampling primitives (see model.Sampler: everything runs on the device, one small int array leaves it)
 
     @abc.abstractmethod
@@ -323,6 +342,26 @@ class Ops(lang.Abstract):
 
         return self.stack([self.concat(list(p), 0) if len(p) > 1 else p[0] for p in parts], 0)
 
+    def microscaled(self, mw: MicroscaledWeight, dtype: ta.Any, name: str | None = None) -> Weight:
+        """
+        Adopt a stack of experts stored in a microscaled float format (ops/microscaled.py) as a weight for
+        `expert_linear`. Default: decoded once, dense in `dtype` -- the reference, and what a backend without a
+        container for the packed form does; a backend that has one keeps the checkpoint's bytes and decodes the
+        experts a step reads.
+        """
+
+        return self.weight(mw.dequantize(), dtype, name)
+
+    def expert_dense(self, w: Weight, e: int, dtype: ta.Any) -> Array:
+        """One expert of a stacked weight as a plain [N, K] array in `dtype`."""
+
+        return self.cast(w[e], dtype)
+
+    # Past this many rows `expert_linear`'s reference goes expert by expert (`expert_linear_grouped`) instead of
+    # gathering a matrix per row: a prefill chunk's rows are thousands and share a hundred experts, a step's are a
+    # few each with its own. A captured step stays under it (the grouped form reads the experts chosen on the host).
+    expert_gather_max_rows: int = 256
+
     def expert_linear(self, x: Array, w: Weight, eids: Array, x_div: int = 1) -> Array:
         """
         [R, N]: row r is x[r // x_div] @ w[eids[r]].T -- every row against its own expert of a stacked weight
@@ -331,7 +370,32 @@ class Ops(lang.Abstract):
         """
 
         rows = self.repeat(x, x_div, 0) if x_div > 1 else x
+        if rows.shape[0] > self.expert_gather_max_rows:
+            return self.expert_linear_grouped(rows, w, eids)
         return (w[eids] @ rows[:, :, None])[..., 0]
+
+    def expert_linear_grouped(self, rows: Array, w: Weight, eids: Array) -> Array:
+        """
+        `expert_linear` for many rows, [R, K] each against its own expert: the rows sorted by expert, one dense
+        matmul per expert present (`expert_dense`), and the results put back in order. Which experts are present is
+        read on the host, so this is for a prefill, not a captured step.
+        """
+
+        ids = np.asarray(self.numpy(eids)).reshape(-1).astype(np.int64)
+        order = np.argsort(ids, kind='stable')
+        inverse = np.empty_like(order)
+        inverse[order] = np.arange(order.shape[0])
+        sorted_ids = ids[order]
+        starts = np.flatnonzero(np.r_[True, sorted_ids[1:] != sorted_ids[:-1]])
+        ends = np.r_[starts[1:], sorted_ids.shape[0]]
+
+        sorted_rows = rows[self.array(order.astype(np.int32))]
+        outs = [
+            self.linear(sorted_rows[int(a):int(b)], self.expert_dense(w, int(sorted_ids[a]), rows.dtype))
+            for a, b in zip(starts, ends)
+        ]
+        out = outs[0] if len(outs) == 1 else self.concat(outs, 0)
+        return out[self.array(inverse.astype(np.int32))]
 
     @abc.abstractmethod
     def embedding(self, ids: Array, w: Weight, dtype: ta.Any) -> Array:
@@ -658,6 +722,16 @@ class Ops(lang.Abstract):
 
         return tuple(a[:, :, :n] for a in state)
 
+    def kv_range(self, state: tuple[Array, ...], start: int, stop: int) -> tuple[Array, ...]:
+        """Copies of the positions start .. stop - 1, as a state of their own."""
+
+        return tuple(self.copy(a[:, :, start:stop]) for a in state)
+
+    def kv_join(self, a: tuple[Array, ...], b: tuple[Array, ...]) -> tuple[Array, ...]:
+        """Two states of one format end to end: a's positions, then b's."""
+
+        return tuple(self.concat([x, y], 2) for x, y in zip(a, b))
+
     def kv_pad(self, state: tuple[Array, ...], capacity: int) -> tuple[Array, ...]:
         """The state zero-padded to `capacity` positions."""
 
@@ -744,6 +818,184 @@ class Ops(lang.Abstract):
         scores = self.f32(q @ self.transpose(k, (0, 1, 3, 2))) * scale  # [B, H, T, L]
         scores = scores + (1 - self.f32(keep))[:, None] * -1e30
         return self.cast(self.softmax(scores, -1), v.dtype) @ v
+
+    def sdpa_sink(self, q: Array, k: Array, v: Array, scale: float, bias: Array, sink: Array) -> Array:
+        """
+        Attention of q [B, H, T, D] over k, v [B, KV, L, D] (GQA when KV < H: query head h reads kv head h // (H / KV))
+        with an additive float32 `bias` [B, H, T, L] on the scores -- a learned relative term and the mask together,
+        -1e30 where a query does not see a key -- and a `sink` [B, H, T]: one more logit in each query's softmax,
+        with nothing behind it. A query's output is its keys' values weighted by a distribution the sink takes its
+        share of, not renormalized over the keys. The composed reference, softmaxed in float32.
+        """
+
+        H = q.shape[1]
+        KV = k.shape[1]
+        L = k.shape[2]
+        if KV != H:
+            k = self.repeat(k, H // KV, 1)
+            v = self.repeat(v, H // KV, 1)
+        scores = self.f32(q @ self.transpose(k, (0, 1, 3, 2))) * scale + bias  # [B, H, T, L]
+        p = self.softmax(self.concat([scores, self.f32(sink)[..., None]], -1), -1)
+        return self.cast(p[..., :L], v.dtype) @ v
+
+    def sdpa_partials(
+            self,
+            q: Array,
+            k: Array,
+            v: Array,
+            scale: float,
+            bias: Array | None = None,
+    ) -> tuple[Array, Array, Array]:
+        """
+        Attention short of its normalization, so that one softmax can run over several sets of keys scored in
+        different ways (`sdpa_merge`): for q [B, H, T, D] over k, v [B, KV, L, D], with an optional additive float32
+        `bias` [B, H, T, L] on the scores, each query's largest score m [B, H, T], and relative to it the scores'
+        exponentials' sum l [B, H, T] and the values weighted by them o [B, H, T, D], all float32. Grouped-query
+        heads (query head h reads kv head h // (H / KV)) are folded into the matmul's rows, so the keys and values
+        are never repeated. L > 0.
+        """
+
+        B, H, T, D = q.shape
+        KV = k.shape[1]
+        G = H // KV
+
+        def rows(x: Array) -> Array:  # [B, H, T, ...] -> [B, KV, T * G, ...]: row t * G + g
+            x = self.reshape(x, (B, KV, G, T, *x.shape[3:]))
+            return self.reshape(self.transpose(x, (0, 1, 3, 2, *range(4, len(x.shape)))), (B, KV, T * G, *x.shape[4:]))
+
+        def heads(x: Array) -> Array:  # ... and back
+            x = self.reshape(x, (B, KV, T, G, *x.shape[3:]))
+            return self.reshape(self.transpose(x, (0, 1, 3, 2, *range(4, len(x.shape)))), (B, H, T, *x.shape[4:]))
+
+        s = self.f32(rows(q) @ self.transpose(k, (0, 1, 3, 2))) * scale  # [B, KV, T * G, L]
+        if bias is not None:
+            s = s + rows(bias)
+        m = self.amax(s, -1, keepdims=True)
+        p = self.exp(s - m)
+        l = self.sum(p, -1)
+        o = self.f32(self.cast(p, v.dtype) @ v)
+
+        return heads(m[..., 0]), heads(l), heads(o)
+
+    # the float32 scores a composed attention holds at a time, as (head, query, key) triples: its queries go through
+    # in tiles of that many
+    sdpa_tile: int = 1 << 26
+
+    def sdpa_causal_partials(self, q: Array, k: Array, v: Array, last: int, scale: float) -> tuple[Array, Array, Array]:
+        """
+        `sdpa_partials` for T queries in order, of which query t sees the keys at indices 0 .. last + t of k, v
+        [B, KV, L, D] and no others. `last` may be negative: a query that sees no key has m = -1e30 (and an l and o
+        that weigh nothing against any finite score). The composed reference scores every key up to a tile of
+        queries' last for each of them; a kernel reads each query's own.
+        """
+
+        B, H, T, D = q.shape
+        f32 = self.dtype('f32')
+
+        ms, ls, os_ = [], [], []
+        tile = max(1, self.sdpa_tile // (H * max(1, min(int(k.shape[2]), last + T))))
+        for a in range(0, T, tile):
+            b = min(a + tile, T)
+            n = min(int(k.shape[2]), last + b)
+            if n <= 0:
+                ms.append(self.zeros((B, H, b - a), f32) - 1e30)
+                ls.append(self.zeros((B, H, b - a), f32))
+                os_.append(self.zeros((B, H, b - a, D), f32))
+                continue
+
+            unseen = (
+                self.array(np.arange(n, dtype=np.int32))[None, :] >
+                self.array(np.arange(last + a, last + b, dtype=np.int32))[:, None]
+            )
+            bias = self.cast(unseen, f32)[None, None] * -1e30 + self.zeros((B, H, 1, 1), f32)
+            m, l, o = self.sdpa_partials(q[:, :, a:b], k[:, :, :n], v[:, :, :n], scale, bias)
+            ms.append(m)
+            ls.append(l)
+            os_.append(o)
+
+        if len(ms) == 1:
+            return ms[0], ls[0], os_[0]
+        return self.concat(ms, 2), self.concat(ls, 2), self.concat(os_, 2)
+
+    def sdpa_merge(self, parts: ta.Sequence[tuple[Array, Array, Array]], sink: Array | None, dtype: ta.Any) -> Array:
+        """
+        The attention output [B, H, T, D] in `dtype` of one softmax over the sets of keys whose `sdpa_partials` are
+        `parts`, and -- with `sink` [B, H, T] -- one more logit with nothing behind it (`sdpa_sink`).
+        """
+
+        f32 = self.dtype('f32')
+        ms = [m for m, _, _ in parts]
+        if sink is not None:
+            sink = self.cast(sink, f32)
+            ms.append(sink)
+        top = ms[0]
+        for m in ms[1:]:
+            top = self.maximum_of(top, m)
+
+        num: ta.Any = None
+        den: ta.Any = None
+        for m, l, o in parts:
+            w = self.exp(m - top)
+            num = w[..., None] * o if num is None else num + w[..., None] * o
+            den = w * l if den is None else den + w * l
+        if sink is not None:
+            den = den + self.exp(sink - top)
+
+        return self.cast(num / den[..., None], dtype)
+
+    def maximum_of(self, a: Array, b: Array) -> Array:
+        """Elementwise maximum of two arrays of a shape (composed: a + relu(b - a))."""
+
+        return a + self.maximum(b - a, 0.)
+
+    def rel_bias(self, rel: Array, qpos: Array, kpos: Array) -> Array:
+        """
+        A relative term on attention scores: `rel` [t, H, E] float32 is each of t queries' bias, per head, for a key
+        d = 0 .. E - 1 positions back; `qpos` [t] and `kpos` [n] are integer positions on the device. [t, n, H]
+        float32: rel[i, h, qpos[i] - kpos[j]] where that distance is one of the E, 0 where it is not.
+        """
+
+        f32 = self.dtype('f32')
+        t, H, E = (int(d) for d in rel.shape)
+
+        delta = qpos[:, None] - kpos[None, :]  # [t, n]
+        within = self.cast(delta >= 0, f32) * self.cast(delta < E, f32)
+
+        # each query's row gathered by distance: a row index into the [t * E, H] table
+        rows = self.minimum(self.maximum(delta, 0), E - 1) + (self.arange(t) * E)[:, None]
+        table = self.reshape(self.transpose(rel, (0, 2, 1)), (t * E, H))
+        return self.embedding(rows, table, f32) * within[..., None]
+
+    def sdpa_static_rel(
+            self,
+            q: Array,
+            state: tuple[Array, ...],
+            pos: Array,
+            ar: Array,
+            scale: float,
+            rel: Array,
+            sink: Array,
+    ) -> Array:
+        """
+        Decode attention for T new tokens against fixed-capacity KV buffers (as `sdpa_static_state`: q [B, H, T, D]
+        at positions pos..pos+T-1, `state` holding positions 0..pos+T-1, `ar` = arange over the buffer) with a
+        relative term and a sink. Query t's score for the key d positions back is q . k * scale, plus rel[t, h, d]
+        for the d < E nearest (`rel`: [T, H, E] float32, `rel_bias`); each softmax has one more logit, `sink`
+        [B, H, T], with nothing behind it (`sdpa_sink`). Batch 1. The composed reference reads the whole buffer; a
+        kernel reads the positions in use.
+        """
+
+        f32 = self.dtype('f32')
+        T = q.shape[2]
+        n = self.kv_len(state)
+
+        kd, vd = self.kv_dense(state, q.dtype)
+        qpos = self.reshape(pos, (1,)) + self.arange(T)
+        kpos = ar[:n]
+
+        unseen = self.cast(kpos[None, :] > qpos[:, None], f32) * -1e30  # [T, n]
+        bias = self.rel_bias(rel, qpos, kpos) + unseen[..., None]
+        return self.sdpa_sink(q, kd, vd, scale, self.transpose(bias, (2, 0, 1))[None], sink)
 
     def sdpa_static_state(self, q: Array, state: tuple[Array, ...], pos: Array, ar: Array, scale: float) -> Array:
         """Decode attention of q over the static buffers (see sdpa_static)."""

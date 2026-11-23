@@ -24,14 +24,16 @@ from omcore import lang
 from ..ops.base import Array
 from ..ops.base import Ops
 from ..ops.base import Weight
-from .block import Block
 from .cache import Cache
-from .config import Qwen35Config
+from .config import ModelConfig
 from .errors import Cancelled
+from .heads import LinearOutputHead
+from .heads import OutputHead
+from .mixing import Layer
 from .mixing import ResidualStream
 from .mixing import StateLayout
-from .mixing import StepContext
 from .mtp import MtpHead
+from .positions import StepPositions
 from .slab import StepSlabHolder
 
 
@@ -46,23 +48,30 @@ else:
 
 class Qwen35(StepSlabHolder):
     """
-    The decoder model, assembled from parts by an architecture (arch/): the embedding and output head, the blocks (each
-    a composition of mixer, feed-forward and their connections to the residual stream), the stream's two ends (the
-    final norm is its exit's), and the draft head when one is loaded. It
+    The decoder model, assembled from parts by an architecture (arch/): the embedding and output head, the layers in
+    execution order (usually blocks, each a composition of mixer, feed-forward and their connections to the residual
+    stream; a layer's slot of decode state is its place in the order, so one run several times a token is several
+    entries), the stream's two ends (the final norm is its exit's), what its static steps are handed about positions,
+    and the draft head when one is loaded. It
     owns the functional forward and prefill and builds the static step; it knows neither how it was loaded nor how it is
     decoded.
+
+    `lm_head` is the output projection's weight; `head`, what turns the stream's exit into logits, is that projection
+    alone unless the architecture says otherwise.
     """
 
     def __init__(
             self,
             *,
-            cfg: Qwen35Config,
+            cfg: ModelConfig,
             ops: Ops,
             dtype: ta.Any,
             embed: Weight,
             lm_head: Weight,
-            blocks: ta.Sequence[Block],
+            blocks: ta.Sequence[Layer],
             residual: ResidualStream,
+            positions: StepPositions,
+            head: OutputHead | None = None,
             mtp: MtpHead | None = None,
             nbytes: int = 0,
     ) -> None:
@@ -73,13 +82,20 @@ class Qwen35(StepSlabHolder):
         self.dtype = dtype
         self.embed = embed
         self.lm_head = lm_head
-        self.blocks: list[Block] = list(blocks)
+        self.blocks: list[Layer] = list(blocks)
         self.residual = residual
+        self.positions = positions
+        self.head = head if head is not None else LinearOutputHead(lm_head)
         self.mtp = mtp
         self.nbytes = nbytes
 
         self._steps: dict[tuple[int, bool, bool, int], ta.Callable[..., tuple[Array, ...]]] = {}  # see step_fn
-        self._tables: dict[int, tuple[Array, Array, Array]] = {}  # see decode_tables
+        self._tables: dict[int, tuple[Array, ...]] = {}  # see decode_tables
+
+    def new_cache(self) -> Cache:
+        """An empty functional cache for this model: one slot per layer of its execution order."""
+
+        return Cache(num_slots=len(self.blocks))
 
     # forward
 
@@ -205,13 +221,13 @@ class Qwen35(StepSlabHolder):
             cache.seq_len = start_pos + T
 
         if last_only and not return_hidden:
-            r = r[:, -1:]
+            r = self.residual.tail(ops, r, 1)
 
         x = self.residual.exit(ops, r)  # final-normed
         ops.tap('final_norm', x)
 
         # the full-vocabulary logits of a 4096-token prefill chunk are 4 GB in float32: compute only the rows asked for
-        logits = ops.f32(ops.linear(x[:, -1:] if last_only else x, self.lm_head))
+        logits = self.head(ops, x[:, -1:] if last_only else x)
         ops.tap('logits', logits)
 
         if return_hidden:
@@ -227,10 +243,11 @@ class Qwen35(StepSlabHolder):
             bucket: int = 0,
     ) -> ta.Callable[..., tuple[Array, ...]]:
         """
-        The static T-token step: `fn(toks, pos, ar, cos_tab, sin_tab, *flat_state) -> (logits, [hidden,] *flat_state)`.
+        The static T-token step: `fn(toks, pos, *tables, *flat_state) -> (logits, [hidden,] *flat_state)`.
 
-        toks: [B, T] int at positions pos..pos+T-1; pos: 0-d int; ar: arange(capacity); cos_tab, sin_tab: [capacity,
-        rope_dim]; flat_state: two arrays per layer (kbuf, vbuf) or (conv, S). Everything is an argument (no closed-over
+        toks: [B, T] int at positions pos..pos+T-1; pos: 0-d int; tables: `decode_tables` (ar = arange(capacity), then
+        the architecture's own: Qwen's cos_tab, sin_tab [capacity, rope_dim]); flat_state: each layer's arrays, as its
+        state layout says -- (kbuf, vbuf) or (conv, S) for Qwen. Everything is an argument (no closed-over
         tensors) so one compiled function serves every Decoder with the same shapes; nothing in the step may allocate
         from the host. Returns logits [B, T, V] float32 (and, with return_hidden, the final-normed hidden [B, T, hidden]
         the draft head conditions on); with all_states the DeltaNet entries come back stacked per token. Pure apart from
@@ -245,22 +262,20 @@ class Qwen35(StepSlabHolder):
             fn = self._steps[key] = self.ops.compile_fn(self._build_step(T, all_states, return_hidden, bucket))
         return fn
 
-    def decode_tables(self, capacity: int) -> tuple[Array, Array, Array]:
+    def decode_tables(self, capacity: int) -> tuple[Array, ...]:
         """
-        The static step's position tables for `capacity` positions: `ar` = arange(capacity), and the RoPE `cos_tab`,
-        `sin_tab` [capacity, rope_dim] in the model's dtype. Read-only, so every decoder of a capacity shares one set:
-        building them is ~0.2 s at 131k positions, which was every generation's. Kept per capacity, of which there are
-        few (decoders round it to a power of two).
+        The static step's position tables for `capacity` positions: `ar` = arange(capacity), then the architecture's
+        (`StepPositions.tables`: for Qwen the RoPE `cos_tab`, `sin_tab` [capacity, rope_dim] in the model's dtype).
+        Read-only, so every decoder of a capacity shares one set: building them is ~0.2 s at 131k positions, which
+        was every generation's. Kept per capacity, of which there are few (decoders round it to a power of two).
         """
 
         t = self._tables.get(capacity)
         if t is None:
-            ops, c = self.ops, self.cfg
-            cos_np, sin_np = ops.rope_tables(0, capacity, c.rope_dim, c.rope_theta)
+            ops = self.ops
             t = self._tables[capacity] = (
                 ops.arange(capacity),
-                ops.array(cos_np, self.dtype),
-                ops.array(sin_np, self.dtype),
+                *self.positions.tables(ops, capacity, self.dtype),
             )
         return t
 
@@ -289,15 +304,21 @@ class Qwen35(StepSlabHolder):
     ) -> ta.Callable[..., tuple[Array, ...]]:
         ops = self.ops
         offsets = self.state_offsets()
+        n_tables = len(self.positions.tables(ops, 1, self.dtype))
 
-        def fn(toks, pos, ar, cos_tab, sin_tab, *flat):
-            # index with a 1-element array, not the 0-d one: torch turns a 0-d tensor index into `.item()`, a
-            # device->host sync that is illegal inside a CUDA graph capture; a 1-d index is a plain gather
-            rows = ops.reshape(pos, (1,)) + ar[:T]
-            cos = cos_tab[rows]  # [T, rope_dim]
-            sin = sin_tab[rows]
+        def fn(toks, pos, ar, *rest):
+            tables = rest[:n_tables]
+            flat = rest[n_tables:]
 
-            ctx = StepContext(pos, ar, cos, sin, all_states, bucket, cos_tab, sin_tab, toks)
+            ctx = self.positions.context(
+                ops,
+                toks,
+                pos,
+                ar,
+                tables,
+                all_states=all_states,
+                bucket=bucket,
+            )
 
             r = self.residual.enter(ops, ops.embedding(toks, self.embed, self.dtype))
 
@@ -308,7 +329,7 @@ class Qwen35(StepSlabHolder):
                 out.extend(st)
 
             x = self.residual.exit(ops, r)
-            logits = ops.f32(ops.linear(x, self.lm_head))
+            logits = self.head(ops, x)
 
             if return_hidden:
                 return (logits, x, *out)
@@ -318,8 +339,6 @@ class Qwen35(StepSlabHolder):
         return fn
 
     def decode_fn(self) -> ta.Callable[..., tuple[Array, ...]]:
-        """
-        The single-token step: `fn(tok, pos, ar, cos_tab, sin_tab, *flat_state) -> (logits [B, 1, V], *flat_state)`.
-        """
+        """The single-token step: `fn(tok, pos, *tables, *flat_state) -> (logits [B, 1, V], *flat_state)`."""
 
         return self.step_fn(1)

@@ -986,6 +986,9 @@ class TinygradOps(Ops):
     def log(self, x):
         return x.log()
 
+    def tanh(self, x):
+        return x.tanh()
+
     def argmax(self, x, axis):
         return x.argmax(axis=axis).cast(tg.dtypes.int32)
 

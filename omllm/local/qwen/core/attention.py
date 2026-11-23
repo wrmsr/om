@@ -60,6 +60,41 @@ class KvStateLayout(StateLayout):
         return ops.kv_len(state)
 
 
+def extend_kv(
+        ops: Ops,
+        state: FullState | None,
+        pos: int,
+        k: Array,
+        v: Array,
+) -> tuple[FullState, FullState, int]:
+    """
+    A functional KV state taken past T new positions' keys and values [B, KV, T, D] at positions pos..: the new
+    state, what attention sees of it (its pos + T positions), and how many of those were there before.
+    """
+
+    T = k.shape[2]
+    past = 0
+    if state is None:
+        state = seen = ops.kv_new(k, v)
+    else:
+        state = ops.kv_adapt(state)
+        past = ops.kv_len(state)
+        if past >= pos + T:
+            # A reserved state (StateLayout.reserve): `pos` positions and room past them. The new keys and values
+            # are written into the room in place, where concatenating would re-copy the whole KV into an
+            # ever-larger allocation every chunk of a long prefill; attention sees the filled part.
+            past = pos
+            state = ops.kv_write_tokens(state, ops.scalar(pos), k, v)
+            seen = ops.kv_window(state, pos + T)
+        else:
+            if past > pos:  # room, but not enough of it: back to an exact-length state
+                past = pos
+                state = ops.kv_slice(state, pos)
+            state = seen = ops.kv_concat(state, k, v)
+
+    return state, seen, past
+
+
 class Attention(Mixer):
     def __init__(self, cfg: Qwen35Config, p: dict[str, Weight]) -> None:
         super().__init__()
@@ -130,25 +165,7 @@ class Attention(Mixer):
         q = ops.rope(q, pos, c.rope_dim, c.rope_theta)
         k = ops.rope(k, pos, c.rope_dim, c.rope_theta)
 
-        T = x.shape[1]
-        past = 0
-        if state is None:
-            state = seen = ops.kv_new(k, v)
-        else:
-            state = ops.kv_adapt(state)
-            past = ops.kv_len(state)
-            if past >= pos + T:
-                # A reserved state (StateLayout.reserve): `pos` positions and room past them. The new keys and values
-                # are written into the room in place, where concatenating would re-copy the whole KV into an
-                # ever-larger allocation every chunk of a long prefill; attention sees the filled part.
-                past = pos
-                state = ops.kv_write_tokens(state, ops.scalar(pos), k, v)
-                seen = ops.kv_window(state, pos + T)
-            else:
-                if past > pos:  # room, but not enough of it: back to an exact-length state
-                    past = pos
-                    state = ops.kv_slice(state, pos)
-                state = seen = ops.kv_concat(state, k, v)
+        state, seen, past = extend_kv(ops, state, pos, k, v)
 
         o = ops.sdpa_state(q, seen, self.scale, past)  # [B,H,T,D]
         return self._out(ops, o, gate), state

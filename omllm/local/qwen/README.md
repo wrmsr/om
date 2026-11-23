@@ -4,6 +4,11 @@ A from-the-math implementation of the Qwen3.5 / 3.6 / 3.8 dense text models (HF 
 arch `qwen35`), written once against a small backend seam (`Ops`) and run on torch, MLX core, tinygrad, or numpy, that
 loads weights straight out of Ollama's blob store, plus a validation harness that uses `llama-server` as the oracle.
 
+Two more architectures run on the same engine, each assembled from its own parts behind the same interfaces:
+Qwen3.8-Flash-Next (`qwen4_exp`; FLASHNEXT.md) and Inkling 2 Mini (`inkling2_loop`; INKLING.md), which is not a Qwen
+model at all -- its attention, residual stream, tokenizer pattern and chat protocol are its own, and it loads from its
+lab's Hugging Face checkpoint with its experts in the packed float formats they are released in.
+
 Dependencies: `numpy`, `regex`, and whichever backend you run on (`torch`, `mlx`, `tinygrad`). No `transformers`, no
 mlx-lm / mlx.nn, no `safetensors` package (there is a 30-line reader in `load/weights.py`), no `gguf` package (the
 relevant parts are vendored).
@@ -14,18 +19,25 @@ core/            the model, backend-free: the decoder (model.py) assembled from 
                  attention w/ partial RoPE (attention.py) and Gated DeltaNet (deltanet.py) as mixers owning their
                  decode-state layouts; SwiGLU (mlp.py); the MTP draft head (mtp.py); config, functional cache,
                  parameter names. Qwen3.8-Flash-Next's parts beside them: the four-branch gated residual
-                 (gated_residual.py), mixture of experts (moe.py), sparse attention (qsa.py), the n-gram layer (ple.py)
+                 (gated_residual.py), mixture of experts (moe.py), sparse attention (qsa.py), the n-gram layer (ple.py).
+                 Inkling 2's in inkling2/ (its residual stream of block sums, the loop, its attention and experts),
+                 over parts any architecture may use: short convolutions over time as mixers (shortconv.py), a
+                 layer of stateful sublayers (sublayers.py), what an attention layer sees and keeps (kvspans.py),
+                 the output head (heads.py), a static step's position tables (positions.py)
 arch/            architectures: what blocks a checkpoint's layers are and how its parameters become them
-                 (qwen35.py: Qwen35Architecture, load_qwen35; qwen4exp.py: Flash-Next; registry.py: by config)
+                 (base.py: the interface; qwen35.py: Qwen35Architecture, load_qwen35; qwen4exp.py: Flash-Next;
+                 inkling2.py: Inkling 2; registry.py: which one, by the config's type)
 ops/             the backend seam: `Ops` ABC (abstract primitives + composed reference implementations of the
                  fusable ones, base.py), `NumpyOps` the float64 golden (reference.py), weight-only int8/int4 affine
-                 quantization (quant.py)
+                 quantization (quant.py), microscaled float weights as checkpoints store them (microscaled.py: NVFP4,
+                 MXFP8)
 backends/        torch (torch.py; Triton GEMV, DeltaNet step and attention kernels in torch_triton.py), MLX core
                  (mlx.py; the fused DeltaNet step as a Metal kernel in mlx_metal.py), tinygrad (tinygrad.py), and
                  backend selection (backends.py)
 load/            the loader pipeline: sources (weights.py: Ollama manifests, GGUF blobs, Ollama tensor blobs, HF
-                 checkpoints -> canonical params), recipes and precision policies, the plan, materialization, the
-                 on-disk parameter cache (paramcache.py); the vendored gguf reader (gguf/)
+                 checkpoints -> canonical params; inkling2.py: Inkling 2's checkpoint; families.py: which reader an
+                 HF directory gets), recipes and precision policies, the plan, materialization, the on-disk parameter
+                 cache (paramcache.py); the vendored gguf reader (gguf/)
 decode/          the generation loop (loop.py) and its extension points: the one token source (tokens.py: verify
                  [pending, drafts] in one step), draft sources (drafts.py), logit processors (processors.py:
                  penalties), the sampler and rejection step (sampling.py), terminators, observers, state stores;
@@ -35,8 +47,10 @@ constrain/       tool-call / JSON-mode grammars -> per-step token masks (grammar
                  logit processor; what the function syntax asks of a parameter's schema (schemas.py)
 prefix/          prefix snapshots: exact-prefix reuse of decode state across requests, device + pinned-host tiers
                  (cache.py), as a state store (store.py)
-serve/           the chat formats -- the checkpoints' own and the legacy one -- rendered and parsed (chat.py);
-                 the Engine and the OpenAI chat-completions HTTP server (serving.py)
+serve/           chat protocols (protocols.py: how a checkpoint's conversations are written and read): Qwen's
+                 ChatML formats -- the checkpoints' own and the legacy one -- rendered and parsed (chat.py, as a
+                 protocol in chatml.py), Inkling 2's framed messages (inkling2.py), which one a tokenizer speaks
+                 (registry.py); the Engine and the OpenAI chat-completions HTTP server (serving.py)
 inject/          assembly by omcore.inject: the composition root over each package's inject.py (role binders, one
                  config dataclass each); everything also assembles by hand
 api.py           `generate` (the loop assembled by hand) and ManualGenerationRunner
@@ -44,9 +58,9 @@ tokenizer.py     byte-level BPE (qwen2 / qwen35 pre-tokenizer regexes), special 
                  the checkpoint's chat template is seen to take (reasoning effort)
 entrypoints/     generate, serve, agent, tune (GEMV launch tables), kl (quality), validate (vs llama-server)
 tests/           golden parity across backends, synthetic models, quantization, kernels, tracing, sampling,
-                 prefix reuse, grammars, the chat formats, the server; and three tools that need a real checkpoint:
-                 bench.py (performance and transcripts), chat_oracle.py (our chat format against the checkpoint's own
-                 template), agent_eval.py (file tasks through the agent loop)
+                 prefix reuse, grammars, the chat formats, the server; and tools that need a real checkpoint:
+                 bench.py (performance and transcripts), chat_oracle.py and inkling2oracle.py (our chat rendering
+                 against the checkpoint's own template), agent_eval.py (file tasks through the agent loop)
 ```
 
 On the radar, not started: a `ggml` backend (ctypes to libggml; a lazy `Ops` whose calls emit graph nodes). It
@@ -62,7 +76,8 @@ python -m omllm.local.qwen.generate --model qwen3.5:0.8b --backend mlx --raw -p 
 python -m omllm.local.qwen.generate --model qwen3.5:0.8b --backend torch --device cuda --dtype bf16 -p "..."
 ```
 
-`--model` accepts an Ollama name (`qwen3.5:0.8b`, `qwen3.8:27b`), a `.gguf` path, or a blob path. `--backend`
+`--model` accepts an Ollama name (`qwen3.5:0.8b`, `qwen3.8:27b`), a `.gguf` path, a blob path, or a Hugging Face
+checkpoint directory (the only form Inkling 2 is read from: INKLING.md has the download). `--backend`
 defaults to mlx on macOS when it is installed, torch otherwise; `numpy` is the (slow) reference.
 
 ## Quantizing it yourself
@@ -646,7 +661,10 @@ switch (qwen3.5) is rendered as before whatever is asked (`Tokenizer.reasoning_e
 `generate --think --reasoning-effort LEVEL` and `agent --reasoning-effort LEVEL` reach the same thing. Before this
 existed the 27B was in effect always served at `medium`: no instruction was rendered.
 
-**The chat format is the checkpoint's own.** A checkpoint carries a chat template, and the format it describes is
+**The chat format is the checkpoint's own.** How a conversation is written and an answer read is a chat protocol
+(`serve/protocols.py`), which the engine is written against and picks by what the checkpoint's tokenizer has
+(`serve/registry.py`): Inkling 2's framed messages for a tokenizer with its markers (INKLING.md), ChatML for the
+rest. For ChatML, a checkpoint carries a chat template, and the format it describes is
 the one the model was trained on; `serve/chat.py` knows three (`ChatFormat`) and the engine takes the checkpoint's
 (`chat_format_for`, by what the template is seen to contain; `--chat-format` overrides):
 
@@ -694,6 +712,8 @@ queue limit).
    int8 with the same scales is the other half-size option where fp8 is unavailable.
 2. **Batching** — the static step is batch-1 by construction; a second concurrent conversation would want
    B > 1 buffers and a scheduler in `Engine`, which is a different engine.
+
+What is left of Inkling 2 is in INKLING.md, section 9.
 
 MoE variants (`qwen35moe`) and the vision tower are deliberately not supported, and the server speaks OpenAI chat
 completions only: an Anthropic messages dialect will not be added (NEXT.md, non-goals).

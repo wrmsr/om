@@ -763,7 +763,7 @@ def test_engine_function_format():
             chat_format=fmt,
             log=None,
         ).start()
-        assert engine.format is fmt and engine.open_think
+        assert engine.protocol.format is fmt and engine.protocol.open_think  # type: ignore[attr-defined]
         for stream in (False, True):
             body = {
                 'messages': [{'role': 'user', 'content': 'pick one'}],

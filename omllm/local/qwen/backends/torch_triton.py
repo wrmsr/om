@@ -371,6 +371,74 @@ def attn_decode(
     B, H, T, D = q.shape
     KV = kbuf.shape[1]
     G = H // KV
+    m, l, o = _attn_decode_splits(q, kbuf, vbuf, pos, scale, splits, num_warps, ks, vs)
+
+    # Merge the splits: softmax over all keys = weighted combination of the per-split partials. These lines are part
+    # of a compiled step's graph and are to be left as they are written: rewritten to the same arithmetic (the
+    # division moved after the rows are cut out, a `where` on the maximum) a compiled step rounded differently, and
+    # the 27B's transcripts under several draft lengths parted from their baseline near token 209 while the
+    # one-length ones still matched (2026-11-22). `attn_decode_partials` has its own.
+    mx = m.amax(2, keepdim=True)  # [B, KV, 1, BM]
+    w = torch.exp(m - mx)  # [B, KV, S, BM]; a split with no keys has m = -inf -> weight 0
+    lsum = (w * l).sum(2)  # [B, KV, BM]
+    out = (w[..., None] * o).sum(2) / lsum[..., None]  # [B, KV, BM, D]
+    out = out[:, :, :G * T].reshape(B, KV, G, T, D).reshape(B, H, T, D)
+    return out.to(q.dtype)
+
+
+def attn_decode_partials(
+        q: torch.Tensor,
+        kbuf: torch.Tensor,
+        vbuf: torch.Tensor,
+        pos: torch.Tensor,
+        scale: float,
+        splits: int = 32,
+        num_warps: int = 4,
+        ks: torch.Tensor | None = None,
+        vs: torch.Tensor | None = None,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """
+    `attn_decode` short of its last division: per query row, its keys' scores' maximum `m` [B, H, T], and -- relative
+    to it -- their exponentials' sum `l` [B, H, T] and the values weighted by them `o` [B, H, T, D], all float32. The
+    attention's output is o / l; what else a softmax holds (other keys scored some other way, a sink) merges with
+    these as one more partial. A row that sees no key (pos + t < 0) has m = -inf, l = 0, o = 0.
+    """
+
+    B, H, T, D = q.shape
+    KV = kbuf.shape[1]
+    G = H // KV
+    m, l, o = _attn_decode_splits(q, kbuf, vbuf, pos, scale, splits, num_warps, ks, vs)
+
+    mx = m.amax(2, keepdim=True)  # [B, KV, 1, BM]
+    w = torch.exp(m - torch.where(mx == float('-inf'), 0.0, mx))  # [B, KV, S, BM]; a split with no keys: weight 0
+    lsum = (w * l).sum(2)  # [B, KV, BM]
+    osum = (w[..., None] * o).sum(2)  # [B, KV, BM, D]
+
+    def rows_of(x: torch.Tensor) -> torch.Tensor:
+        return x[:, :, :G * T].reshape(B, KV, G, T, *x.shape[3:]).reshape(B, H, T, *x.shape[3:])
+
+    return rows_of(mx[:, :, 0]), rows_of(lsum), rows_of(osum)
+
+
+def _attn_decode_splits(
+        q: torch.Tensor,
+        kbuf: torch.Tensor,
+        vbuf: torch.Tensor,
+        pos: torch.Tensor,
+        scale: float,
+        splits: int,
+        num_warps: int,
+        ks: torch.Tensor | None,
+        vs: torch.Tensor | None,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """
+    The decode attention kernel's launch: each split of the keys' partials, for every query row padded to whole
+    blocks -- m, l [B, KV, splits, BM] and o [B, KV, splits, BM, D], float32 (a split with no keys: m = -inf).
+    """
+
+    B, H, T, D = q.shape
+    KV = kbuf.shape[1]
+    G = H // KV
     block_m = 32
     rb = triton.cdiv(G * T, block_m)
     rows = rb * block_m
@@ -436,13 +504,7 @@ def attn_decode(
         _resolve_attn('decode', (D, q.dtype, fp8), launch)
     else:
         launch(*cfg)
-    # merge the splits: softmax over all keys = weighted combination of the per-split partials
-    mx = m.amax(2, keepdim=True)  # [B, KV, 1, BM]
-    w = torch.exp(m - mx)  # [B, KV, S, BM]; a split with no keys has m = -inf -> weight 0
-    lsum = (w * l).sum(2)  # [B, KV, BM]
-    out = (w[..., None] * o).sum(2) / lsum[..., None]  # [B, KV, BM, D]
-    out = out[:, :, :G * T].reshape(B, KV, G, T, D).reshape(B, H, T, D)
-    return out.to(q.dtype)
+    return m, l, o
 
 
 def _attn_prefill_kernel(
@@ -616,7 +678,9 @@ def attn_prefill(
 _qlinear_jit: ta.Any = None
 _fma_jit: ta.Any = None
 _experts_jit: ta.Any = None
+_mexperts_jit: ta.Any = None
 _dequant_jit: ta.Any = None
+_mdequant_jit: ta.Any = None
 _gdn_jit: ta.Any = None
 _attn_jit: ta.Any = None
 _attn_prefill_jit: ta.Any = None
@@ -631,6 +695,7 @@ def ensure_kernels() -> None:
     """
 
     global _qlinear_jit, _fma_jit, _experts_jit, _dequant_jit, _gdn_jit, _attn_jit, _attn_prefill_jit
+    global _mexperts_jit, _mdequant_jit
 
     if _qlinear_jit is not None:
         return
@@ -647,6 +712,8 @@ def ensure_kernels() -> None:
     # the prefill attention's.
     _fma_jit = triton.jit(_qgemv_fma_kernel, do_not_specialize_on_alignment=['M'])
     _experts_jit = triton.jit(_qgemv_experts_kernel)
+    _mexperts_jit = triton.jit(_mgemv_experts_kernel)
+    _mdequant_jit = triton.jit(_mdequant_kernel, do_not_specialize_on_alignment=['N'])
     _gdn_jit = triton.jit(
         _gdn_step_kernel,
         do_not_specialize_on_alignment=['sq_b', 'sv_b', 'sa_b', 'so_b', 'T'],
@@ -673,7 +740,8 @@ _ATTN_LADDER: dict[str, tuple[tuple[int, int, int], ...]] = {
 def kernel_variants(name: str) -> int:
     """
     How many variants Triton has compiled of one of this module's kernels ('gemv', 'gemv_fma', 'gemv_experts',
-    'dequant', 'gdn', 'attn_decode', 'attn_prefill') in this process: what a test counts to see that prompt lengths
+    'gemv_microscaled_experts', 'dequant', 'dequant_microscaled', 'gdn', 'attn_decode', 'attn_prefill') in this
+    process: what a test counts to see that prompt lengths
     do not multiply them (see ensure_kernels). 0 before the kernel is first launched, and under the interpreter,
     which compiles nothing.
     """
@@ -682,7 +750,9 @@ def kernel_variants(name: str) -> int:
         'gemv': _qlinear_jit,
         'gemv_fma': _fma_jit,
         'gemv_experts': _experts_jit,
+        'gemv_microscaled_experts': _mexperts_jit,
         'dequant': _dequant_jit,
+        'dequant_microscaled': _mdequant_jit,
         'gdn': _gdn_jit,
         'attn_decode': _attn_jit,
         'attn_prefill': _attn_prefill_jit,
@@ -1019,6 +1089,222 @@ def qgemv_experts(
         num_warps=4,
     )
     return y
+
+
+def _mgemv_experts_kernel(
+        x_ptr,
+        e_ptr,
+        c_ptr,
+        s_ptr,
+        o_ptr,
+        cv_ptr,
+        sv_ptr,
+        y_ptr,
+        N,
+        K,
+        stride_x,
+        stride_y,
+        stride_ce,
+        stride_se,
+        NIBBLES: tl.constexpr,
+        BLOCK: tl.constexpr,
+        X_DIV: tl.constexpr,
+        BLOCK_N: tl.constexpr,
+        BLOCK_K: tl.constexpr,
+):
+    """
+    `_qgemv_experts_kernel` for experts stored in a microscaled float format (ops/microscaled.py), read as the
+    checkpoint holds them: codes [E, N, K / 2] (NIBBLES: two 4-bit codes a byte, the low one the even column) or
+    [E, N, K] bytes, a scale byte per BLOCK inputs of a row [E, N, K / BLOCK], and with NIBBLES one float32 factor per
+    expert. A code's and a scale byte's value come from the tables cv / sv (16 or 256 entries, 256), so the kernel
+    does not know the encodings; a weight is code value * scale value (* the expert's factor, applied to the row's
+    sum). Row r is input row r // X_DIV against expert e_ptr[r]; the grid is (N blocks, rows).
+    """
+
+    pid_n = tl.program_id(0)
+    r = tl.program_id(1)
+    e = tl.load(e_ptr + r).to(tl.int64)
+    xrow = x_ptr + (r // X_DIV) * stride_x
+    cb = c_ptr + e * stride_ce
+    sb = s_ptr + e * stride_se
+
+    rn = pid_n * BLOCK_N + tl.arange(0, BLOCK_N)
+    n_mask = rn < N
+    n_blocks = K // BLOCK
+    G: tl.constexpr = BLOCK_K // BLOCK
+    rg = tl.arange(0, G)
+    acc = tl.zeros((BLOCK_N,), dtype=tl.float32)
+    if NIBBLES:
+        KB: tl.constexpr = BLOCK_K // 2
+        GB: tl.constexpr = BLOCK // 2
+        rb = tl.arange(0, KB)
+        for k0 in range(0, K, BLOCK_K):
+            kb = k0 // 2 + rb
+            ke = k0 + 2 * rb
+            gcol = k0 // BLOCK + rg
+            c = tl.load(cb + rn[:, None] * (K // 2) + kb[None, :], mask=n_mask[:, None], other=0)
+            sc = tl.load(sb + rn[:, None] * n_blocks + gcol[None, :], mask=n_mask[:, None], other=0)
+            sv = tl.load(sv_ptr + sc.to(tl.int32))[:, :, None]
+            lo = tl.reshape(tl.reshape(tl.load(cv_ptr + (c & 0xF).to(tl.int32)), (BLOCK_N, G, GB)) * sv, (BLOCK_N, KB))
+            hi = tl.reshape(tl.reshape(tl.load(cv_ptr + (c >> 4).to(tl.int32)), (BLOCK_N, G, GB)) * sv, (BLOCK_N, KB))
+            xe = tl.load(xrow + ke).to(tl.float32)
+            xo = tl.load(xrow + ke + 1).to(tl.float32)
+            acc += tl.sum(lo * xe[None, :], 1) + tl.sum(hi * xo[None, :], 1)
+        acc = acc * tl.load(o_ptr + e)
+    else:
+        rk0 = tl.arange(0, BLOCK_K)
+        for k0 in range(0, K, BLOCK_K):
+            rk = k0 + rk0
+            gcol = k0 // BLOCK + rg
+            c = tl.load(cb + rn[:, None] * K + rk[None, :], mask=n_mask[:, None], other=0)
+            sc = tl.load(sb + rn[:, None] * n_blocks + gcol[None, :], mask=n_mask[:, None], other=0)
+            sv = tl.load(sv_ptr + sc.to(tl.int32))[:, :, None]
+            w = tl.reshape(tl.reshape(tl.load(cv_ptr + c.to(tl.int32)), (BLOCK_N, G, BLOCK)) * sv, (BLOCK_N, BLOCK_K))
+            xt = tl.load(xrow + rk).to(tl.float32)
+            acc += tl.sum(w * xt[None, :], 1)
+    tl.store(y_ptr + r * stride_y + rn, acc.to(y_ptr.dtype.element_ty), mask=n_mask)
+
+
+def _microscaled_block_k(k: int, block: int) -> int:
+    bk = next((c for c in (128, 64, 32) if k % c == 0 and c % block == 0), 0)
+    if not bk:
+        raise ValueError(f'microscaled experts need K ({k}) a multiple of 32 and of the scale block ({block})')
+    return bk
+
+
+def mgemv_experts(
+        x: torch.Tensor,
+        eids: torch.Tensor,
+        codes: torch.Tensor,
+        scales: torch.Tensor,
+        outer: torch.Tensor | None,
+        code_values: torch.Tensor,
+        scale_values: torch.Tensor,
+        block: int,
+        shape: tuple[int, int],
+        x_div: int = 1,
+        block_n: int = 32,
+) -> torch.Tensor:
+    """
+    y [R, N]: row r = x[r // x_div] @ w[eids[r]].T, w a stack of experts in a microscaled format as stored (codes
+    [E, N, K / 2] with `outer` [E], or [E, N, K] without; scales [E, N, K / block]; the value tables flat float32).
+    """
+
+    ensure_kernels()
+    n, k = shape
+    bk = _microscaled_block_k(k, block)
+    x2 = x if x.stride(-1) == 1 else x.contiguous()
+    r = eids.shape[0]
+    y = torch.empty((r, n), dtype=x.dtype, device=x.device)
+    _mexperts_jit[(triton.cdiv(n, block_n), r)](
+        x2,
+        eids,
+        codes,
+        scales,
+        outer if outer is not None else scale_values,  # (unread without NIBBLES)
+        code_values,
+        scale_values,
+        y,
+        n,
+        k,
+        x2.stride(0),
+        y.stride(0),
+        codes.stride(0),
+        scales.stride(0),
+        NIBBLES=outer is not None,
+        BLOCK=block,
+        X_DIV=x_div,
+        BLOCK_N=block_n,
+        BLOCK_K=bk,
+        num_warps=4,
+    )
+    return y
+
+
+def _mdequant_kernel(
+        c_ptr,
+        s_ptr,
+        o_ptr,
+        cv_ptr,
+        sv_ptr,
+        w_ptr,
+        N,
+        K,
+        NIBBLES: tl.constexpr,
+        BLOCK: tl.constexpr,
+        BLOCK_N: tl.constexpr,
+        BLOCK_K: tl.constexpr,
+):
+    """
+    One microscaled matrix written out dense, one pass: a program stores a [BLOCK_N, BLOCK_K] tile of code value *
+    scale value (* the matrix's factor at o_ptr, with NIBBLES), computed in float32, in the output's dtype. What a
+    prefill's matmul against one expert needs (`_dequant_kernel`, for these formats).
+    """
+
+    rn = tl.program_id(0) * BLOCK_N + tl.arange(0, BLOCK_N)
+    k0 = tl.program_id(1) * BLOCK_K
+    n_mask = rn < N
+    n_blocks = K // BLOCK
+    G: tl.constexpr = BLOCK_K // BLOCK
+    gcol = k0 // BLOCK + tl.arange(0, G)
+    sc = tl.load(s_ptr + rn[:, None] * n_blocks + gcol[None, :], mask=n_mask[:, None], other=0)
+    sv = tl.load(sv_ptr + sc.to(tl.int32))[:, :, None]
+    w_row = w_ptr + rn[:, None].to(tl.int64) * K
+    if NIBBLES:
+        sv = sv * tl.load(o_ptr)
+        KB: tl.constexpr = BLOCK_K // 2
+        GB: tl.constexpr = BLOCK // 2
+        rb = tl.arange(0, KB)
+        c_off = rn[:, None].to(tl.int64) * (K // 2) + (k0 // 2 + rb)[None, :]
+        c = tl.load(c_ptr + c_off, mask=n_mask[:, None], other=0)
+        lo = tl.reshape(tl.reshape(tl.load(cv_ptr + (c & 0xF).to(tl.int32)), (BLOCK_N, G, GB)) * sv, (BLOCK_N, KB))
+        hi = tl.reshape(tl.reshape(tl.load(cv_ptr + (c >> 4).to(tl.int32)), (BLOCK_N, G, GB)) * sv, (BLOCK_N, KB))
+        ke = (k0 + 2 * rb)[None, :]  # the low nibble is the even column
+        tl.store(w_row + ke, lo.to(w_ptr.dtype.element_ty), mask=n_mask[:, None])
+        tl.store(w_row + ke + 1, hi.to(w_ptr.dtype.element_ty), mask=n_mask[:, None])
+    else:
+        rk = (k0 + tl.arange(0, BLOCK_K))[None, :]
+        c = tl.load(c_ptr + rn[:, None].to(tl.int64) * K + rk, mask=n_mask[:, None], other=0)
+        w = tl.reshape(tl.reshape(tl.load(cv_ptr + c.to(tl.int32)), (BLOCK_N, G, BLOCK)) * sv, (BLOCK_N, BLOCK_K))
+        tl.store(w_row + rk, w.to(w_ptr.dtype.element_ty), mask=n_mask[:, None])
+
+
+def mdequantize(
+        codes: torch.Tensor,
+        scales: torch.Tensor,
+        outer: torch.Tensor | None,
+        code_values: torch.Tensor,
+        scale_values: torch.Tensor,
+        block: int,
+        shape: tuple[int, int],
+        dtype: torch.dtype,
+        block_n: int = 16,
+) -> torch.Tensor:
+    """
+    The dense [N, K] weight of one microscaled matrix (codes [N, K / 2] with `outer` [1], or [N, K] without; scales
+    [N, K / block]), in `dtype`: see _mdequant_kernel.
+    """
+
+    ensure_kernels()
+    n, k = shape
+    bk = _microscaled_block_k(k, block)
+    w = torch.empty((n, k), dtype=dtype, device=codes.device)
+    _mdequant_jit[(triton.cdiv(n, block_n), k // bk)](
+        codes,
+        scales,
+        outer if outer is not None else scale_values,  # (unread without NIBBLES)
+        code_values,
+        scale_values,
+        w,
+        n,
+        k,
+        NIBBLES=outer is not None,
+        BLOCK=block,
+        BLOCK_N=block_n,
+        BLOCK_K=bk,
+        num_warps=4,
+    )
+    return w
 
 
 def _dequant_kernel(

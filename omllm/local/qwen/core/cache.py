@@ -1,4 +1,6 @@
 # ruff: noqa: N803 N806 N812
+from omcore import check
+
 from ..ops.base import Array
 from ..ops.base import Ops
 from .config import Qwen35Config
@@ -13,14 +15,21 @@ LinearState = tuple[Array, Array]  # conv: [B, conv_dim, kernel-1] last inputs t
 
 class Cache:
     """
-    One entry per layer. Attention layers grow a KV cache; linear layers keep a fixed-size (conv window, recurrent
-    state) pair -- so 'prefix caching' for 3/4 of the stack is just snapshotting a tensor.
+    One entry per layer of a model's execution order (`Model.new_cache`). Attention layers grow a KV cache; linear
+    layers keep a fixed-size (conv window, recurrent state) pair -- so 'prefix caching' for 3/4 of the stack is just
+    snapshotting a tensor.
+
+    `cfg` sizes it for a model whose execution order is its config's layers, one each; `num_slots` says the number
+    outright.
     """
 
-    def __init__(self, cfg: Qwen35Config) -> None:
+    def __init__(self, cfg: Qwen35Config | None = None, *, num_slots: int | None = None) -> None:
         super().__init__()
 
-        self.layers: list[FullState | LinearState | None] = [None] * cfg.num_layers
+        if num_slots is None:
+            num_slots = check.not_none(cfg).num_layers
+
+        self.layers: list[tuple[Array, ...] | None] = [None] * num_slots
         self.seq_len = 0
 
     def snapshot(self, ops: Ops) -> Cache:

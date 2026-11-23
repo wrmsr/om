@@ -15,16 +15,24 @@ from omcore import lang
 from omcore.logs import all as logs
 
 from ..ops.base import Ops
+from ..ops.microscaled import MicroscaledWeight
+from ..ops.microscaled import e2m1_pair_values
+from ..ops.microscaled import e2m1_values
+from ..ops.microscaled import e4m3_values
+from ..ops.microscaled import pow2_scale_values
 from ..ops.quant import SEARCH_SHRINKS
 from ..ops.quant import QWeight
 from ..ops.quant import quantize as quantize_np
 from .torch_triton import HAVE_TRITON
 from .torch_triton import GemvTable
 from .torch_triton import attn_decode
+from .torch_triton import attn_decode_partials
 from .torch_triton import attn_prefill
 from .torch_triton import dequantize
 from .torch_triton import ensure_kernels
 from .torch_triton import gdn_step
+from .torch_triton import mdequantize
+from .torch_triton import mgemv_experts
 from .torch_triton import qgemv_experts
 from .torch_triton import qlinear
 from .torch_triton import resolve_launch
@@ -121,6 +129,46 @@ class TorchQExperts:
         x = q.reshape(r, n, -1, self.group).to(dtype)
         x = x * self.scale[experts][..., None].to(dtype) + self.bias[experts][..., None].to(dtype)
         return x.reshape(r, n, -1)
+
+
+@dc.dataclass()
+class TorchMicroscaledExperts:
+    """
+    E experts stored in a microscaled float format (ops/microscaled.py), as the checkpoint has them: `codes` uint8
+    [E, N, K / 2] (nvfp4: two 4-bit codes a byte) or [E, N, K] (mxfp8), `scales` uint8 [E, N, K / block], `outer`
+    float32 [E] (nvfp4). The tables turn a byte into its value(s), float32: `code_values` [256, 2] or [256, 1] and
+    `scale_values` [256, 1] for the composed decode (an embedding lookup per byte); `code_table` [16] per 4-bit code
+    (nvfp4) or [256], and `scale_table` [256], flat, for the kernels. `expert_linear` decodes the experts a step
+    reads.
+    """
+
+    fmt: str
+    codes: torch.Tensor
+    scales: torch.Tensor
+    outer: torch.Tensor | None
+    code_values: torch.Tensor
+    scale_values: torch.Tensor
+    code_table: torch.Tensor
+    scale_table: torch.Tensor
+    block: int
+    shape: tuple[int, int]  # one expert's (N, K)
+
+    def nbytes(self) -> int:
+        return self.codes.numel() + self.scales.numel() + (self.outer.numel() * 4 if self.outer is not None else 0)
+
+    def dequant(self, dtype: torch.dtype, experts: torch.Tensor) -> torch.Tensor:
+        """The given experts' weights, [R, N, K] in `dtype`: decoded in float32 (the products exact), then rounded."""
+
+        n, k = self.shape
+        experts = experts.to(torch.int64)
+        r = experts.shape[0]
+
+        x = F.embedding(self.codes[experts].to(torch.int32), self.code_values)  # [R, N, K / per byte, per byte]
+        s = F.embedding(self.scales[experts].to(torch.int32), self.scale_values)  # [R, N, K / block, 1]
+        if self.outer is not None:
+            s = s * self.outer[experts][:, None, None, None]
+
+        return (x.reshape(r, n, k // self.block, self.block) * s).reshape(r, n, k).to(dtype)
 
 
 class CudaGraphStep:
@@ -374,7 +422,7 @@ class TorchOps(Ops):
             torch.mps.synchronize()
 
     def nbytes(self, w):
-        if isinstance(w, TorchQWeight):
+        if isinstance(w, (TorchQWeight, TorchQExperts, TorchMicroscaledExperts)):
             return w.nbytes()
         return w.numel() * w.element_size()
 
@@ -446,6 +494,18 @@ class TorchOps(Ops):
 
     def log(self, x):
         return torch.log(x)
+
+    def tanh(self, x):
+        return torch.tanh(x)
+
+    def sqrt(self, x):
+        return torch.sqrt(x)
+
+    def maximum(self, x, v):
+        return torch.clamp(x, min=v)
+
+    def minimum(self, x, v):
+        return torch.clamp(x, max=v)
 
     def argmax(self, x, axis):
         return torch.argmax(x, dim=axis).to(torch.int32)
@@ -793,10 +853,50 @@ class TorchOps(Ops):
             shape=(sum(w.shape[0] for w in parts[0]), parts[0][0].shape[1]),
         )
 
+    def microscaled(self, mw: MicroscaledWeight, dtype, name=None):
+        f32 = torch.float32
+        nvfp4 = mw.fmt == 'nvfp4'
+        scale_values = e4m3_values() if nvfp4 else pow2_scale_values()
+        return TorchMicroscaledExperts(
+            fmt=mw.fmt,
+            codes=self.array(mw.codes),
+            scales=self.array(mw.scales),
+            outer=self.array(mw.outer, f32) if mw.outer is not None else None,
+            code_values=self.array(e2m1_pair_values() if nvfp4 else e4m3_values()[:, None], f32),
+            scale_values=self.array(scale_values[:, None], f32),
+            code_table=self.array(e2m1_values() if nvfp4 else e4m3_values(), f32),
+            scale_table=self.array(scale_values, f32),
+            block=mw.block,
+            shape=(mw.shape[1], mw.shape[2]),
+        )
+
+    def expert_dense(self, w, e, dtype):
+        if isinstance(w, TorchMicroscaledExperts) and self.triton and w.codes.is_cuda:
+            return mdequantize(
+                w.codes[e],
+                w.scales[e],
+                w.outer[e:e + 1] if w.outer is not None else None,
+                w.code_table,
+                w.scale_table,
+                w.block,
+                w.shape,
+                dtype,
+            )
+        if isinstance(w, (TorchQExperts, TorchMicroscaledExperts)):
+            return w.dequant(dtype, torch.full((1,), e, dtype=torch.int64, device=self.device))[0]
+        return super().expert_dense(w, e, dtype)
+
+    # With the Triton kernel a row costs the expert's packed bytes and nothing else, so a prefill's rows go through
+    # it too until they are so many that decoding each expert present once (`expert_linear_grouped`) reads less:
+    # that many rows an expert of the stack. Measured on Inkling 2 Mini's 128 experts (the 5090): a row costs 0.19
+    # ms of a prefill, the grouped path 1.1 s and 0.03 ms a row, so they cross near 54 rows an expert -- 860 tokens.
+    # At 8 rows an expert, as it was, a 129-token prefill took 1.1 s where a 128-token one took 0.2.
+    microscaled_gemv_rows_per_expert: int = 48
+
     def expert_linear(self, x, w, eids, x_div=1):
-        if not isinstance(w, TorchQExperts):
+        if not isinstance(w, (TorchQExperts, TorchMicroscaledExperts)):
             return super().expert_linear(x, w, eids, x_div)
-        if self.triton and x.is_cuda:
+        if isinstance(w, TorchQExperts) and self.triton and x.is_cuda:
             return qgemv_experts(
                 x,
                 eids.to(torch.int32),
@@ -808,7 +908,25 @@ class TorchOps(Ops):
                 w.shape,
                 x_div=x_div,
             )
+        if isinstance(w, TorchMicroscaledExperts) and self.triton and x.is_cuda:
+            if eids.shape[0] <= self.microscaled_gemv_rows_per_expert * w.codes.shape[0]:
+                return mgemv_experts(
+                    x,
+                    eids.to(torch.int32),
+                    w.codes,
+                    w.scales,
+                    w.outer,
+                    w.code_table,
+                    w.scale_table,
+                    w.block,
+                    w.shape,
+                    x_div=x_div,
+                )
+            rows = x.repeat_interleave(x_div, 0) if x_div > 1 else x
+            return self.expert_linear_grouped(rows, w, eids)
         rows = x.repeat_interleave(x_div, 0) if x_div > 1 else x
+        if rows.shape[0] > self.expert_gather_max_rows:
+            return self.expert_linear_grouped(rows, w, eids)  # (a prefill's rows: expert by expert)
         return (w.dequant(x.dtype, eids) @ rows[:, :, None])[..., 0]
 
     def kv_gather(self, state, positions, dtype):
@@ -941,6 +1059,75 @@ class TorchOps(Ops):
         kd = self._fp8_dequant(kq, ks, q.dtype)
         vd = self._fp8_dequant(vq, vs, q.dtype)
         return super().sdpa_static(q, kd, vd, pos, ar, scale)
+
+    def sdpa_causal_partials(self, q, k, v, last, scale):
+        if not (self.triton and q.is_cuda):
+            return super().sdpa_causal_partials(q, k, v, last, scale)
+
+        # The decode attention kernel, which reads each query row's own keys and keeps no [T, L] of scores: a
+        # prefill's rows at once. One split of the keys -- the splits are for a step's few rows to fill the device
+        # with, and each costs a partial per row.
+        T = q.shape[2]
+        m, l, o = attn_decode_partials(
+            q,
+            k,
+            v,
+            torch.tensor(max(last, -T), dtype=torch.int32, device=q.device),
+            scale,
+            self.attn_splits if T <= 16 else 1,
+        )
+        return torch.clamp(m, min=-1e30), l, o  # (a row with no key: -inf from the kernel)
+
+    def sdpa_static_rel(self, q, state, pos, ar, scale, rel, sink):
+        if not (self.triton and q.is_cuda):
+            return super().sdpa_static_rel(q, state, pos, ar, scale, rel, sink)
+        return self.sdpa_static_rel_split(q, state, pos, scale, rel, sink)
+
+    def sdpa_static_rel_split(self, q, state, pos, scale, rel, sink):
+        """
+        `sdpa_static_rel`, length-aware, in two parts whose softmax partials are merged with the sink. The keys at
+        least E back carry no relative term: they go through the decode attention kernel at a position E earlier (row
+        t then sees the keys up to pos - E + t, which are exactly those), reading the positions in use and no others.
+        The E - 1 + T nearest are gathered and scored here, with the term.
+        """
+
+        B, H, T, D = q.shape
+        E = rel.shape[-1]
+        f32 = torch.float32
+
+        if len(state) == 2:
+            kbuf, vbuf = state
+            ks = vs = None
+        else:
+            kbuf, ks, vbuf, vs = state
+        far_pos = torch.clamp(pos - E, min=-T)
+        m_far, l_far, o_far = attn_decode_partials(q, kbuf, vbuf, far_pos, scale, self.attn_splits, ks=ks, vs=vs)
+
+        n = E - 1 + T
+        qpos = pos.reshape(1) + torch.arange(T, device=q.device, dtype=torch.int32)
+        kpos = (pos.reshape(1) - (E - 1)) + torch.arange(n, device=q.device, dtype=torch.int32)
+        kg, vg = self.kv_gather(state, torch.clamp(kpos, min=0), q.dtype)  # [KV, n, D]
+        KV = kg.shape[0]
+        G = H // KV
+
+        delta = qpos[:, None] - kpos[None, :]  # [T, n]
+        near = (delta >= 0) & (delta < E) & (kpos >= 0)[None, :]
+        bias = self.rel_bias(rel, qpos, kpos) + torch.where(near, 0.0, -1e30)[..., None]  # [T, n, H]
+
+        qg = q[0].reshape(KV, G * T, D)  # row g * T + t of kv head
+        scores = (qg @ kg.transpose(1, 2)).to(f32).reshape(H, T, n) * scale + bias.permute(2, 0, 1)
+        m_near = scores.amax(-1)  # [H, T]: finite, every query sees itself
+        p = torch.exp(scores - m_near[..., None])
+        l_near = p.sum(-1)
+        o_near = (p.reshape(KV, G * T, n).to(vg.dtype) @ vg).to(f32).reshape(H, T, D)
+
+        m_far, l_far, o_far, z = m_far[0], l_far[0], o_far[0], sink[0].to(f32)
+        top = torch.maximum(torch.maximum(m_near, m_far), z)
+        w_near = torch.exp(m_near - top)
+        w_far = torch.exp(m_far - top)
+        denom = w_near * l_near + w_far * l_far + torch.exp(z - top)
+        out = (w_near[..., None] * o_near + w_far[..., None] * o_far) / denom[..., None]
+        return out[None].to(q.dtype)
 
     def sdpa(
             self,

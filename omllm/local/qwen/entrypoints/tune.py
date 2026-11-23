@@ -6,12 +6,14 @@ Tune the Triton int4/int8 GEMV launch configurations for a model's projection sh
 import argparse
 import typing as ta
 
+from omcore import check
 from omcore import lang
 from omcore.logs import all as logs
 
 from ..backends.torch_triton import load_tuned
 from ..backends.torch_triton import save_tuned
 from ..backends.torch_triton import tune
+from ..core.config import Qwen35Config
 from ..core.params import mtp_param_names
 from ..core.params import required_param_names
 from ..load.policies import fusion_of
@@ -43,7 +45,7 @@ def model_shapes(
     """
 
     src = open_source(model)
-    cfg = src.config
+    cfg = check.isinstance(src.config, Qwen35Config)  # (the dense Qwen architecture's shapes: core/params.py)
     names = required_param_names(cfg) + (mtp_param_names() if with_mtp and cfg.num_mtp_layers else [])
     if 'lm_head.weight' in set(src.names()):
         names.append('lm_head.weight')

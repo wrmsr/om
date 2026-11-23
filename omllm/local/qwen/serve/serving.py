@@ -33,8 +33,6 @@ import uuid
 
 from omcore import dataclasses as dc
 
-from ..constrain.grammar import JsonConstraint
-from ..constrain.grammar import ToolConstraint
 from ..constrain.grammar import Vocab
 from ..core.errors import Cancelled
 from ..decode.generation import Generation
@@ -44,15 +42,14 @@ from ..decode.runners import GenerationParams
 from ..decode.runners import GenerationRunner
 from ..decode.terminators import StopStringTerminator
 from ..prefix.cache import PrefixCache
-from ..tokenizer import DEFAULT_REASONING_EFFORT
-from ..tokenizer import REASONING_EFFORT_INSTRUCTIONS
 from ..tokenizer import Tokenizer
 from .chat import ChatFormat
-from .chat import StreamParser
-from .chat import chat_format_for
-from .chat import parse_output
-from .chat import render_assistant_turn
-from .chat import render_chat
+from .chatml import reasoning_effort_of
+from .protocols import ChatEvent
+from .protocols import ChatProtocol
+from .protocols import ChatReader
+from .registry import ChatOptions
+from .registry import chat_protocol_for
 
 
 ##
@@ -67,35 +64,6 @@ class SamplingDefaults:
     presence_penalty: float = 0.0
     frequency_penalty: float = 0.0
     max_tokens: int = 4096
-
-
-# OpenAI's names for reasoning efforts the checkpoint's template (tokenizer.py) does not have, as the nearest it does
-REASONING_EFFORT_ALIASES: ta.Mapping[str, str] = {
-    'minimal': 'low',
-    'high': 'xhigh',
-    'max': 'xhigh',
-}
-
-
-def reasoning_effort_of(value: ta.Any) -> tuple[str | None, bool | None]:
-    """
-    A request's `reasoning_effort` as (the template's level or None, whether it settles thinking or None): the
-    template's own levels as they are, OpenAI's other names as the nearest of them, 'none' as thinking off. Anything
-    else is the client's mistake.
-    """
-
-    if value is None:
-        return None, None
-    v = str(value).lower()
-    if v == 'none':
-        return None, False
-    v = REASONING_EFFORT_ALIASES.get(v, v)
-    if v not in REASONING_EFFORT_INSTRUCTIONS:
-        raise ValueError(
-            f'reasoning_effort must be one of {", ".join(REASONING_EFFORT_INSTRUCTIONS)} '
-            f'(or none, {", ".join(REASONING_EFFORT_ALIASES)}): {value!r}',
-        )
-    return v, None
 
 
 @dc.dataclass()
@@ -116,10 +84,21 @@ class Request:
     model: str | None = None
     tool_choice: ta.Any = 'auto'  # 'auto' | 'none' | 'required' | {'type': 'function', 'function': {'name': ...}}
     response_format: ta.Any = None  # {'type': 'json_object'} | {'type': 'json_schema', 'json_schema': {'schema': ..}}
-    reasoning_effort: str | None = None  # a level of the checkpoint's template; None: the server's default
+    reasoning_effort: ta.Any = None  # a level of the checkpoint's chat protocol; None: the server's default
 
     @classmethod
-    def from_json(cls, body: dict, defaults: SamplingDefaults, enable_thinking: bool) -> Request:
+    def from_json(
+            cls,
+            body: dict,
+            defaults: SamplingDefaults,
+            enable_thinking: bool,
+            effort_of: ta.Callable[[ta.Any], tuple[ta.Any, bool | None]] = reasoning_effort_of,
+    ) -> Request:
+        """
+        `effort_of`: the chat protocol's reading of a request's `reasoning_effort` (`ChatProtocol.reasoning_effort`;
+        the default is the Qwen formats').
+        """
+
         msgs = body.get('messages')
         if not isinstance(msgs, list) or not msgs:
             raise ValueError('messages must be a non-empty list')
@@ -127,7 +106,7 @@ class Request:
         if isinstance(stop, str):
             stop = [stop]
         kw = body.get('chat_template_kwargs') or {}
-        effort, effort_thinks = reasoning_effort_of(body.get('reasoning_effort', kw.get('reasoning_effort')))
+        effort, effort_thinks = effort_of(body.get('reasoning_effort', kw.get('reasoning_effort')))
         if effort_thinks is not None:
             enable_thinking = effort_thinks  # (an explicit enable_thinking still has the last word)
         think = body.get('enable_thinking', kw.get('enable_thinking', enable_thinking))
@@ -221,16 +200,14 @@ class _ChatStream(Observer):
             *,
             eos: ta.Container[int],
             stop: StopStringTerminator,
-            deliver: ta.Callable[[list[tuple[str, ta.Any]]], None] | None,
+            deliver: ta.Callable[[list[ChatEvent]], None] | None,
             t0: float,
-            think_open: bool = False,
-            fmt: ChatFormat | None = None,
-            tools: ta.Sequence[dict] | None = None,
+            reader: ChatReader,
     ) -> None:
         super().__init__()
 
         self._streamer = Tokenizer.Streamer(tok)
-        self._parser = StreamParser(think_open, fmt, tools) if fmt is not None else StreamParser(think_open)
+        self._parser = reader
         self._eos = eos
         self._stop = stop
         self._deliver = deliver
@@ -250,7 +227,7 @@ class _ChatStream(Observer):
             self.first_token_s = time.time() - self._t0
         for t in kept:
             self.ids.append(t)
-            if t not in self._eos:  # (it would otherwise decode to '<|im_end|>')
+            if t not in self._eos:  # (it would otherwise decode to the end-of-turn token's text)
                 self._push(self._streamer.push(t))
 
     def _push(self, piece: str) -> None:
@@ -280,46 +257,13 @@ class _ChatStream(Observer):
         return text, stopped
 
 
-def _constraint(
-        req: Request,
-        tok: Tokenizer,
-        think_open: bool = False,
-        call_syntax: str = 'json',
-) -> ToolConstraint | JsonConstraint | None:
-    """
-    Tools present: every tool call the model opens is grammar-constrained to the declared schemas, in the call syntax
-    of the checkpoint's chat format, and tool_choice 'none' / 'required' / a named function forbids or forces one
-    (constrain/grammar.py). Without tools, response_format json_object / json_schema constrains the content to one
-    JSON value instead.
-    """
-
-    if req.tools:
-        return ToolConstraint(
-            tok,
-            req.tools,
-            req.tool_choice or 'auto',
-            thinking=req.enable_thinking,
-            think_open=think_open,
-            syntax=call_syntax,
-        )
-
-    rf = req.response_format
-    if isinstance(rf, dict) and rf.get('type') in ('json_object', 'json_schema'):
-        schema: ta.Any = {}
-        if rf.get('type') == 'json_schema':
-            js = rf.get('json_schema') or {}
-            schema = js.get('schema', js) if isinstance(js, dict) else {}
-        return JsonConstraint(tok, schema, thinking=req.enable_thinking, think_open=think_open)
-
-    return None
-
-
 class Engine:
     """
     Serves chat requests one at a time on a worker thread: renders and tokenises a request (substituting the ids of
     answers it produced, so a follow-up extends the earlier ids exactly), runs the generation through a
     GenerationRunner, and parses the output back into content, reasoning and tool calls, streamed or whole. What a
-    generation is made of -- the model, speculation, the store, the decode capacity -- is the runner's business.
+    generation is made of -- the model, speculation, the store, the decode capacity -- is the runner's business; how a
+    conversation is written and read is the chat protocol's (protocols.py).
     `start()` starts the worker; nothing runs at construction.
     """
 
@@ -335,20 +279,21 @@ class Engine:
             reasoning_effort: str | None = None,
             open_think: bool | None = None,
             chat_format: ChatFormat | None = None,
+            protocol: ChatProtocol | None = None,
             max_queue: int = 4,
             model_name: str = 'qwen',
             log: ta.Callable[[str], None] | None = print,
     ) -> None:
         """
-        `chat_format`: the format requests are rendered in, tool calls constrained to and answers parsed from
-        (serve/chat.py's `ChatFormat`); None is the checkpoint's own, as its chat template shows it
-        (`chat_format_for`) -- the legacy format for a checkpoint without one.
+        `protocol`: the chat protocol requests are rendered in and answers read from; None is the checkpoint's own, as
+        its tokenizer shows it (`chat_protocol_for`), made with the options here:
 
-        `reasoning_effort`: the level a request that names none is rendered at, for a checkpoint whose chat template
-        takes one (`Tokenizer.reasoning_efforts`); None is the template's own default, its highest.
+        `reasoning_effort`: the effort a request that names none is rendered at, where the protocol takes one; None is
+        the protocol's own default.
 
-        `open_think`: with thinking on, the generation prompt ends with the opened reasoning block (`render_chat`) and
-        the answer is read as starting inside it; None is as the chat format has it.
+        `chat_format`, `open_think`, `preserve_thinking`: the Qwen formats' (chatml.py's `ChatmlProtocol`) -- the
+        format itself where the checkpoint's own is not wanted, whether the generation prompt opens the reasoning
+        block, and whether reasoning is kept in every rendered turn.
         """
 
         super().__init__()
@@ -358,23 +303,15 @@ class Engine:
         self.prefix_cache = prefix_cache
         self.defaults = defaults or SamplingDefaults()
         self.enable_thinking = enable_thinking
-        self.preserve_thinking = preserve_thinking
-        tok.reasoning_instruction(reasoning_effort)  # (raises on a level the template does not have)
-        self.reasoning_effort = reasoning_effort
-        self.format = chat_format if chat_format is not None else chat_format_for(tok)
-        self.open_think = self.format.open_think if open_think is None else open_think
+        self.protocol = protocol if protocol is not None else chat_protocol_for(tok, ChatOptions(
+            reasoning_effort=reasoning_effort,
+            chat_format=chat_format,
+            open_think=open_think,
+            preserve_thinking=preserve_thinking,
+        ))
         self.model_name = model_name
         self.log = log
-        self.eos = {
-            i
-            for i in (
-                tok.eos_id,
-                tok.special.get('<|im_end|>'),
-                tok.special.get('<|endoftext|>'),
-            )
-            if i is not None
-        }
-        self.im_end = tok.special.get('<|im_end|>')
+        self.eos = set(self.protocol.eos_ids)
         self.queue: queue.Queue = queue.Queue(maxsize=max_queue)
         self.answer_ids: dict[str, list[int]] = {}  # rendered assistant turn -> the ids that produced it
         self.answer_order: list[str] = []
@@ -424,28 +361,18 @@ class Engine:
     # prompts
 
     def render(self, req: Request) -> str:
-        return render_chat(
+        return self.protocol.render(
             req.messages,
             req.tools,
-            add_generation_prompt=True,
             enable_thinking=req.enable_thinking,
-            preserve_thinking=self.preserve_thinking,
-            reasoning_instruction=self.tok.reasoning_instruction(
-                req.reasoning_effort or self.reasoning_effort,
-                req.enable_thinking,
-            ),
-            open_think=self.open_think,
-            fmt=self.format,
+            reasoning_effort=req.reasoning_effort,
         )
 
     def describe_format(self) -> dict[str, ta.Any]:
         """How requests are rendered, for the log and /health: the chat format, and what a request can change of it."""
 
-        effort = self.reasoning_effort or (DEFAULT_REASONING_EFFORT if self.tok.reasoning_efforts else None)
         return {
-            'chat_format': self.format.name,
-            'open_think': self.open_think,
-            'reasoning_effort': effort,
+            **self.protocol.describe(),
             'thinking': self.enable_thinking,
         }
 
@@ -476,14 +403,11 @@ class Engine:
         return ids
 
     def _remember_answer(self, gen_prompt_ids: list[int], out_ids: list[int], msg: dict) -> None:
-        # (as `render_chat` will render this turn when it comes back: with its reasoning block, which in the newer
-        # formats is there even when empty)
-        always = self.preserve_thinking or self.format.empty_think
-        seg = render_assistant_turn(msg, with_reasoning=True if always else None, fmt=self.format)
-        ids = list(gen_prompt_ids) + list(out_ids)
-        if self.im_end is not None and (not ids or ids[-1] != self.im_end):
-            ids.append(self.im_end)
-        ids.extend(self.tok.encode('\n'))
+        try:
+            seg = self.protocol.answer_segment(msg)  # (as this turn will be rendered when it comes back)
+        except ValueError:
+            return  # (an answer no request can bring back -- a call the length cut short: nothing to resume)
+        ids = list(gen_prompt_ids) + self.protocol.close_answer(out_ids)
         if seg in self.answer_ids:
             self.answer_order.remove(seg)
         self.answer_ids[seg] = ids
@@ -492,6 +416,12 @@ class Engine:
             del self.answer_ids[self.answer_order.pop(0)]
 
     # requests
+
+    def check(self, req: Request) -> None:
+        """Raises ValueError for a request the chat protocol cannot render or hold a generation to: the client's."""
+
+        self.render(req)
+        self.protocol.check(req.tools, req.tool_choice, req.response_format)
 
     def submit(self, req: Request) -> Job:
         job = Job(req)
@@ -541,31 +471,28 @@ class Engine:
     def _run(self, job: Job) -> None:
         req = job.req
         tok = self.tok
+        protocol = self.protocol
         self.n_requests += 1
         t0 = time.time()
         text = self.render(req)
         ids = self.encode_prompt(text)
-        # the generation prompt's own ids (the tail after the last '<|im_start|>assistant'), for the answer memo
-        tail_text = text[text.rfind('<|im_start|>assistant'):]
-        gen_prompt_ids = tok.encode(tail_text)
+        # the generation prompt's own ids (the part of the prompt that is already the answer's turn), for the memo
+        gen_prompt_ids = tok.encode(protocol.generation_prompt(text))
 
-        def deliver(events: list[tuple[str, ta.Any]]) -> None:
+        def deliver(events: list[ChatEvent]) -> None:
             for kind, payload in events:
                 job.events.put(('delta', kind, payload))
 
         # stop strings end the generation through a terminator, which cuts the round at the token completing one, so the
         # stored state ends there too; the answer (and what streams) ends where the stop string starts
         stop = StopStringTerminator(tok, req.stop or (), end_ids=self.eos)
-        opened = self.open_think and req.enable_thinking  # the prompt ends inside the reasoning block
         answer = _ChatStream(
             tok,
             eos=self.eos,
             stop=stop,
             deliver=deliver if req.stream else None,
             t0=t0,
-            think_open=opened,
-            fmt=self.format,
-            tools=req.tools,
+            reader=protocol.reader(req.tools, enable_thinking=req.enable_thinking),
         )
         prefill = _PrefillStats()
 
@@ -580,14 +507,19 @@ class Engine:
             presence_penalty=req.presence_penalty,
             frequency_penalty=req.frequency_penalty,
             eos_ids=frozenset(self.eos),
-            constraint=_constraint(req, tok, opened, self.format.call_syntax),
+            constraint=protocol.constraint(
+                req.tools,
+                req.tool_choice,
+                req.response_format,
+                enable_thinking=req.enable_thinking,
+            ),
             should_stop=lambda: job.cancelled,  # (polled between prefill chunks and rounds)
             terminators=[stop],
             observers=[answer, prefill],
         ))
 
         full, stopped = answer.finish()
-        parsed = parse_output(full, think_open=opened, fmt=self.format, tools=req.tools)
+        parsed = protocol.parse(full, req.tools, enable_thinking=req.enable_thinking)
         out_ids = answer.ids
         if parsed.tool_calls:
             finish = 'tool_calls'
@@ -753,7 +685,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         try:
             n = int(self.headers.get('Content-Length') or 0)
             body = json.loads(self.rfile.read(n) or b'{}')
-            req = Request.from_json(body, eng.defaults, eng.enable_thinking)
+            req = Request.from_json(body, eng.defaults, eng.enable_thinking, eng.protocol.reasoning_effort)
+            eng.check(req)
         except (ValueError, TypeError) as e:
             self._json(400, {'error': {'message': str(e), 'type': 'invalid_request_error'}})
             return

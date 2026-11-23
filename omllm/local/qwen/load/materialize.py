@@ -23,7 +23,7 @@ else:
     np = lang.proxy_import('numpy')
 
 
-Acquired: ta.TypeAlias = ta.Literal['cache', 'repack', 'quantize', 'dense']
+Acquired: ta.TypeAlias = ta.Literal['cache', 'native', 'repack', 'quantize', 'dense']
 
 
 ##
@@ -84,6 +84,22 @@ class ParamMaterializer:
 
         return self._ops.qweight(qw, self._dtype, name=spec.name)
 
+    def _native(self, spec: ParamSpec) -> Weight | None:
+        """
+        A tensor the source stores in a microscaled float format (ops/microscaled.py), adopted as it is: the
+        checkpoint's own bytes, which are the weights exactly and smaller than any re-encoding of them. Neither
+        quantized (whatever the recipe's width: it is for the tensors a source holds dense) nor cached.
+        """
+
+        if len(spec.parts) != 1:
+            return None
+
+        mw = self._src.get_microscaled(spec.parts[0])
+        if mw is None:
+            return None
+
+        return self._ops.microscaled(mw, self._dtype, name=spec.name)
+
     def _read(self, spec: ParamSpec) -> np.ndarray:
         if len(spec.parts) == 1:
             return np.array(self._src.get(spec.parts[0]), dtype=np.float32, copy=True)
@@ -108,6 +124,9 @@ class ParamMaterializer:
 
     def materialize(self, spec: ParamSpec) -> tuple[Weight, Acquired, bool]:
         """The adopted parameter, how it was obtained, and whether it is held quantized."""
+
+        if (p := self._native(spec)) is not None:
+            return p, 'native', False
 
         if (got := self._cached(spec)) is not None:
             return got[0], 'cache', got[1]

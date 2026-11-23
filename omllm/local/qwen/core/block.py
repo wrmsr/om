@@ -7,6 +7,7 @@ from ..ops.base import Weight
 from .mixing import CompositeStateLayout
 from .mixing import Connection
 from .mixing import FeedForward
+from .mixing import Layer
 from .mixing import LayerEmbedding
 from .mixing import Mixer
 from .mixing import StateLayout
@@ -16,7 +17,7 @@ from .mixing import StepContext
 ##
 
 
-class Block:
+class Block(Layer):
     """
     One layer as a composition: read the mixer's input from the residual stream, mix, write the result back; the same
     for the feed-forward. Which mixer, which feed-forward and which connections to the stream is the architecture's

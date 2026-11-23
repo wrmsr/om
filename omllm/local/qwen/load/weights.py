@@ -49,8 +49,10 @@ from omcore import dataclasses as dc
 from omcore import lang
 from omcore.logs import all as logs
 
+from ..core.config import ModelConfig
 from ..core.config import Qwen4ExpConfig
 from ..core.config import Qwen35Config
+from ..ops.microscaled import MicroscaledWeight
 
 
 if ta.TYPE_CHECKING:
@@ -184,12 +186,35 @@ class SafetensorsFile:
     def names(self) -> list[str]:
         return list(self.header.keys())
 
+    def dtype(self, name: str) -> str:
+        """The stored dtype's safetensors name ('BF16', 'U8', 'F8_E4M3', ...)."""
+
+        return self.header[name]['dtype']
+
+    def shape(self, name: str) -> tuple[int, ...]:
+        return tuple(self.header[name]['shape'])
+
+    def raw(self, name: str) -> np.ndarray:
+        """
+        A one-byte-per-element tensor's bytes as stored, uint8 in its shape, memory-mapped: for a tensor whose bytes
+        are codes of a format numpy has no dtype for ('F8_E4M3') or that only its reader knows how to pair with
+        others. Not numbers: see ops/microscaled.py.
+        """
+
+        info = self.header[name]
+        if info['dtype'] not in ('U8', 'I8', 'F8_E4M3', 'F8_E5M2'):
+            raise ValueError(f'{name}: {info["dtype"]} is not a one-byte dtype')
+        start, end = info['data_offsets']
+        return self._mm[self._base + start:self._base + end].reshape(tuple(info['shape']))
+
     def get(self, name: str) -> np.ndarray:
         info = self.header[name]
         start, end = info['data_offsets']
         buf = self._mm[self._base + start:self._base + end]
         dt = info['dtype']
         shape = tuple(info['shape'])
+        if dt not in _st_dtypes():
+            raise ValueError(f'{name}: no numeric reading of safetensors dtype {dt} (see `raw`)')
         if dt == 'BF16':
             return bf16_to_f32(np.frombuffer(buf, dtype=np.uint16)).reshape(shape)
         arr = np.frombuffer(buf, dtype=_st_dtypes()[dt]).reshape(shape)
@@ -244,7 +269,7 @@ class NativeQuant:
 
 
 class TensorSource:
-    config: Qwen35Config
+    config: ModelConfig
     tokenizer_spec: dict  # see tokenizer.py
 
     def names(self) -> list[str]:
@@ -255,6 +280,14 @@ class TensorSource:
 
     def get_quant(self, name: str) -> NativeQuant | None:
         """The tensor in its stored quantized form, if the source has one that quant.py can use directly."""
+
+        return None
+
+    def get_microscaled(self, name: str) -> MicroscaledWeight | None:
+        """
+        The tensor as the source stores it in a microscaled float format (ops/microscaled.py), if it does: a stack of
+        matrices a backend adopts as it is, where `get` would expand it to float32.
+        """
 
         return None
 
@@ -284,6 +317,8 @@ def _untile_v_heads(
 
 class GGUFSource(TensorSource):
     """GGUF produced by llama.cpp's converter (arch `qwen35`)."""
+
+    config: Qwen35Config
 
     def __init__(self, path: str | pathlib.Path) -> None:
         from .gguf.reader import GGUFReader
@@ -566,6 +601,8 @@ class GGUFSource(TensorSource):
 
 class OllamaTensorSource(TensorSource):
     """Ollama's newer blob format: per-tensor packed safetensors with HF names."""
+
+    config: Qwen35Config
 
     _PREFIXES = ('model.language_model.', 'model.')
 
@@ -861,12 +898,17 @@ class HFSource(OllamaTensorSource):
 # Entry point
 
 
-def resolve_weights(model: str) -> pathlib.Path | OllamaModel | HFSource:
-    """`model` -> a GGUF path, or the Ollama manifest for tensor-blob models."""
+def resolve_weights(model: str) -> pathlib.Path | OllamaModel | TensorSource:
+    """
+    `model` -> a GGUF path, the Ollama manifest for tensor-blob models, or -- for a Hugging Face checkpoint directory
+    -- the source itself, of whichever family its config names (families.py).
+    """
 
     p = pathlib.Path(model).expanduser()
     if p.is_dir():
-        return HFSource(find_hf_checkpoint(p))
+        from .families import open_hf_source  # (a function-local import: the families' readers build on this module)
+
+        return open_hf_source(str(find_hf_checkpoint(p)))
     if p.is_file() and p.suffix == '.gguf':
         return p
     if p.is_file():  # maybe a raw blob: sniff magic
@@ -891,7 +933,7 @@ def open_source(model: str) -> TensorSource:
     """`model` is an Ollama model name (qwen3.5:0.8b), a path to a .gguf, or a path to an Ollama manifest."""
 
     r = resolve_weights(model)
-    if isinstance(r, HFSource):
+    if isinstance(r, TensorSource):
         return r
     if isinstance(r, OllamaModel):
         return OllamaTensorSource(r)

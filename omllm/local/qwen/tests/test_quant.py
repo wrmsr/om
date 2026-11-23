@@ -2,11 +2,13 @@
 """Quantized-weight path tests (see quant.py). Reuses the synthetic model builders from test_synthetic.py."""
 import pathlib
 import tempfile
+import typing as ta
 
 import numpy as np
 
 from ..api import generate
 from ..arch.qwen35 import load_qwen35
+from ..core.block import Block
 from ..core.config import Qwen35Config
 from ..load.weights import GGUFSource
 from ..load.weights import OllamaTensorSource
@@ -85,7 +87,7 @@ def test_model_quant():
         m = load_qwen35(src, ops, dtype='f32', verbose=False, quant=quant)
         # the big 2-D weights are QWeights; norms / A / dt_bias / conv / in_proj_{a,b} are not
         assert isinstance(m.embed, TorchQWeight) and isinstance(m.lm_head, TorchQWeight)
-        blk = m.blocks[0].mixer
+        blk = ta.cast(Block, m.blocks[0]).mixer
         assert (
             isinstance(blk.w_qkvz, TorchQWeight) and  # type: ignore
             isinstance(blk.w_ab, TorchQWeight) and  # type: ignore
@@ -113,11 +115,11 @@ def test_model_quant():
     assert tsrc.get_quant('layers.0.mlp.gate_proj.weight') is not None
     assert tsrc.get_quant('layers.0.input_layernorm.weight') is None
     n_native = 0
-    for i, blk in enumerate(m_q8.blocks):  # type: ignore
+    for i, blk in enumerate(m_q8.blocks):  # type: ignore[assignment]
         for attr in ('wgu', 'wd'):
             qw = getattr(blk.ffn, attr)  # type: ignore
             assert isinstance(qw, TorchQWeight)
-            assert torch.equal(qw.dequant(torch.float32), getattr(m_f32.blocks[i].ffn, attr))
+            assert torch.equal(qw.dequant(torch.float32), getattr(ta.cast(Block, m_f32.blocks[i]).ffn, attr))
             n_native += 1
     assert torch.equal(m_q8.lm_head.dequant(torch.float32), m_f32.lm_head)
     err = np.abs(ops.numpy(m_q8.forward(ids)) - ops.numpy(m_f32.forward(ids))).max()
@@ -238,7 +240,7 @@ def test_precision_policy():
     ref = load_qwen35(src, ops, dtype='f32', verbose=False)
     for cache_dir in (None, tmp / 'cache'):
         m = load_qwen35(src, ops, dtype='f32', quant='int4', verbose=False, policy='km', cache_dir=cache_dir)
-        attn = m.blocks[3].mixer
+        attn = ta.cast(Block, m.blocks[3]).mixer
         assert attn.wqkv is None and attn.wv.bits == 8 and attn.wq.bits == 4  # type: ignore
         down_bits = [m.blocks[i].ffn.wd.bits for i in (0, 1, 3)]  # type: ignore
         assert down_bits == [8, 4, 8], down_bits

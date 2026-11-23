@@ -7,6 +7,8 @@ different parts; nothing below the architecture learns about either.
 import os
 import typing as ta
 
+from omcore.logs import all as logs
+
 from ..core.attention import Attention
 from ..core.block import Block
 from ..core.block import block_params
@@ -22,6 +24,7 @@ from ..core.model import Qwen35
 from ..core.mtp import MtpHead
 from ..core.params import mtp_param_names
 from ..core.params import required_param_names
+from ..core.positions import RopeStepPositions
 from ..load.pipeline import LoadReport
 from ..load.pipeline import ParamLoader
 from ..load.pipeline import open_param_cache
@@ -31,12 +34,16 @@ from ..load.recipe import LoadRecipe
 from ..load.weights import TensorSource
 from ..ops.base import Ops
 from ..ops.base import Weight
+from .base import Architecture
 
 
 ##
 
 
-class Qwen35Architecture:
+log = logs.get_module_logger(globals())
+
+
+class Qwen35Architecture(Architecture):
     """
     Qwen3.5's hybrid stack: three Gated DeltaNet layers to every gated-attention layer (the config's `layer_types`), a
     dense SwiGLU after every mixer, one plain residual stream, and an optional one-layer MTP draft head with a
@@ -132,6 +139,7 @@ class Qwen35Architecture:
             lm_head=lm_head,
             blocks=blocks,
             residual=self._residual(cfg, params['norm.weight']),
+            positions=RopeStepPositions(rope_dim=cfg.rope_dim, rope_theta=cfg.rope_theta),
             mtp=mtp,
             nbytes=sum(ops.nbytes(p) for p in params.values()),
         )
@@ -155,6 +163,15 @@ class Qwen35Architecture:
         """
 
         cfg = src.config
+        if not isinstance(cfg, Qwen35Config):
+            raise TypeError(cfg)
+
+        if cfg.rope_scaling:
+            log.warning(
+                'rope_scaling=%s present; only plain RoPE is implemented (fine for prompts within the original '
+                'context length)',
+                cfg.rope_scaling,
+            )
 
         loader = ParamLoader(
             src,
@@ -191,8 +208,9 @@ def load_qwen35(
         quant_search: bool = True,
 ) -> Qwen35:
     """
-    A Qwen3.5-family model from a source -- whichever architecture its config is (arch/registry.py), Qwen3.8-Flash-Next
-    included -- for scripts, tests and the CLIs (the injector bindings use the architecture directly).
+    A model from a source -- whichever architecture its config is (arch/registry.py): the Qwen3.5 family,
+    Qwen3.8-Flash-Next, Inkling 2 -- for scripts, tests and the CLIs (the injector bindings use the architecture
+    directly). The name is this package's first model's.
 
     dtype: 'bf16' | 'f16' | 'f32' (compute dtype; norms, A, dt_bias, conv stay f32).
     quant: None, 'int8' or 'int4' (weight-only affine, see ops/quant.py). If the source already holds MLX-quantized
@@ -208,11 +226,6 @@ def load_qwen35(
     """
 
     cfg = src.config
-    if verbose and cfg.rope_scaling:
-        print(
-            f'[model] WARNING: rope_scaling={cfg.rope_scaling} present; only plain RoPE is implemented '
-            f'(fine for prompts within the original context length)',
-        )
 
     def progress(done: int, total: int) -> None:
         if done % 50 == 1 or done == total:

@@ -219,7 +219,7 @@ class MtpDraftSource(DraftSource):
         """
 
         ops = self._ops
-        c = self._model.cfg
+        c = check.not_none(self._model.mtp).cfg  # (the head's own: its block has the text model's geometry)
         dec = self._decoder(gen)
         T = Decoder.PREFILL_T
 

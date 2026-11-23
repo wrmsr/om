@@ -160,10 +160,10 @@ class Decoder(TargetDecoder):
             weakref.finalize(self, model.put_slab, self._leaves).atexit = False
 
     def _buffers(self) -> list[tuple[Array, ...] | None]:
-        """Per layer, the state arrays of a layer whose state lives in capacity buffers (None for a fixed-size one)."""
+        """Per layer, the arrays of its state that live in capacity buffers (None for a layer with none)."""
 
         return [
-            st if layout.capacity(self.ops, st) is not None else None
+            layout.buffers(self.ops, st) or None
             for layout, st in self._layers(self.flat)
         ]
 
@@ -224,7 +224,7 @@ class Decoder(TargetDecoder):
         self.capacity = capacity
         if not first:  # (the constructor has laid each layer's state out already, as it took it)
             self._pad_to(capacity)
-        self.ar, self.cos_tab, self.sin_tab = self.model.decode_tables(capacity)
+        self._tables = self.model.decode_tables(capacity)  # (arange(capacity), then the architecture's own)
 
         self.fns = {}
 
@@ -253,12 +253,12 @@ class Decoder(TargetDecoder):
             if all_states:
                 self.fns[key] = self.ops.capture(fn)
             else:
-                # (tokens, position, three tables, state) -> (logits, [hidden,] state): the state goes round as it is
-                self.fns[key] = self.ops.capture_carrying(fn, 2 if return_hidden else 1, 5)
+                # (tokens, position, tables, state) -> (logits, [hidden,] state): the state goes round as it is
+                self.fns[key] = self.ops.capture_carrying(fn, 2 if return_hidden else 1, 2 + len(self._tables))
         return self.fns[key]
 
-    def tables(self) -> tuple[Array, Array, Array]:
-        return self.ar, self.cos_tab, self.sin_tab
+    def tables(self) -> tuple[Array, ...]:
+        return self._tables
 
     def ensure_capacity(self, n: int) -> None:
         if n > self.capacity:
@@ -284,7 +284,7 @@ class Decoder(TargetDecoder):
     def export_cache(self) -> Cache:
         """The functional `Cache` equivalent of the static state: exact-length KV, copied."""
 
-        c = Cache(self.model.cfg)
+        c = self.model.new_cache()
         c.seq_len = self.seq_len
         for i, (layout, st) in enumerate(self._layers(self.flat)):
             c.layers[i] = layout.export(self.ops, st, self.seq_len)

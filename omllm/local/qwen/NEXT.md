@@ -19,6 +19,17 @@ option; prefix snapshots with device and pinned-host tiers; an OpenAI-dialect se
 calls and JSON mode; a KL harness for quality; a small local agent for exercising the loop.
 
 
+## 00. Inkling 2 Mini (2026-11-22)
+
+A third architecture, and the first that is not a Qwen: `thinkingmachines/Inkling-2-Mini` runs through this engine
+from its released Hugging Face checkpoint, the text decoder exact against the reference implementation at float32,
+served with reasoning and tool calls. INKLING.md is its document: what was added to the engine to hold it (a model's
+execution order as layers with their own state slots, the chat protocol as an interface, packed float weights as
+stored, a sliding-window KV state, a grammar controller for framed messages), what was verified, and what is left
+-- attention for long prefills, its draft model, the launches of an uncompiled step. Nothing below was written with it in mind; where an item says "the
+model" it means the 27B.
+
+
 ## 0. Immediate: the checkpoints' own chat format
 
 **Found 2026-11-13, by rendering the checkpoints' chat templates as a black box (`tests/chat_oracle.py`) beside

@@ -196,7 +196,7 @@ class VerifyTokenSource(TokenSource):
         ):
             return
 
-        c = Cache(self._model.cfg)
+        c = self._model.new_cache()
         c.seq_len = n
         c.layers = [
             layout.export(ops, check.not_none(st), n)
@@ -252,7 +252,7 @@ class VerifyTokenSource(TokenSource):
                 draft_state = resume.draft
 
             else:
-                cache = Cache(model.cfg)
+                cache = model.new_cache()
                 logits, hidden, dec = self._prefill(gen, cache, gen.prompt, poll, slab)
                 start = 0
                 draft_state = None

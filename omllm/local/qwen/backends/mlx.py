@@ -185,6 +185,9 @@ class MlxOps(Ops):
     def log(self, x):
         return mx.log(x)
 
+    def tanh(self, x):
+        return mx.tanh(x)
+
     def argmax(self, x, axis):
         return mx.argmax(x, axis=axis).astype(mx.int32)
 
