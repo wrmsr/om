@@ -10,6 +10,7 @@ from ..ops.base import Weight
 from .block import Block
 from .cache import FullState
 from .config import Qwen35Config
+from .draftheads import DraftHead
 from .mixing import ResidualStream
 from .mixing import StepContext
 from .slab import StepSlabHolder
@@ -24,7 +25,7 @@ else:
 ##
 
 
-class MtpHead(StepSlabHolder):
+class MtpHead(StepSlabHolder, DraftHead):
     """
     Qwen3.5's multi-token-prediction head (the `nextn` block of the GGUF, `mtp.*` in HF): given the target's
     final-normed hidden state at position p and the token at p+1, it predicts the token at p+2 --

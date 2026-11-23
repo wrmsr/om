@@ -23,6 +23,25 @@ from ..ops.microscaled import pow2_scale_values
 from ..ops.quant import SEARCH_SHRINKS
 from ..ops.quant import QWeight
 from ..ops.quant import quantize as quantize_np
+from .torch_fused import DENSE_ROWS_MAX_K
+from .torch_fused import DEPTH_MIX_MAX_SOURCES
+from .torch_fused import bottleneck_blend
+from .torch_fused import capped_gate
+from .torch_fused import dense_gemv
+from .torch_fused import dense_rows
+from .torch_fused import dense_rows_pays
+from .torch_fused import depth_mix
+from .torch_fused import ensure_fused_kernels
+from .torch_fused import is_pow2
+from .torch_fused import kv_append
+from .torch_fused import l2_clip
+from .torch_fused import rms_norm_to
+from .torch_fused import sdpa_window_rel
+from .torch_fused import short_conv
+from .torch_fused import sigmoid_gated
+from .torch_fused import sigmoid_route
+from .torch_fused import sum_to
+from .torch_fused import weighted_rows
 from .torch_triton import HAVE_TRITON
 from .torch_triton import GemvTable
 from .torch_triton import attn_decode
@@ -320,6 +339,7 @@ class TorchOps(Ops):
             compile: bool = False,  # noqa
             compile_cache: str | None = None,
             kv_dtype: str = 'bf16',
+            fused: bool | None = None,
     ) -> None:
         super().__init__()
 
@@ -345,9 +365,16 @@ class TorchOps(Ops):
         if kv_dtype not in ('bf16', 'fp8'):
             raise ValueError(kv_dtype)
         self.kv_dtype = kv_dtype
+        # the fused small pieces (torch_fused.py) in place of their composed forms. None: on with the Triton kernels.
+        # Off, a step is the composed operations: what the fused ones are measured against, in time as in value.
+        self.fused = self.triton if fused is None else (fused and self.triton)
         if self.triton:
             ensure_kernels()  # jit now (imports triton): the wrappers must find real JITFunctions when traced
+            ensure_fused_kernels()
         self.triton_max_m = triton_max_m
+        # a plain weight's product with one row through the Triton GEMV (torch_fused.py) up to this many output rows:
+        # past them (an output head) cuBLAS is at the memory's bandwidth already
+        self.dense_gemv_max_rows = 8192
         self.triton_block_n = triton_block_n
         self.gemv_tuned: GemvTable = dict(gemv_tuned or {})  # per-shape GEMV configs (entrypoints/tune, load_tuned)
         self.gdn_block_dv = 16  # fused DeltaNet step: value-dim slice per program (state tile [dk, block_dv] f32)
@@ -497,6 +524,168 @@ class TorchOps(Ops):
 
     def tanh(self, x):
         return torch.tanh(x)
+
+    # the fused small pieces (torch_fused.py): one launch each where the composed forms are a dozen or more
+
+    def bottleneck_blend(self, x, m, down, forget, gain, *, eps, dtype):
+        if not (self.fused and x.is_cuda and isinstance(down, torch.Tensor) and is_pow2(down.shape[0])):
+            return super().bottleneck_blend(x, m, down, forget, gain, eps=eps, dtype=dtype)
+        return bottleneck_blend(x, m, down, forget, gain, eps)
+
+    def short_conv(self, x, hist, weight, *, scale, all_states=False):
+        if not (self.fused and x.is_cuda and x.shape[0] == 1):
+            return super().short_conv(x, hist, weight, scale=scale, all_states=all_states)
+        return short_conv(x, hist, weight, scale, all_states)
+
+    def short_conv_dynamic(self, x, hist, weight, dyn, *, scale, all_states=False):
+        if not (self.fused and x.is_cuda and x.shape[0] == 1 and dyn.is_contiguous()):
+            return super().short_conv_dynamic(x, hist, weight, dyn, scale=scale, all_states=all_states)
+        return short_conv(x, hist, weight, scale, all_states, dyn=dyn)
+
+    def unit_rms(self, x, eps):
+        xf = x.float()
+        return F.rms_norm(xf, (xf.shape[-1],), eps=eps)
+
+    def rms_norm_to(self, x, w, eps, dtype):
+        if not (self.fused and x.is_cuda and w.dim() == 1 and x.shape[0] == 1 and x.dim() == 3):
+            return super().rms_norm_to(x, w, eps, dtype)
+        return rms_norm_to(x, w, eps, dtype)
+
+    def l2_clip(self, x, threshold, *, scale=None, after=None):
+        if not (
+                self.fused and
+                x.is_cuda and
+                x.dim() == 4 and
+                x.shape[0] == 1 and
+                is_pow2(x.shape[-1]) and
+                x.is_contiguous() and
+                (scale is None or (scale.dtype == x.dtype and tuple(scale.shape) == tuple(x.shape[2:])))
+        ):
+            return super().l2_clip(x, threshold, scale=scale, after=after)
+        return l2_clip(x, threshold, scale, after)
+
+    def sdpa_window_rel_at(self, q, state, base, slots, pos, *, scale, rel, rel_proj, sink, window):
+        if not (
+                self.fused and
+                q.is_cuda and
+                q.shape[0] == 1 and
+                len(state) == 2 and
+                isinstance(rel_proj, torch.Tensor) and
+                is_pow2(q.shape[-1]) and
+                is_pow2(rel_proj.shape[-1])
+        ):
+            return super().sdpa_window_rel_at(
+                q,
+                state,
+                base,
+                slots,
+                pos,
+                scale=scale,
+                rel=rel,
+                rel_proj=rel_proj,
+                sink=sink,
+                window=window,
+            )
+        return sdpa_window_rel(
+            q,
+            state[0],
+            state[1],
+            pos,
+            scale,
+            rel.contiguous(),
+            rel_proj,
+            sink,
+            window,
+            base=base.to(torch.int32),
+            slots=slots,
+        )
+
+    # The queries the window kernel takes at a time. A step's few go whole. A prefill's go this many at a time, each
+    # run against the keys it can see: the kernel scores every tile of the keys it is handed for every query, so a
+    # long run of queries, whose windows cover different keys, would have most of its tiles see nothing.
+    window_rel_rows: int = 256
+
+    def sdpa_window_rel(self, q, k, v, pos, *, scale, rel, rel_proj, sink, window, more=()):
+        if not (
+                self.fused and
+                q.is_cuda and
+                q.shape[0] == 1 and
+                isinstance(rel_proj, torch.Tensor) and
+                is_pow2(q.shape[-1]) and
+                is_pow2(rel_proj.shape[-1])
+        ):
+            return super().sdpa_window_rel(
+                q,
+                k,
+                v,
+                pos,
+                scale=scale,
+                rel=rel,
+                rel_proj=rel_proj,
+                sink=sink,
+                window=window,
+                more=more,
+            )
+
+        T = q.shape[2]
+        N = k.shape[2]
+        rel = rel.contiguous()
+        if T <= self.window_rel_rows:
+            return sdpa_window_rel(q, k.contiguous(), v.contiguous(), pos, scale, rel, rel_proj, sink, window, more)
+
+        outs = []
+        for a in range(0, T, self.window_rel_rows):
+            b = min(a + self.window_rel_rows, T)
+            lo = max(0, N - T + a - (window - 1))  # the first slot the run's first query sees
+            hi = N - T + b
+            outs.append(sdpa_window_rel(
+                q[:, :, a:b],
+                k[:, :, lo:hi].contiguous(),
+                v[:, :, lo:hi].contiguous(),
+                pos + a,
+                scale,
+                rel[a:b],
+                rel_proj,
+                sink[:, :, a:b],
+                window,
+                [(m[:, :, a:b], ls[:, :, a:b], o[:, :, a:b]) for m, ls, o in more],
+            ))
+        return torch.cat(outs, 2)
+
+    def sigmoid_gated(self, x, g, dtype):
+        if not (self.fused and x.is_cuda and x.shape == g.shape and x.is_contiguous() and g.is_contiguous()):
+            return super().sigmoid_gated(x, g, dtype)
+        return sigmoid_gated(x, g, dtype)
+
+    def sum_to(self, a, b, dtype):
+        if not (self.fused and a.is_cuda and a.shape == b.shape and a.is_contiguous() and b.is_contiguous()):
+            return super().sum_to(a, b, dtype)
+        return sum_to(a, b, dtype)
+
+    def sigmoid_route(self, logits, bias, k, *, total):
+        if not (self.fused and logits.is_cuda and logits.dim() == 2 and logits.is_contiguous()):
+            return super().sigmoid_route(logits, bias, k, total=total)
+        return sigmoid_route(logits, bias, k, total)
+
+    def capped_gate(self, h, *, gate_cap, up_cap):
+        if not (self.fused and h.is_cuda and h.dim() == 2 and h.is_contiguous()):
+            return super().capped_gate(h, gate_cap=gate_cap, up_cap=up_cap)
+        return capped_gate(h, gate_cap, up_cap)
+
+    def weighted_rows(self, y, w, dtype):
+        if not (self.fused and y.is_cuda and y.is_contiguous()):
+            return super().weighted_rows(y, w, dtype)
+        return weighted_rows(y, w, dtype)
+
+    def depth_mix(self, queries, sources, *, raw=0, eps=0.):
+        if not (
+                self.fused and
+                queries.is_cuda and
+                len(sources) <= DEPTH_MIX_MAX_SOURCES and
+                all(s.shape[0] == 1 and s.is_contiguous() for s in sources)
+        ):
+            return super().depth_mix(queries, sources, raw=raw, eps=eps)
+        return depth_mix(queries, sources, raw, eps)
 
     def sqrt(self, x):
         return torch.sqrt(x)
@@ -730,6 +919,28 @@ class TorchOps(Ops):
                     launch=launch,
                 )
             return self._linear_dense(x, w)
+        if (
+                self.fused and
+                x.is_cuda and
+                x.numel() == x.shape[-1] and
+                w.dim() == 2 and
+                w.shape[0] <= self.dense_gemv_max_rows and
+                w.dtype == x.dtype and
+                w.is_contiguous()
+        ):
+            return dense_gemv(x, w)  # (a step's one token)
+        if (
+                self.fused and
+                x.is_cuda and
+                w.dim() == 2 and
+                w.dtype == x.dtype and
+                w.is_contiguous() and
+                w.shape[1] <= DENSE_ROWS_MAX_K
+        ):
+            rows = x.numel() // x.shape[-1]
+            if dense_rows_pays(rows, w.shape[0]):
+                # (a speculative round's rows)
+                return dense_rows(x.reshape(rows, x.shape[-1]), w).reshape(*x.shape[:-1], w.shape[0])
         return F.linear(x, w)
 
     def _linear_dense(self, x, w, chunk_rows=16384):
@@ -886,12 +1097,65 @@ class TorchOps(Ops):
             return w.dequant(dtype, torch.full((1,), e, dtype=torch.int64, device=self.device))[0]
         return super().expert_dense(w, e, dtype)
 
-    # With the Triton kernel a row costs the expert's packed bytes and nothing else, so a prefill's rows go through
-    # it too until they are so many that decoding each expert present once (`expert_linear_grouped`) reads less:
-    # that many rows an expert of the stack. Measured on Inkling 2 Mini's 128 experts (the 5090): a row costs 0.19
-    # ms of a prefill, the grouped path 1.1 s and 0.03 ms a row, so they cross near 54 rows an expert -- 860 tokens.
-    # At 8 rows an expert, as it was, a 129-token prefill took 1.1 s where a 128-token one took 0.2.
-    microscaled_gemv_rows_per_expert: int = 48
+    # The experts a prefill decodes to dense at a time (`expert_linear_grouped`): one launch writes that many, and
+    # what they take while their rows are multiplied is what a long prefill's peak grows by -- 0.34 GiB for 32 of
+    # Inkling 2 Mini's larger matrix at bfloat16.
+    microscaled_dense_stack: int = 32
+
+    def expert_linear_grouped(self, rows, w, eids):
+        """
+        For packed experts with the Triton kernels: the rows sorted by expert on the device, the experts decoded a
+        run at a time in one launch each, and each expert present multiplied into its rows where they lie. (The
+        composed form's decode and matmul per expert, with its slices and its concatenation, was a second of every
+        prefill chunk on Inkling 2 Mini -- 12,288 experts a chunk over its 48 visits, bound by their launches.)
+        """
+
+        if not (isinstance(w, TorchMicroscaledExperts) and self.triton and rows.is_cuda):
+            return super().expert_linear_grouped(rows, w, eids)
+
+        E = w.codes.shape[0]
+        n = w.shape[0]
+        ids = eids.to(torch.int64)
+        order = torch.argsort(ids, stable=True)
+        counts = torch.bincount(ids, minlength=E).tolist()  # (read on the host: this is a prefill's)
+        sorted_rows = rows[order]
+        out = torch.empty((rows.shape[0], n), dtype=rows.dtype, device=rows.device)
+
+        at = 0
+        for e0 in range(0, E, self.microscaled_dense_stack):
+            e1 = min(e0 + self.microscaled_dense_stack, E)
+            if not any(counts[e0:e1]):
+                continue
+            dense = mdequantize(
+                w.codes[e0:e1],
+                w.scales[e0:e1],
+                w.outer[e0:e1] if w.outer is not None else None,
+                w.code_table,
+                w.scale_table,
+                w.block,
+                w.shape,
+                rows.dtype,
+            )
+            for e in range(e0, e1):
+                c = counts[e]
+                if c:
+                    torch.mm(sorted_rows[at:at + c], dense[e - e0].T, out=out[at:at + c])
+                    at += c
+
+        return torch.empty_like(out).index_copy_(0, order, out)
+
+    # With the Triton kernel a row costs the expert's own work and nothing else, so a prefill's rows go through it
+    # too until they are so many that decoding each expert present once (`expert_linear_grouped`) is less: that
+    # many rows an expert of the stack. Measured on Inkling 2 Mini's 128 experts (the 5090, seconds of a prefill):
+    #
+    #     tokens        16    64    128   256   384   512   768   1024
+    #     by the row    0.11  0.11  0.17  0.36  0.54  0.72  1.09  1.48
+    #     grouped       0.29  0.36  0.40  0.42  0.44  0.48  0.51  0.54
+    #
+    # They cross near 310 tokens, 19 rows an expert. (48 when the grouped path decoded and multiplied an expert at
+    # a time and cost a second whatever the rows; and at 8, first set by guess, a 129-token prefill took 1.1 s
+    # where a 128-token one took 0.2.)
+    microscaled_gemv_rows_per_expert: int = 20
 
     def expert_linear(self, x, w, eids, x_div=1):
         if not isinstance(w, (TorchQExperts, TorchMicroscaledExperts)):
@@ -998,10 +1262,33 @@ class TorchOps(Ops):
     def kv_write_state(self, state, pos, k, v):
         return self.kv_write_tokens(state, pos, k, v)
 
+    def assign(self, dst, src):
+        dst.copy_(src)
+        return dst
+
+    def kv_move(self, state, src, dst, n):
+        for a in state:
+            a[:, :, dst:dst + n] = a[:, :, src:src + n].clone()  # (a copy first: the two stretches may overlap)
+        return state
+
     def kv_write_tokens(self, state, pos, k, v):
         # every position of the step in one indexed write per buffer (and one fp8 quantization): a T-token step made
         # T of each, per attention layer -- ~200 small kernels a speculative round on the 27B, and T-long chains of
         # in-place writes that torch.compile took minutes over past a dozen tokens
+        if (
+                self.kv_dtype != 'fp8' and
+                self.fused and
+                k.is_cuda and
+                k.shape[0] == 1 and
+                is_pow2(k.shape[-1]) and
+                k.stride(3) == 1 and
+                v.stride(3) == 1 and
+                state[0].is_contiguous() and
+                state[1].is_contiguous()
+        ):
+            kv_append(state[0], state[1], pos, k, v)
+            return (state[0], state[1])
+
         idx = pos.reshape(1).to(torch.int64) + torch.arange(k.shape[2], device=k.device)
         if self.kv_dtype != 'fp8':
             kbuf, vbuf = state
@@ -1078,22 +1365,22 @@ class TorchOps(Ops):
         )
         return torch.clamp(m, min=-1e30), l, o  # (a row with no key: -inf from the kernel)
 
-    def sdpa_static_rel(self, q, state, pos, ar, scale, rel, sink):
-        if not (self.triton and q.is_cuda):
-            return super().sdpa_static_rel(q, state, pos, ar, scale, rel, sink)
-        return self.sdpa_static_rel_split(q, state, pos, scale, rel, sink)
+    def sdpa_static_rel(self, q, state, pos, ar, scale, rel, rel_proj, sink):
+        if not (self.triton and q.is_cuda and isinstance(rel_proj, torch.Tensor)):
+            return super().sdpa_static_rel(q, state, pos, ar, scale, rel, rel_proj, sink)
+        return self.sdpa_static_rel_split(q, state, pos, scale, rel, rel_proj, sink)
 
-    def sdpa_static_rel_split(self, q, state, pos, scale, rel, sink):
+    def sdpa_static_rel_split(self, q, state, pos, scale, rel, rel_proj, sink):
         """
         `sdpa_static_rel`, length-aware, in two parts whose softmax partials are merged with the sink. The keys at
         least E back carry no relative term: they go through the decode attention kernel at a position E earlier (row
         t then sees the keys up to pos - E + t, which are exactly those), reading the positions in use and no others.
-        The E - 1 + T nearest are gathered and scored here, with the term.
+        The E - 1 + T nearest are gathered and scored with the term, as a window E long: the window kernel's
+        partials (torch_fused.py), a tile of them a set.
         """
 
         B, H, T, D = q.shape
-        E = rel.shape[-1]
-        f32 = torch.float32
+        E = rel_proj.shape[0]
 
         if len(state) == 2:
             kbuf, vbuf = state
@@ -1104,30 +1391,18 @@ class TorchOps(Ops):
         m_far, l_far, o_far = attn_decode_partials(q, kbuf, vbuf, far_pos, scale, self.attn_splits, ks=ks, vs=vs)
 
         n = E - 1 + T
-        qpos = pos.reshape(1) + torch.arange(T, device=q.device, dtype=torch.int32)
+        far = [(m_far, l_far, o_far)]
+
+        # (slot j of the near keys stands for position pos - (E - 1) + j: none where that is negative, and the
+        # kernel leaves those, like the ones E or more back from a query, out -- and never reads them)
+        if ks is None and self.fused and is_pow2(D) and is_pow2(rel_proj.shape[-1]) and kbuf.is_contiguous():
+            # plain buffers: read where they lie
+            base = (pos - (E - 1)).to(torch.int32)
+            return sdpa_window_rel(q, kbuf, vbuf, pos, scale, rel, rel_proj, sink, E, far, base=base, slots=n)
+
         kpos = (pos.reshape(1) - (E - 1)) + torch.arange(n, device=q.device, dtype=torch.int32)
         kg, vg = self.kv_gather(state, torch.clamp(kpos, min=0), q.dtype)  # [KV, n, D]
-        KV = kg.shape[0]
-        G = H // KV
-
-        delta = qpos[:, None] - kpos[None, :]  # [T, n]
-        near = (delta >= 0) & (delta < E) & (kpos >= 0)[None, :]
-        bias = self.rel_bias(rel, qpos, kpos) + torch.where(near, 0.0, -1e30)[..., None]  # [T, n, H]
-
-        qg = q[0].reshape(KV, G * T, D)  # row g * T + t of kv head
-        scores = (qg @ kg.transpose(1, 2)).to(f32).reshape(H, T, n) * scale + bias.permute(2, 0, 1)
-        m_near = scores.amax(-1)  # [H, T]: finite, every query sees itself
-        p = torch.exp(scores - m_near[..., None])
-        l_near = p.sum(-1)
-        o_near = (p.reshape(KV, G * T, n).to(vg.dtype) @ vg).to(f32).reshape(H, T, D)
-
-        m_far, l_far, o_far, z = m_far[0], l_far[0], o_far[0], sink[0].to(f32)
-        top = torch.maximum(torch.maximum(m_near, m_far), z)
-        w_near = torch.exp(m_near - top)
-        w_far = torch.exp(m_far - top)
-        denom = w_near * l_near + w_far * l_far + torch.exp(z - top)
-        out = (w_near[..., None] * o_near + w_far[..., None] * o_far) / denom[..., None]
-        return out[None].to(q.dtype)
+        return sdpa_window_rel(q, kg[None], vg[None], pos, scale, rel, rel_proj, sink, E, far)
 
     def sdpa(
             self,

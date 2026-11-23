@@ -3,6 +3,8 @@ import typing as ta
 from omcore import dataclasses as dc
 
 from ..config import ModelConfig
+from ..dspark.config import DsparkConfig
+from ..dspark.config import dspark_config_from_hf
 
 
 ##
@@ -14,7 +16,8 @@ class Inkling2Config(ModelConfig):
     Inkling 2 (`inkling2_loop`; INKLING.md): `num_layers` physical layers, each attention and a mixture of experts
     reading a residual stream of block summaries, of which the layers `loop_start` .. `loop_end - 1` are run
     `loop_passes` times a token. `vocab_size` is the logits' width; the embedding table (and the tokenizer) has
-    `embed_size` ids, the rest of which the model never produces.
+    `embed_size` ids, the rest of which the model never produces. `draft` is the draft model the checkpoint describes
+    beside it, if any (core/dspark/).
     """
 
     embed_size: int
@@ -55,6 +58,7 @@ class Inkling2Config(ModelConfig):
     logit_softcap: float
     context_length: int = 1 << 20
     eos_id: int | None = None
+    draft: DsparkConfig | None = None
     extra: dict = dc.field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -182,4 +186,99 @@ def inkling2_config_from_hf(cfg: ta.Mapping[str, ta.Any]) -> Inkling2Config:
         logit_softcap=float(t['final_logit_softcapping']),
         context_length=int(first('model_max_length', 'max_position_embeddings')),
         eos_id=(eos[0] if isinstance(eos, list) else eos),
+        draft=dspark_config_from_hf(cfg['mtp_config']) if cfg.get('mtp_config') else None,
     )
+
+
+# config.json's text keys -> the keys llama.cpp's converter writes them under, below a GGUF's `inkling2_loop.`
+INKLING2_GGUF_KEYS: ta.Mapping[str, str] = {
+    'num_hidden_layers': 'block_count',
+    'hidden_size': 'embedding_length',
+    'vocab_size': 'vocab_size',
+    'unpadded_vocab_size': 'vocab_size_unpadded',
+    'model_max_length': 'context_length',
+    'rms_norm_eps': 'attention.layer_norm_rms_epsilon',
+    'sliding_window_size': 'attention.sliding_window',
+    'd_rel': 'attention.relative_length',
+    'rel_extent': 'attention.relative_extent',
+    'qk_l2_clip_threshold': 'attention.qk_clip',
+    'rel_l2_clip_threshold': 'attention.relative_clip',
+    'log_scaling_n_floor': 'attention.log_scale_floor',
+    'log_scaling_alpha': 'attention.log_scale_alpha',
+    'sconv_kernel_size': 'shortconv.l_cache',
+    'n_routed_experts': 'expert_count',
+    'num_experts_per_tok': 'expert_used_count',
+    'route_scale': 'expert_weights_scale',
+    'mlp_gate_softcap': 'activation.situ_beta',
+    'mlp_up_softcap': 'activation.situ_linear_beta',
+    'n_layers_per_attn_res_block': 'attn_res.block_size',
+    'final_logit_softcapping': 'final_logit_softcapping',
+}
+
+# ... and its `loop_config`'s
+INKLING2_GGUF_LOOP_KEYS: ta.Mapping[str, str] = {
+    'core_start': 'loop.start',
+    'core_end': 'loop.end',
+    'num_passes': 'loop.count',
+    'gate_rank': 'loop.gate_rank',
+}
+
+
+def inkling2_config_from_gguf(
+        kv: ta.Callable[[str], ta.Any],
+        *,
+        eos_id: int | None = None,
+) -> Inkling2Config:
+    """
+    Our config from a GGUF's metadata as llama.cpp's converter writes it for this architecture: `kv` reads a key below
+    the file's `inkling2_loop.`, None for one the file lacks. The values are put back under the names the checkpoint's
+    config.json has them by and read by `inkling2_config_from_hf`, so what a config is, and what of one is refused, is
+    said once. Refused here is what only a GGUF can say: a value kept per layer that differs between layers, key and
+    value heads of different widths, a rotary embedding.
+
+    A GGUF keeps its floats as float32, so those of a config read from one are the nearest float32 to the
+    checkpoint's (0.1 comes back as 0.10000000149011612).
+    """
+
+    def need(key: str) -> ta.Any:
+        if (v := kv(key)) is None:
+            raise KeyError(f'inkling2 GGUF metadata has no {key}')
+        return v
+
+    def uniform(key: str) -> ta.Any:
+        v = need(key)
+        values = set(v) if isinstance(v, list) else {v}
+        if len(values) != 1:
+            raise ValueError(f'{key} differs between layers, which is not supported: {v}')
+        return values.pop()
+
+    widths = {
+        kv(key)
+        for key in (
+            'attention.key_length',
+            'attention.value_length',
+            'attention.key_length_swa',
+            'attention.value_length_swa',
+        )
+    } - {None}
+    if len(widths) != 1:
+        raise ValueError(f'attention heads of one width are supported, not {sorted(widths)}')
+
+    if kv('rope.dimension_count'):
+        raise ValueError('a rotary embedding is not part of this model')
+
+    feed_forward = kv('expert_feed_forward_length')
+
+    return inkling2_config_from_hf({
+        **{name: need(key) for name, key in INKLING2_GGUF_KEYS.items()},
+        'num_attention_heads': uniform('attention.head_count'),
+        'num_key_value_heads': uniform('attention.head_count_kv'),
+        'head_dim': widths.pop(),
+        'local_layer_ids': [i for i, local in enumerate(need('attention.sliding_window_pattern')) if local],
+        'intermediate_size': feed_forward if feed_forward is not None else need('feed_forward_length'),
+        'loop_config': {
+            **{name: need(key) for name, key in INKLING2_GGUF_LOOP_KEYS.items()},
+            'is_varloop': bool(kv('loop.varying')),
+        },
+        'eos_token_id': eos_id,
+    })

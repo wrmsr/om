@@ -33,6 +33,7 @@ from ..api import generate
 from ..arch.qwen35 import load_qwen35
 from ..core.block import Block
 from ..core.model import Qwen35
+from ..core.mtp import MtpHead
 from ..decode.generation import Generated
 from ..decode.sampling import Sampler
 from ..entrypoints.common import add_model_args
@@ -94,11 +95,11 @@ def chat_prompts(
     protocol = chat_protocol_for(tok)
 
     def prompt(text: str) -> list[int]:
-        return tok.encode(protocol.render([{'role': 'user', 'content': text}], enable_thinking=False))
+        return protocol.encode(protocol.render([{'role': 'user', 'content': text}], enable_thinking=False))
 
     return prompt, [
         *protocol.close_answer([]),
-        *tok.encode(protocol.render(
+        *protocol.encode(protocol.render(
             [{'role': 'user', 'content': FOLLOW_UP}],
             enable_thinking=False,
             continuation=True,
@@ -176,7 +177,7 @@ def _effective_torch_config(model: Qwen35, draft_vocab: int = 0) -> dict[str, ta
 def _all_weights(model: Qwen35) -> list[ta.Any]:
     out: list[ta.Any] = [model.embed, model.lm_head]
     blocks = list(model.blocks)
-    if model.mtp is not None:
+    if isinstance(model.mtp, MtpHead):
         out.append(model.mtp.fc)
         blocks.append(model.mtp.block)
     for blk in blocks:
@@ -242,8 +243,11 @@ def run(
     generate(model, prompts[0], max_new_tokens=8, sampler=Sampler(), **opts())
     generate(model, (list(prompts[0]) * 64)[:96], max_new_tokens=1, sampler=Sampler(), **opts())
     if has_spec:
-        # (with several draft lengths, enough rounds for the head to draft at each)
-        warm = 8 if isinstance(spec, int) else sum(k + 1 for k in spec) + 2
+        # (enough rounds for the head to draft at every count it may: each of several lengths, or -- a block drafter
+        # hands the target any count up to the one given -- each count up to it; a round's verify step is captured
+        # the first time its count is used, and that is not what the measurements below are of)
+        counts = range(1, spec + 1) if isinstance(spec, int) else spec
+        warm = max(8, sum(k + 1 for k in counts) + 2)
         generate(model, prompts[0], max_new_tokens=warm, sampler=Sampler(), spec=spec, **opts())
 
     # plain decode, and prefill per prompt token (time to the first token over the prompt length)

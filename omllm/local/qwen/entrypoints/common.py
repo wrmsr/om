@@ -105,10 +105,12 @@ def add_model_args(ap: argparse.ArgumentParser, *, model_optional: bool = False)
         action=SpecLengthsAction,
         default=0,
         metavar='K[,K...]',
-        help='MTP speculative decoding with K draft tokens per round (loads the draft head); 0 = off. With several '
-             'lengths, e.g. 5,9,15, a round drafts the shortest and goes on to each next one while the head is still '
-             'confident in its drafts (--spec-confidence): prose keeps few drafts however many it is given, code and '
-             'rewrites many. One more step shape to compile per length',
+        help='speculative decoding with the checkpoint\'s draft head, K draft tokens per round (loads the head); 0 = '
+             'off. Qwen\'s MTP head: with several lengths, e.g. 5,9,15, a round drafts the shortest and goes on to '
+             'each next one while the head is still confident in its drafts (--spec-confidence): prose keeps few '
+             'drafts however many it is given, code and rewrites many. Inkling 2\'s block drafter: a round hands the '
+             'target as many of its drafts as the head\'s confidence in them is worth, up to K (at most 7), or one '
+             'of the counts listed. One more step shape to compile per length',
     )
     ap.set_defaults(spec_lengths=None)
     ap.add_argument(

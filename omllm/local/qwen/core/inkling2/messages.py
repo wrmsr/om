@@ -15,8 +15,6 @@ import typing as ta
 from ...ops.base import Array
 from ...ops.base import Ops
 from ...ops.base import Weight
-from .depth import depth_mix
-from .depth import unit_rms
 
 
 ##
@@ -43,13 +41,7 @@ class MessageGate:
     def __call__(self, ops: Ops, x: Array, m: Array) -> Array:
         """x, m: [B, T, hidden] float32 -> the blend, float32."""
 
-        u = ops.concat([unit_rms(ops, x, self._eps), unit_rms(ops, m, self._eps)], -1)
-        z = ops.f32(ops.linear(ops.cast(u, self._dtype), self._down))
-
-        forget = ops.tanh(ops.linear(z, self._forget))
-        gain = ops.tanh(ops.linear(z, self._gain))
-
-        return (1 - forget) * x + gain * m
+        return ops.bottleneck_blend(x, m, self._down, self._forget, self._gain, eps=self._eps, dtype=self._dtype)
 
 
 class MessageReader:
@@ -73,7 +65,7 @@ class MessageReader:
     def read(self, ops: Ops, sources: ta.Sequence[Array], xs: ta.Sequence[Array]) -> list[Array]:
         """`xs`: the inputs, one per gate -- or one for all of them."""
 
-        m = depth_mix(ops, self._queries, sources)  # [B, T, n, hidden]
+        m = ops.depth_mix(self._queries, sources)  # [B, T, n, hidden]
         return [
             gate(ops, xs[i if len(xs) > 1 else 0], m[:, :, i])
             for i, gate in enumerate(self._gates)

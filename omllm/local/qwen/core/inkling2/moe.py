@@ -50,33 +50,25 @@ class Inkling2MoE(FeedForward):
     def route(self, ops: Ops, x: Array) -> tuple[Array, Array]:
         """For x [N, hidden]: each token's experts [N, k] and their weights [N, k] (float32)."""
 
-        f32 = ops.dtype('f32')
-
-        scores = ops.sigmoid(ops.linear(ops.f32(x), self._router))  # [N, E]
-        _, idx = ops.topk(scores + self._bias, self._top_k)
-
-        # the picked experts' own scores (not the biased ones the pick was made on): a one-hot sum, exact
-        picked = ops.cast(idx[..., None] == ops.arange(int(scores.shape[-1])), f32)  # [N, k, E]
-        sel = ops.sum(scores[:, None, :] * picked, -1)
-
-        return idx, sel * (self._route_scale / (ops.sum(sel, -1, keepdims=True) + 1e-20))
+        return ops.sigmoid_route(
+            ops.linear(ops.f32(x), self._router),
+            self._bias,
+            self._top_k,
+            total=self._route_scale,
+        )
 
     def __call__(self, ops: Ops, x: Array) -> Array:
         B, T, H = x.shape
-        I = self._intermediate  # noqa: E741
         k = self._top_k
-        cg = self._gate_softcap
-        cu = self._up_softcap
 
         x2 = ops.reshape(x, (B * T, H))
         idx, w = self.route(ops, x2)
         eids = ops.reshape(idx, (B * T * k,))  # row (token, slot)
 
         h = ops.expert_linear(x2, self._gate_up, eids, k)  # [N k, 2I]
-        g, u = ops.split(ops.f32(h), [I, I], -1)
-        a = (ops.tanh(g / cg) * cg) * ops.sigmoid(g) * (ops.tanh(u / cu) * cu)
+        a = ops.capped_gate(h, gate_cap=self._gate_softcap, up_cap=self._up_softcap)
 
-        y = ops.f32(ops.expert_linear(ops.cast(a, h.dtype), self._down, eids))  # [N k, hidden]
-        y = ops.sum(ops.reshape(y, (B * T, k, H)) * w[..., None], 1)
+        y = ops.expert_linear(a, self._down, eids)  # [N k, hidden]
+        y = ops.weighted_rows(ops.reshape(y, (B * T, k, H)), w, x.dtype)
 
-        return ops.reshape(ops.cast(y, x.dtype), (B, T, H))
+        return ops.reshape(y, (B, T, H))

@@ -314,3 +314,88 @@ def write_inkling2_checkpoint(
     write_safetensors(os.path.join(path, 'model.safetensors'), t)
 
     return cfg
+
+
+def inkling2_test_draft_config(cfg: ta.Mapping[str, ta.Any]) -> dict[str, ta.Any]:
+    """
+    A small draft model for `cfg` (the test config's 16 visits): two layers, the first seeing the last 6 positions
+    and the second all of them, blocks of 4 slots, a head of rank 8, reading the sum under way on entry to visits 3
+    and 9 and the final state. The rotary base is small, so that the toy positions turn the heads a long way.
+    """
+
+    return dict(
+        hidden_size=cfg['hidden_size'],
+        num_hidden_layers=2,
+        num_attention_heads=4,
+        num_key_value_heads=2,
+        head_dim=16,
+        intermediate_size=96,
+        max_position_embeddings=4096,
+        q_bias=False,
+        o_bias=False,
+        rms_norm_eps=1e-6,
+        rope_theta=50.0,
+        local_layer_ids=[0],
+        sliding_window_size=6,
+        block_size=4,
+        markov_rank=8,
+        markov_head_type='rnn_hidden',
+        target_layer_ids=[3, 9, 16],
+    )
+
+
+def write_inkling2_draft(path: str, *, seed: int = 0) -> dict[str, np.ndarray]:
+    """
+    A draft model beside the checkpoint at `path`: its `mtp_config` added to config.json, and mtp.safetensors with
+    random weights under the released file's names. Returns the tensors (float32).
+    """
+
+    with open(os.path.join(path, 'config.json')) as f:
+        cfg = json.load(f)
+    m = cfg['mtp_config'] = inkling2_test_draft_config(cfg)
+    with open(os.path.join(path, 'config.json'), 'w') as f:
+        json.dump(cfg, f, indent=1)
+
+    rng = np.random.default_rng(1000 + seed)
+    D = m['hidden_size']
+    H, KV, HD = m['num_attention_heads'], m['num_key_value_heads'], m['head_dim']
+    I, R = m['intermediate_size'], m['markov_rank']  # noqa: E741
+    taps = len(m['target_layer_ids'])
+
+    def n(*shape: int, scale: float = 0.2) -> np.ndarray:
+        return (rng.standard_normal(shape) * scale).astype(np.float32)
+
+    def gamma(*shape: int) -> np.ndarray:
+        return (1 + rng.standard_normal(shape) * 0.1).astype(np.float32)
+
+    t: dict[str, np.ndarray] = {
+        'fuse_weight': n(m['num_hidden_layers'] + 1, taps, scale=1.0),
+        'mask_embed': n(D, scale=1.0),
+        'norm.weight': gamma(D),
+        'markov_head.markov_w1.weight': n(cfg['vocab_size'], R, scale=1.0),
+        'markov_head.rnn_proj.weight': n(3 * R, 2 * R + 2 * D),
+        'markov_head.rnn_proj.bias': n(3 * R),
+        'markov_head.hidden_out.weight': n(D, R, scale=0.5),
+        'markov_head.hidden_out.bias': n(D),
+        'markov_head.dflare_norm.weight': gamma(D),
+    }
+    for i in range(m['num_hidden_layers']):
+        q = f'layers.{i}.'
+        t[q + 'dflare_norm.weight'] = gamma(D)
+        t[q + 'input_layernorm.weight'] = gamma(D)
+        t[q + 'post_attention_layernorm.weight'] = gamma(D)
+        t[q + 'self_attn.k_proj_ctx.weight'] = n(KV * HD, D)
+        t[q + 'self_attn.v_proj_ctx.weight'] = n(KV * HD, D)
+        t[q + 'self_attn.k_norm_ctx.weight'] = gamma(HD)
+        t[q + 'self_attn.q_proj.weight'] = n(H * HD, D)
+        t[q + 'self_attn.k_proj.weight'] = n(KV * HD, D)
+        t[q + 'self_attn.v_proj.weight'] = n(KV * HD, D)
+        t[q + 'self_attn.q_norm.weight'] = gamma(HD)
+        t[q + 'self_attn.k_norm.weight'] = gamma(HD)
+        t[q + 'self_attn.o_proj.weight'] = n(D, H * HD)
+        t[q + 'mlp.gate_proj.weight'] = n(I, D)
+        t[q + 'mlp.up_proj.weight'] = n(I, D)
+        t[q + 'mlp.down_proj.weight'] = n(D, I)
+
+    write_safetensors(os.path.join(path, 'mtp.safetensors'), {k: ('F32', v) for k, v in t.items()})
+    return t

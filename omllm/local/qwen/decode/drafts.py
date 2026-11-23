@@ -60,8 +60,9 @@ class DraftSource(lang.Abstract):
             state: tuple[Array, ...] | None,
     ) -> None:
         """
-        Bring up over the prompt: `hidden` [1, R, H] is the target's final-normed hidden states at positions
-        start..start+R-1 and `tokens` the token at each following position (the last one the pending token); `state` is
+        Bring up over the prompt: `hidden` [1, R, F] is the target's hidden output (the final-normed hidden states,
+        and whatever else its readout hands a draft head: core/readouts.py) at positions start..start+R-1 and
+        `tokens` the token at each following position (the last one the pending token); `state` is
         this source's exported state from a resumed snapshot (covering what precedes `start`), or None. Without
         `reads_prompt_hidden`, R is 1: the last prompt position and the pending token.
         """

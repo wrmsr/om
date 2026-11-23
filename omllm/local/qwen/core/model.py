@@ -26,14 +26,16 @@ from ..ops.base import Ops
 from ..ops.base import Weight
 from .cache import Cache
 from .config import ModelConfig
+from .draftheads import DraftHead
 from .errors import Cancelled
 from .heads import LinearOutputHead
 from .heads import OutputHead
 from .mixing import Layer
 from .mixing import ResidualStream
 from .mixing import StateLayout
-from .mtp import MtpHead
 from .positions import StepPositions
+from .readouts import FinalStateReadout
+from .readouts import Readout
 from .slab import StepSlabHolder
 
 
@@ -72,7 +74,8 @@ class Qwen35(StepSlabHolder):
             residual: ResidualStream,
             positions: StepPositions,
             head: OutputHead | None = None,
-            mtp: MtpHead | None = None,
+            readout: Readout | None = None,
+            mtp: DraftHead | None = None,
             nbytes: int = 0,
     ) -> None:
         super().__init__()
@@ -86,6 +89,8 @@ class Qwen35(StepSlabHolder):
         self.residual = residual
         self.positions = positions
         self.head = head if head is not None else LinearOutputHead(lm_head)
+        self.readout = readout if readout is not None else FinalStateReadout()
+        self._tapped = frozenset(self.readout.taps)
         self.mtp = mtp
         self.nbytes = nbytes
 
@@ -197,8 +202,9 @@ class Qwen35(StepSlabHolder):
     ) -> ta.Any:
         """
         tokens: [B, T] ints. Returns logits [B, T, V] (or [B, 1, V] with last_only) in float32; with return_hidden also
-        the final-normed hidden states [B, T, hidden] (what the MTP head conditions on) -- every position's, even with
-        last_only, which then restricts only the logits.
+        the model's hidden output [B, T, F] -- the final-normed hidden states (what the MTP head conditions on), or
+        what the model's readout makes of the stack for a draft head that reads more (readouts.py) -- every
+        position's, even with last_only, which then restricts only the logits.
         """
 
         ops = self.ops
@@ -211,8 +217,11 @@ class Qwen35(StepSlabHolder):
         x = ops.embedding(ops.array(tokens), self.embed, self.dtype)
         ops.tap('embed', x)
 
+        tapped: list[Array] = []
         r = self.residual.enter(ops, x)
         for i, blk in enumerate(self.blocks):
+            if return_hidden and i in self._tapped:
+                tapped.append(self.readout.tap(ops, r))
             r, st = blk(ops, r, start_pos, cache.layers[i] if cache is not None else None, ids=tokens)
             if cache is not None:
                 cache.layers[i] = st
@@ -231,7 +240,7 @@ class Qwen35(StepSlabHolder):
         ops.tap('logits', logits)
 
         if return_hidden:
-            return logits, x
+            return logits, self.readout.join(ops, tapped, x)
 
         return logits
 
@@ -323,7 +332,10 @@ class Qwen35(StepSlabHolder):
             r = self.residual.enter(ops, ops.embedding(toks, self.embed, self.dtype))
 
             out: list[Array] = []
+            tapped: list[Array] = []
             for i, blk in enumerate(self.blocks):
+                if return_hidden and i in self._tapped:
+                    tapped.append(self.readout.tap(ops, r))
                 o, n = offsets[i]
                 r, st = blk.step(ops, r, ctx, tuple(flat[o:o + n]))
                 out.extend(st)
@@ -332,7 +344,7 @@ class Qwen35(StepSlabHolder):
             logits = self.head(ops, x)
 
             if return_hidden:
-                return (logits, x, *out)
+                return (logits, self.readout.join(ops, tapped, x), *out)
 
             return (logits, *out)
 

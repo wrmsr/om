@@ -2,8 +2,12 @@
 """
 Microscaled float weights (ops/microscaled.py: NVFP4, MXFP8): the code tables against the encodings' definitions and
 torch's own float8 type, the reference decode against the scalar formula, the torch container's composed decode, and
-the Triton kernels that read the packed experts -- the per-row GEMV and the dense decode -- against it.
+the Triton kernels that read the packed experts -- the per-row GEMV and the dense decode -- against it; the
+tinygrad container, which decodes by arithmetic on the bits, where that backend is enabled (test_parity.py); and the
+MLX container, with numpy's arrays in MLX's place anywhere, and on MLX where it is installed.
 """
+import typing as ta
+
 import numpy as np
 import pytest
 
@@ -101,6 +105,141 @@ def test_reference_decode():
 
     with pytest.raises(Exception):  # noqa: B017, PT011
         MicroscaledWeight('nvfp4', np.zeros((1, 2, 8), np.uint8), np.zeros((1, 2, 2), np.uint8), None, (1, 2, 16))
+
+
+def test_tinygrad_container():
+    from .test_parity import backends
+
+    ops: ta.Any = next((o for o in backends() if o.name.startswith('tinygrad')), None)
+    if ops is None:
+        pytest.skip('tinygrad not installed, or disabled in test_parity.DISABLED_BACKENDS')
+
+    import tinygrad as tg
+
+    from ..backends.tinygrad import TinyMicroscaledExperts
+    from ..backends.tinygrad import _tg_e2m1
+    from ..backends.tinygrad import _tg_e4m3
+    from ..backends.tinygrad import _tg_pow2
+
+    # the bits' arithmetic against the tables, every code (E4M3's two NaN codes aside: no stored value is one)
+    codes = tg.Tensor(np.arange(256, dtype=np.uint8), device=ops.device)
+    assert np.array_equal(_tg_e2m1(codes[:16].cast(tg.dtypes.uint32)).numpy(), e2m1_values())
+    real = ~np.isnan(e4m3_values())
+    assert np.array_equal(_tg_e4m3(codes).numpy()[real], e4m3_values()[real])
+    assert np.array_equal(_tg_pow2(codes).numpy(), pow2_scale_values())
+
+    rng = np.random.default_rng(2)
+    f32 = ops.dtype('f32')
+    E, N, K = 6, 8, 64
+    for fmt in ('nvfp4', 'mxfp8'):
+        mw = random_microscaled(rng, fmt, E, N, K)
+        want = mw.dequantize()
+
+        w = ops.microscaled(mw, f32, name=f'layers.0.{fmt}')
+        assert isinstance(w, TinyMicroscaledExperts) and ops.nbytes(w) == mw.nbytes()
+
+        # the decode is exact: a slice of the stack, a gather of rows' experts, one expert
+        eids = np.asarray([3, 0, 5, 3], dtype=np.int32)
+        assert np.array_equal(ops.numpy(w.dequant(f32, slice(0, E))), want)
+        assert np.array_equal(ops.numpy(w.dequant(f32, tg.Tensor(eids, device=ops.device))), want[eids])
+        assert np.array_equal(ops.numpy(ops.expert_dense(w, 4, f32)), want[4])
+
+        # every row against its own expert, two slots a token
+        x = rng.standard_normal((2, K)).astype(np.float32)
+        got = ops.numpy(ops.expert_linear(ops.array(x, f32), w, tg.Tensor(eids, device=ops.device), 2))
+        ref = np.einsum('rnk,rk->rn', want[eids].astype(np.float64), np.repeat(x, 2, 0).astype(np.float64))
+        assert np.abs(got - ref).max() < 1e-5 * np.abs(ref).max(), fmt
+
+
+def test_mlx_container_on_numpy():
+    """
+    The MLX container's decode and its products name no MLX function (backends/mlx_microscaled.py), so numpy's arrays
+    stand in for MLX's: which table decodes which bytes, the nibbles' order, the block scales, the pieces and their
+    order, against the reference decode -- wherever numpy runs. On MLX itself: test_mlx_container.
+    """
+
+    from ..backends.mlx_microscaled import mlx_microscaled_experts
+
+    rng = np.random.default_rng(3)
+    E, N, K = 6, 8, 64
+    for fmt in ('nvfp4', 'mxfp8'):
+        mw = random_microscaled(rng, fmt, E, N, K)
+        want = mw.dequantize()
+
+        w = mlx_microscaled_experts(mw, np.asarray)
+        assert w.nbytes() == mw.nbytes()
+
+        eids = np.asarray([3, 0, 5, 3, 1, 1, 4], dtype=np.int32)
+        assert np.array_equal(w.dequant(np.float32, slice(0, E)), want)
+        assert np.array_equal(w.dequant(np.float32, eids), want[eids])
+        assert np.array_equal(w.dequant(np.float32, slice(4, 5))[0], want[4])
+
+        # every row against its own expert, in pieces of every size up to all the rows at once
+        x = rng.standard_normal((len(eids), K)).astype(np.float32)
+        ref = np.einsum('rnk,rk->rn', want[eids].astype(np.float64), x.astype(np.float64))
+        for step in (1, 2, 3, len(eids), 16):
+            parts = w.products(x, eids, step)
+            assert len(parts) == -(-len(eids) // step) and all(p.dtype == np.float32 for p in parts), (fmt, step)
+            assert np.abs(np.concatenate(parts, 0) - ref).max() < 1e-5 * np.abs(ref).max(), (fmt, step)
+
+
+def test_mlx_container():
+    """
+    The same on MLX, where it is installed: the bytes stay packed, the decode is exact, and every row meets its own
+    expert -- at once, a few rows at a time, expert by expert, and inside a compiled step, in float32 and bfloat16.
+    """
+
+    try:
+        import mlx.core as mx
+    except ImportError:
+        print('mlx not installed; skipping')
+        return
+
+    from ..backends.mlx import MlxOps
+    from ..backends.mlx_microscaled import MlxMicroscaledExperts
+
+    ops = MlxOps()
+    rng = np.random.default_rng(2)
+    f32 = ops.dtype('f32')
+    E, N, K = 6, 8, 64
+    for fmt in ('nvfp4', 'mxfp8'):
+        mw = random_microscaled(rng, fmt, E, N, K)
+        want = mw.dequantize()
+
+        w = ops.microscaled(mw, f32)
+        assert isinstance(w, MlxMicroscaledExperts) and ops.nbytes(w) == mw.nbytes()
+        assert w.codes.dtype == mx.uint8 and w.scales.dtype == mx.uint8
+
+        eids = np.asarray([3, 0, 5, 3], dtype=np.int32)
+        assert np.array_equal(ops.numpy(w.dequant(f32, slice(0, E))), want)
+        assert np.array_equal(ops.numpy(w.dequant(f32, ops.array(eids))), want[eids])
+        assert np.array_equal(ops.numpy(ops.expert_dense(w, 4, f32)), want[4])
+
+        # every row against its own expert, two slots a token
+        x = rng.standard_normal((2, K)).astype(np.float32)
+        rows = np.repeat(x, 2, 0)
+        ref = np.einsum('rnk,rk->rn', want[eids].astype(np.float64), rows.astype(np.float64))
+        scale = np.abs(ref).max()
+
+        for step in (8, 3, 1):
+            ops.microscaled_rows = step
+            got = ops.numpy(ops.expert_linear(ops.array(x, f32), w, ops.array(eids), 2))
+            assert np.abs(got - ref).max() < 1e-5 * scale, (fmt, step)
+
+        got = ops.numpy(ops.expert_linear_grouped(ops.array(rows, f32), w, ops.array(eids)))
+        assert np.abs(got - ref).max() < 1e-5 * scale, fmt
+
+        # compiled, as a decode step has it: the experts are an input, and another step's are other experts
+        compiled = ops.capture(lambda x_, eids_, w=w: (ops.expert_linear(x_, w, eids_, 2),))
+        for picked in (eids, eids[::-1].copy()):
+            got = ops.numpy(compiled(ops.array(x, f32), ops.array(picked))[0])
+            ref_p = np.einsum('rnk,rk->rn', want[picked].astype(np.float64), rows.astype(np.float64))
+            assert np.abs(got - ref_p).max() < 1e-5 * scale, fmt
+
+        # the model's dtype on an accelerator: the weights rounded to bfloat16, the product in it
+        bf16 = ops.dtype('bf16')
+        got = ops.numpy(ops.expert_linear(ops.array(x, bf16), w, ops.array(eids), 2))
+        assert np.abs(got - ref).max() < 3e-2 * scale, fmt
 
 
 def _skip() -> bool:

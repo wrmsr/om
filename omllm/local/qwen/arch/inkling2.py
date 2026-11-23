@@ -9,10 +9,13 @@ The model's execution order is the config's visits (`Inkling2Config.visits`): on
 looped layers' entries built over the same sublayers -- one set of weights -- each with its own slot of decode state,
 and the loop's two markers between the passes (core/inkling2/loop.py).
 
-Not built: the vision tower, and the separate draft model (`mtp` is refused).
+With `mtp` the checkpoint's draft model is built beside it (core/dspark/, from its own names under `mtp.`:
+dspark.py), and the model then hands out, as its hidden output, the states inside the stack that the drafter reads
+(core/inkling2/readouts.py). Not built: the vision tower.
 """
 import typing as ta
 
+from ..core.draftheads import DraftHead
 from ..core.heads import SoftcappedOutputHead
 from ..core.inkling2.attention import Inkling2Attention
 from ..core.inkling2.attention import LogScaling
@@ -25,13 +28,17 @@ from ..core.inkling2.loop import LoopRestart
 from ..core.inkling2.messages import MessageGate
 from ..core.inkling2.messages import MessageReader
 from ..core.inkling2.moe import Inkling2MoE
+from ..core.inkling2.readouts import BlockSumReadout
 from ..core.kvspans import FullKvSpan
+from ..core.kvspans import KvSpan
+from ..core.kvspans import RunningKvSpan
 from ..core.kvspans import SlidingKvSpan
 from ..core.mixing import Connection
 from ..core.mixing import Layer
 from ..core.mixing import Mixer
 from ..core.model import Qwen35
 from ..core.positions import PlainStepPositions
+from ..core.readouts import Readout
 from ..core.shortconv import ConvolvedMixer
 from ..core.shortconv import DynamicShortConv
 from ..core.shortconv import FeedForwardMixer
@@ -47,6 +54,9 @@ from ..load.weights import TensorSource
 from ..ops.base import Ops
 from ..ops.base import Weight
 from .base import Architecture
+from .dspark import DSPARK_LAYOUT
+from .dspark import build_dspark
+from .dspark import dspark_param_names
 
 
 ##
@@ -75,6 +85,16 @@ INKLING2_LAYOUT = LayoutRules(
         'sconv',
         'controllers',
     ),
+)
+
+INKLING2_DRAFT_PREFIX = 'mtp.'
+
+# the model's rules and the drafter's: its names are planned through the same loader (no name of either matches a
+# pattern of the other's)
+INKLING2_DRAFT_LAYOUT = LayoutRules(
+    fusions=INKLING2_LAYOUT.fusions,
+    keep_f32=(*INKLING2_LAYOUT.keep_f32, *DSPARK_LAYOUT.keep_f32),
+    no_quant=(*INKLING2_LAYOUT.no_quant, *DSPARK_LAYOUT.no_quant),
 )
 
 
@@ -124,10 +144,17 @@ def inkling2_param_names(cfg: Inkling2Config) -> list[str]:
 class Inkling2Architecture(Architecture):
     @property
     def layout(self) -> LayoutRules:
-        return INKLING2_LAYOUT
+        return INKLING2_DRAFT_LAYOUT
 
     def param_names(self, cfg: Inkling2Config) -> list[str]:
         return inkling2_param_names(cfg)
+
+    def draft_param_names(self, cfg: Inkling2Config) -> list[str]:
+        """The draft model's names (empty for a checkpoint that describes none)."""
+
+        if cfg.draft is None:
+            return []
+        return [INKLING2_DRAFT_PREFIX + n for n in dspark_param_names(cfg.draft)]
 
     # construction
 
@@ -140,7 +167,33 @@ class Inkling2Architecture(Architecture):
             heads=cfg.num_kv_heads,
         )
 
-    def _attention(self, cfg: Inkling2Config, p: ta.Mapping[str, Weight], i: int) -> Mixer:
+    # The slots a local layer's window has to run in before it is moved back (core/kvspans.py, RunningKvSpan): as
+    # many again as the window, so once in a window's worth of tokens -- and enough for any step.
+    WINDOW_ROOM_MIN: ta.ClassVar[int] = 16
+
+    def _span(self, cfg: Inkling2Config, i: int, in_place: bool) -> KvSpan:
+        """What layer i's attention sees and how it is kept: by the layer's kind, and by how the backend writes."""
+
+        if not cfg.is_local(i):
+            return FullKvSpan(num_kv_heads=cfg.num_kv_heads, head_dim=cfg.head_dim)
+
+        if in_place:
+            return RunningKvSpan(
+                num_kv_heads=cfg.num_kv_heads,
+                head_dim=cfg.head_dim,
+                window=cfg.window,
+                room=max(cfg.window - 1, self.WINDOW_ROOM_MIN),
+            )
+
+        return SlidingKvSpan(num_kv_heads=cfg.num_kv_heads, head_dim=cfg.head_dim, window=cfg.window)
+
+    def _attention(
+            self,
+            cfg: Inkling2Config,
+            p: ta.Mapping[str, Weight],
+            i: int,
+            in_place: bool,
+    ) -> Mixer:
         q = f'layers.{i}.'
         local = cfg.is_local(i)
 
@@ -160,11 +213,7 @@ class Inkling2Architecture(Architecture):
             rel_proj=p[q + 'attn.rel_logits_proj.weight'],
             k_conv=self._short_conv(cfg, p, q + 'attn.k_sconv'),
             v_conv=self._short_conv(cfg, p, q + 'attn.v_sconv'),
-            span=(
-                SlidingKvSpan(num_kv_heads=cfg.num_kv_heads, head_dim=cfg.head_dim, window=cfg.window)
-                if local else
-                FullKvSpan(num_kv_heads=cfg.num_kv_heads, head_dim=cfg.head_dim)
-            ),
+            span=self._span(cfg, i, in_place),
             qk_clip=cfg.qk_clip,
             rel_clip=cfg.rel_clip,
             log_scaling=None if local else LogScaling(cfg.log_scale_floor, cfg.log_scale_alpha),
@@ -224,6 +273,7 @@ class Inkling2Architecture(Architecture):
             p: ta.Mapping[str, Weight],
             i: int,
             dtype: ta.Any,
+            in_place: bool,
     ) -> list[tuple[Mixer, Connection]]:
         """Physical layer i's two sublayers and their connections: one set, however many visits run it."""
 
@@ -237,7 +287,7 @@ class Inkling2Architecture(Architecture):
 
         return [
             (
-                self._attention(cfg, p, i),
+                self._attention(cfg, p, i, in_place),
                 DepthAttentionConnection(
                     queries=p.get(q + 'attn_queries'),
                     norms=norms,
@@ -268,16 +318,37 @@ class Inkling2Architecture(Architecture):
     ) -> Qwen35:
         """A model from finished parameters (canonical names: load/inkling2.py)."""
 
-        sublayers = [self._sublayers(cfg, params, i, dtype) for i in range(cfg.num_layers)]
+        sublayers = [self._sublayers(cfg, params, i, dtype, ops.kv_in_place) for i in range(cfg.num_layers)]
 
         layers: list[Layer] = []
+        places: list[int] = []  # each visit's place among the layers
         for visit, (layer, loop_pass) in enumerate(cfg.visits()):
             if layer == cfg.loop_start and cfg.loop_passes > 1:
                 layers.append(LoopRestart(eps=cfg.rms_eps) if loop_pass else LoopEntry())
+            places.append(len(layers))
             layers.append(SublayerBlock(index=visit, sublayers=sublayers[layer]))
 
         embed = params['embed.weight']
         unembed = params['unembed.weight']
+
+        draft: DraftHead | None = None
+        readout: Readout | None = None
+        dp = INKLING2_DRAFT_PREFIX
+        if cfg.draft is not None and dp + 'mask_embed' in params:
+            *taps, last = cfg.draft.taps
+            if last != len(places) or cfg.draft.hidden_size != cfg.hidden_size:
+                raise ValueError(f'a drafter of width {cfg.draft.hidden_size} reading {cfg.draft.taps}: not this model')
+            readout = BlockSumReadout([places[t] for t in taps])
+            draft = build_dspark(
+                cfg.draft,
+                {n[len(dp):]: w for n, w in params.items() if n.startswith(dp)},
+                ops,
+                dtype,
+                embed=embed,
+                embed_norm=params['embed_norm.weight'],
+                unembed=unembed,
+                logit_cap=cfg.logit_softcap,
+            )
 
         return Qwen35(
             cfg=cfg,
@@ -295,6 +366,8 @@ class Inkling2Architecture(Architecture):
             ),
             positions=PlainStepPositions(),
             head=SoftcappedOutputHead(unembed, cfg.logit_softcap),
+            readout=readout,
+            mtp=draft,
             nbytes=sum(ops.nbytes(p) for p in params.values()),
         )
 
@@ -311,9 +384,6 @@ class Inkling2Architecture(Architecture):
             cache_dir: str | None = None,
             on_progress: ta.Callable[[int, int], None] | None = None,
     ) -> tuple[Qwen35, LoadReport]:
-        if mtp:
-            raise ValueError('the inkling2 draft model is not supported: no MTP for this model')
-
         cfg = src.config
         if not isinstance(cfg, Inkling2Config):
             raise TypeError(cfg)
@@ -328,6 +398,11 @@ class Inkling2Architecture(Architecture):
         )
 
         specs = loader.plan(self.param_names(cfg))
+        if mtp:
+            names = self.draft_param_names(cfg)
+            if not names or not all(src.has(n) for n in names):
+                raise ValueError('no draft model in this checkpoint (its config\'s mtp_config and mtp.safetensors)')
+            specs += loader.plan(names)
         params = loader.materialize(specs, on_progress=on_progress)
 
         return self.build(cfg, params, ops, ops.dtype(dtype)), loader.report()

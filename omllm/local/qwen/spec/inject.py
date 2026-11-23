@@ -9,7 +9,7 @@ from ..decode.processors import LogitProcessor
 from ..decode.sampling import Sampler
 from ..ops.base import Ops
 from .lookup import LookupDraftSource
-from .mtp import MtpDraftSource
+from .registry import head_draft_source
 
 
 ##
@@ -18,9 +18,10 @@ from .mtp import MtpDraftSource
 @dc.dataclass(frozen=True)
 class SpecConfig:
     """
-    Speculative decoding with the MTP head: k drafts a round (0 = off), drafted over the first draft_vocab ids. With
-    `lengths` a round drafts to the shortest of those counts and on to the next ones while the head's confidence in its
-    drafts holds at `confidence` (None: MtpDraftSource's default), and `k` is the largest of them.
+    Speculative decoding with the model's draft head (spec/registry.py): k drafts a round (0 = off). With `lengths` a
+    round drafts one of those counts, and `k` is the largest of them. For the MTP head, drafts are over the first
+    draft_vocab ids, and a round drafts to the shortest count and on to the next ones while the head's confidence in
+    its drafts holds at `confidence` (None: MtpDraftSource's default); a DSpark drafter takes neither.
     """
 
     k: int = 0
@@ -35,8 +36,8 @@ def _mtp(
         processor: LogitProcessor,
         config: SpecConfig,
 ) -> DraftSource:
-    return MtpDraftSource(
-        model=model,
+    return head_draft_source(
+        model,
         sampler=sampler,
         processor=processor,
         k=config.lengths or config.k,

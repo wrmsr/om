@@ -32,7 +32,7 @@ from .decode.tokens import VerifyTokenSource
 from .prefix.cache import PrefixCache
 from .prefix.store import PrefixStateStore
 from .spec.lookup import LookupDraftSource
-from .spec.mtp import MtpDraftSource
+from .spec.registry import head_draft_source
 
 
 ##
@@ -128,8 +128,8 @@ def generate(
 
     if draft is None:
         if spec:
-            draft = MtpDraftSource(
-                model=model,
+            draft = head_draft_source(
+                model,
                 sampler=sampler,
                 processor=processor,
                 k=spec,

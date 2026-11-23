@@ -171,6 +171,7 @@ class Tokenizer:
             bos_id=spec.get('bos_id'),
             add_bos=bool(spec.get('add_bos')),
             chat_template=spec.get('chat_template'),
+            ignore_merges=bool(spec.get('ignore_merges')),  # (not a field of a GGUF: its source's to say)
         )
 
     @classmethod

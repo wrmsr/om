@@ -31,7 +31,9 @@ from ...ops.reference import NumpyOps
 from ...prefix.cache import PrefixCache
 from ...spec.oracle import OracleDraftSource
 from ...tests.test_parity import backends
+from ...tests.test_parity import leading_backends
 from ...tests.tritonmodes import triton_modes
+from ..inkling2 import Inkling2Architecture
 from ..qwen35 import load_qwen35
 from ..registry import architecture_for
 from .inkling2checkpoints import RELEASED_CONFIG
@@ -270,7 +272,7 @@ def test_partial_acceptance():
         ref = INKLING2_REFERENCE['packed']
         prompt = ref['ids'][:10]
 
-        for ops in [NumpyOps(), *backends()[:1]]:
+        for ops in [NumpyOps(), *leading_backends()]:
             model = _load(tmp, _static(ops))
             plain = list(generate(model, prompt, max_new_tokens=24).tokens)
             assert plain[:14] == ref['greedy']
@@ -292,6 +294,48 @@ def test_partial_acceptance():
             assert list(sampled.tokens) != plain[:12]
 
 
+def test_a_window_runs_where_it_is_kept():
+    """
+    Where buffers are written in place a local layer's window is kept in buffers with room to run (`RunningKvSpan`),
+    appended to by every step and moved back to the front when the room is used up: a generation several times as
+    long as the room -- plain, verifying drafts kept in part, and resumed from a stored state taken after the window
+    has moved -- gives the functional decoder's tokens, and a second generation in the first's buffers does too.
+    """
+
+    with tempfile.TemporaryDirectory() as tmp:
+        write_inkling2_checkpoint(tmp)
+        prompt = INKLING2_REFERENCE['packed']['ids'][:10]
+
+        for ops in backends()[:1]:
+            model = _load(tmp, _static(ops))
+            assert ops.kv_in_place and isinstance(model.cfg, Inkling2Config), ops.name
+            room = max(model.cfg.window - 1, Inkling2Architecture.WINDOW_ROOM_MIN)
+            n = 4 * room + 6
+
+            want = list(generate(model, prompt, max_new_tokens=n, static=False).tokens)
+            full = [*prompt, *want]
+
+            for _ in range(2):
+                assert list(generate(model, prompt, max_new_tokens=n).tokens) == want, ops.name
+
+            for k, right in ((3, 2), (5, 0), (2, 2)):
+                def drafts(ids: ta.Sequence[int], count: int, right: int = right) -> list[int]:
+                    nxt = full[len(ids):len(ids) + count]
+                    return [t if i < right else (t + 1) % 300 for i, t in enumerate(nxt)]
+
+                draft = OracleDraftSource(ops, vocab_size=model.cfg.vocab_size, k=k, fn=drafts)
+                res = generate(model, prompt, max_new_tokens=n, draft=draft)
+                assert list(res.tokens) == want, (ops.name, k, right)
+
+            pc = PrefixCache(ops, 1 << 30, 0)
+            first = generate(model, prompt, max_new_tokens=2 * room + 3, prefix_cache=pc)
+            assert list(first.tokens) == want[:2 * room + 3], ops.name
+            again = [*prompt, *first.tokens]
+            res = generate(model, again, max_new_tokens=n - len(first.tokens), prefix_cache=pc)
+            assert res.reused == len(again) - 1 or res.reused == len(again), (ops.name, res.reused)
+            assert list(res.tokens) == want[len(first.tokens):], ops.name
+
+
 def test_prefix_resume():
     """
     A follow-up resumed from a stored state -- every visit's KV and convolution histories, exported from the static
@@ -302,7 +346,7 @@ def test_prefix_resume():
         write_inkling2_checkpoint(tmp)
         p1 = INKLING2_REFERENCE['packed']['ids'][:17]
 
-        for ops in [NumpyOps(), *backends()[:1]]:
+        for ops in [NumpyOps(), *leading_backends()]:
             model = _load(tmp, _static(ops))
 
             pc = PrefixCache(ops, 1 << 30, 0)
@@ -312,6 +356,9 @@ def test_prefix_resume():
             cold = generate(model, p2, max_new_tokens=8)
             assert r2.reused == len(p1) + len(r1.tokens), (ops.name, r2.reused)
             assert list(r2.tokens) == list(cold.tokens), (ops.name, r2.tokens, cold.tokens)
+
+            if ops.static_prefill:
+                continue  # (a prefill through the captured step keeps no checkpoints yet: Decoder.prefill)
 
             pc = PrefixCache(ops, 1 << 30, 0)
             generate(model, p2, max_new_tokens=2, prefix_cache=pc, prefill_chunk=4, prefill_checkpoints=3)

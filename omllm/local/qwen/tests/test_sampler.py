@@ -227,3 +227,21 @@ def test_greedy_rejection_step_is_an_argmax():
             assert ops.numpy(sampler.sample(rows)).tolist() == first_max.tolist(), ops.name
             assert ops.numpy(corrections).tolist() == first_max.tolist(), ops.name
             assert ops.numpy(accept).tolist() == (first_max[:k] == drafts).astype(int).tolist(), ops.name
+
+
+def test_draws_held_together_are_different_draws():
+    """
+    The noise of a run of sampled drafts is taken a row a draft and joined (spec/draws.py): several draws of one
+    size, held at once and read as one array, are the generator's next rows in order -- what the same seed gives one
+    draw at a time. (Where a draw is a named slice of a pool, tinygrad's, every row of the run was one row.)
+    """
+
+    for ops in backends():
+        ops.seed(5)
+        rows = [ops.random_uniform((1, 12)) for _ in range(3)]
+        together = ops.numpy(ops.concat(rows, 0))
+        assert len({tuple(r) for r in together.tolist()}) == 3, ops.name
+
+        ops.seed(5)
+        apart = np.concatenate([ops.numpy(ops.random_uniform((1, 12))) for _ in range(3)], 0)
+        assert np.array_equal(together, apart), ops.name

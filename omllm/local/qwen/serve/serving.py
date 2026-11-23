@@ -189,9 +189,10 @@ class _PrefillStats(Observer):
 class _ChatStream(Observer):
     """
     One chat request's answer as it is generated: its token ids, its text (the end of turn is not content; a stop
-    string ends it), the reasoning / content / tool-call deltas handed to `deliver` when streaming, and when the first
-    token came. Where a stop string starts is known before the round's tokens arrive here (the terminator cut the round
-    at it), so nothing past it is delivered.
+    string ends it), the reasoning / content / tool-call deltas its reader makes of it -- handed to `deliver` when
+    streaming -- and when the first token came. The reader is fed text, and each special token as itself (it is the
+    reader's to say whether one is a marker: text that spells one is not). Where a stop string starts is known before
+    the round's tokens arrive here (the terminator cut the round at it), so nothing past it is read.
     """
 
     def __init__(
@@ -206,6 +207,7 @@ class _ChatStream(Observer):
     ) -> None:
         super().__init__()
 
+        self._tok = tok
         self._streamer = Tokenizer.Streamer(tok)
         self._parser = reader
         self._eos = eos
@@ -227,24 +229,32 @@ class _ChatStream(Observer):
             self.first_token_s = time.time() - self._t0
         for t in kept:
             self.ids.append(t)
-            if t not in self._eos:  # (it would otherwise decode to the end-of-turn token's text)
+            if t in self._eos:  # (it would otherwise decode to the end-of-turn token's text)
+                continue
+            if t in self._tok.special_ids:
+                self._push(self._streamer.flush())  # (bytes still waiting to be a character will not be one now)
+                self._push(self._tok.tokens[t], special=True)
+            else:
                 self._push(self._streamer.push(t))
 
-    def _push(self, piece: str) -> None:
+    def _push(self, piece: str, special: bool = False) -> None:
         if not piece:
             return
         self._pieces.append(piece)
         start = self._len
         self._len += len(piece)
-        if self._deliver is None:
-            return
         if (at := self._stop.stopped_at) is not None:
+            if special and at < self._len:
+                return  # (a stop string starts before the token is whole: none of it is the answer's)
             piece = piece[:max(0, at - start)]
-        if piece:
-            self._deliver(self._parser.feed(piece))
+        if not piece:
+            return
+        events = self._parser.mark(piece) if special else self._parser.feed(piece)
+        if self._deliver is not None:
+            self._deliver(events)
 
     def finish(self) -> tuple[str, bool]:
-        """The answer's text, and whether a stop string ended it. The parser's last deltas go out."""
+        """The answer's text, and whether a stop string ended it. The reader's last deltas go out."""
 
         self._push(self._streamer.flush())
         text = ''.join(self._pieces)
@@ -252,8 +262,9 @@ class _ChatStream(Observer):
         stopped = at is not None and at < len(text)
         if stopped:
             text = text[:at]
+        events = self._parser.finish()
         if self._deliver is not None:
-            self._deliver(self._parser.finish())
+            self._deliver(events)
         return text, stopped
 
 
@@ -393,11 +404,11 @@ class Engine:
                 if at >= 0 and (best is None or at < best[0]):
                     best = (at, seg)
             if best is None:
-                ids.extend(self.tok.encode(rest))
+                ids.extend(self.protocol.encode(rest))
                 break
             at, seg = best
             if at:
-                ids.extend(self.tok.encode(rest[:at]))
+                ids.extend(self.protocol.encode(rest[:at]))
             ids.extend(self.answer_ids[seg])
             rest = rest[at + len(seg):]
         return ids
@@ -477,7 +488,7 @@ class Engine:
         text = self.render(req)
         ids = self.encode_prompt(text)
         # the generation prompt's own ids (the part of the prompt that is already the answer's turn), for the memo
-        gen_prompt_ids = tok.encode(protocol.generation_prompt(text))
+        gen_prompt_ids = protocol.encode(protocol.generation_prompt(text))
 
         def deliver(events: list[ChatEvent]) -> None:
             for kind, payload in events:
@@ -486,13 +497,14 @@ class Engine:
         # stop strings end the generation through a terminator, which cuts the round at the token completing one, so the
         # stored state ends there too; the answer (and what streams) ends where the stop string starts
         stop = StopStringTerminator(tok, req.stop or (), end_ids=self.eos)
+        reader = protocol.reader(req.tools, enable_thinking=req.enable_thinking)
         answer = _ChatStream(
             tok,
             eos=self.eos,
             stop=stop,
             deliver=deliver if req.stream else None,
             t0=t0,
-            reader=protocol.reader(req.tools, enable_thinking=req.enable_thinking),
+            reader=reader,
         )
         prefill = _PrefillStats()
 
@@ -519,7 +531,7 @@ class Engine:
         ))
 
         full, stopped = answer.finish()
-        parsed = protocol.parse(full, req.tools, enable_thinking=req.enable_thinking)
+        parsed = reader.parsed(full)
         out_ids = answer.ids
         if parsed.tool_calls:
             finish = 'tool_calls'

@@ -1119,6 +1119,14 @@ def _mgemv_experts_kernel(
     expert. A code's and a scale byte's value come from the tables cv / sv (16 or 256 entries, 256), so the kernel
     does not know the encodings; a weight is code value * scale value (* the expert's factor, applied to the row's
     sum). Row r is input row r // X_DIV against expert e_ptr[r]; the grid is (N blocks, rows).
+
+    The products are accumulated as a tile, column by column of the tile, and summed along it once at the end: a sum
+    along a tile's axis is work across a program's threads, and one for every tile of the input axis was a tenth to a
+    quarter of the kernel's time. (The kernel is bound by its instructions a weight, not by the bytes it reads: a
+    step's rows share experts -- eight tokens of Inkling 2 Mini select 30 between them, not 64 -- and reading each
+    expert once for all its rows changed nothing; nor did a tensor-core product per expert, 3.5 times slower for
+    what it takes to lay the decoded tiles out, or a table of every byte's contribution, 8 times slower for its
+    gathers.)
     """
 
     pid_n = tl.program_id(0)
@@ -1133,11 +1141,11 @@ def _mgemv_experts_kernel(
     n_blocks = K // BLOCK
     G: tl.constexpr = BLOCK_K // BLOCK
     rg = tl.arange(0, G)
-    acc = tl.zeros((BLOCK_N,), dtype=tl.float32)
     if NIBBLES:
         KB: tl.constexpr = BLOCK_K // 2
         GB: tl.constexpr = BLOCK // 2
         rb = tl.arange(0, KB)
+        acc2 = tl.zeros((BLOCK_N, KB), dtype=tl.float32)
         for k0 in range(0, K, BLOCK_K):
             kb = k0 // 2 + rb
             ke = k0 + 2 * rb
@@ -1145,23 +1153,25 @@ def _mgemv_experts_kernel(
             c = tl.load(cb + rn[:, None] * (K // 2) + kb[None, :], mask=n_mask[:, None], other=0)
             sc = tl.load(sb + rn[:, None] * n_blocks + gcol[None, :], mask=n_mask[:, None], other=0)
             sv = tl.load(sv_ptr + sc.to(tl.int32))[:, :, None]
-            lo = tl.reshape(tl.reshape(tl.load(cv_ptr + (c & 0xF).to(tl.int32)), (BLOCK_N, G, GB)) * sv, (BLOCK_N, KB))
-            hi = tl.reshape(tl.reshape(tl.load(cv_ptr + (c >> 4).to(tl.int32)), (BLOCK_N, G, GB)) * sv, (BLOCK_N, KB))
             xe = tl.load(xrow + ke).to(tl.float32)
             xo = tl.load(xrow + ke + 1).to(tl.float32)
-            acc += tl.sum(lo * xe[None, :], 1) + tl.sum(hi * xo[None, :], 1)
-        acc = acc * tl.load(o_ptr + e)
+            lo = tl.load(cv_ptr + (c & 0xF).to(tl.int32)) * xe[None, :]
+            hi = tl.load(cv_ptr + (c >> 4).to(tl.int32)) * xo[None, :]
+            acc2 += tl.reshape(tl.reshape(lo + hi, (BLOCK_N, G, GB)) * sv, (BLOCK_N, KB))
+        acc = tl.sum(acc2, 1) * tl.load(o_ptr + e)
     else:
         rk0 = tl.arange(0, BLOCK_K)
+        acc1 = tl.zeros((BLOCK_N, BLOCK_K), dtype=tl.float32)
         for k0 in range(0, K, BLOCK_K):
             rk = k0 + rk0
             gcol = k0 // BLOCK + rg
             c = tl.load(cb + rn[:, None] * K + rk[None, :], mask=n_mask[:, None], other=0)
             sc = tl.load(sb + rn[:, None] * n_blocks + gcol[None, :], mask=n_mask[:, None], other=0)
             sv = tl.load(sv_ptr + sc.to(tl.int32))[:, :, None]
-            w = tl.reshape(tl.reshape(tl.load(cv_ptr + c.to(tl.int32)), (BLOCK_N, G, BLOCK)) * sv, (BLOCK_N, BLOCK_K))
             xt = tl.load(xrow + rk).to(tl.float32)
-            acc += tl.sum(w * xt[None, :], 1)
+            w = tl.load(cv_ptr + c.to(tl.int32)) * xt[None, :]
+            acc1 += tl.reshape(tl.reshape(w, (BLOCK_N, G, BLOCK)) * sv, (BLOCK_N, BLOCK_K))
+        acc = tl.sum(acc1, 1)
     tl.store(y_ptr + r * stride_y + rn, acc.to(y_ptr.dtype.element_ty), mask=n_mask)
 
 
@@ -1183,11 +1193,14 @@ def mgemv_experts(
         block: int,
         shape: tuple[int, int],
         x_div: int = 1,
-        block_n: int = 32,
+        block_n: int | None = None,
 ) -> torch.Tensor:
     """
     y [R, N]: row r = x[r // x_div] @ w[eids[r]].T, w a stack of experts in a microscaled format as stored (codes
     [E, N, K / 2] with `outer` [E], or [E, N, K] without; scales [E, N, K / block]; the value tables flat float32).
+    `block_n`: the output rows a program, by default 16 for a token's few rows and 32 for more (measured on
+    Inkling 2 Mini's NVFP4 experts, cold in a captured step: a visit's two products 34 us at 16 and 39 at 32 for
+    one token's 8 rows, 243 and 213 for eight tokens' 64).
     """
 
     ensure_kernels()
@@ -1195,6 +1208,8 @@ def mgemv_experts(
     bk = _microscaled_block_k(k, block)
     x2 = x if x.stride(-1) == 1 else x.contiguous()
     r = eids.shape[0]
+    if block_n is None:
+        block_n = 16 if r <= 8 else 32
     y = torch.empty((r, n), dtype=x.dtype, device=x.device)
     _mexperts_jit[(triton.cdiv(n, block_n), r)](
         x2,
@@ -1230,15 +1245,17 @@ def _mdequant_kernel(
         w_ptr,
         N,
         K,
+        PER,
         NIBBLES: tl.constexpr,
         BLOCK: tl.constexpr,
         BLOCK_N: tl.constexpr,
         BLOCK_K: tl.constexpr,
 ):
     """
-    One microscaled matrix written out dense, one pass: a program stores a [BLOCK_N, BLOCK_K] tile of code value *
-    scale value (* the matrix's factor at o_ptr, with NIBBLES), computed in float32, in the output's dtype. What a
-    prefill's matmul against one expert needs (`_dequant_kernel`, for these formats).
+    Microscaled matrices written out dense, one pass: a program stores a [BLOCK_N, BLOCK_K] tile of code value *
+    scale value (* with NIBBLES the factor at o_ptr of the matrix the row is in, every PER rows another's),
+    computed in float32, in the output's dtype. What a prefill's matmul against an expert needs (`_dequant_kernel`,
+    for these formats) -- for one, or for a run of them stacked along the rows.
     """
 
     rn = tl.program_id(0) * BLOCK_N + tl.arange(0, BLOCK_N)
@@ -1251,7 +1268,7 @@ def _mdequant_kernel(
     sv = tl.load(sv_ptr + sc.to(tl.int32))[:, :, None]
     w_row = w_ptr + rn[:, None].to(tl.int64) * K
     if NIBBLES:
-        sv = sv * tl.load(o_ptr)
+        sv = sv * tl.load(o_ptr + rn // PER, mask=n_mask, other=0.0)[:, None, None]
         KB: tl.constexpr = BLOCK_K // 2
         GB: tl.constexpr = BLOCK // 2
         rb = tl.arange(0, KB)
@@ -1281,30 +1298,34 @@ def mdequantize(
         block_n: int = 16,
 ) -> torch.Tensor:
     """
-    The dense [N, K] weight of one microscaled matrix (codes [N, K / 2] with `outer` [1], or [N, K] without; scales
-    [N, K / block]), in `dtype`: see _mdequant_kernel.
+    The dense weight of microscaled matrices, in `dtype` (see _mdequant_kernel): [N, K] for one (codes [N, K / 2]
+    with `outer` [1], or [N, K] without; scales [N, K / block]), or [E, N, K] for a stack of E, in one launch (codes
+    [E, N, K / 2] with `outer` [E], or [E, N, K]; scales [E, N, K / block]) -- a prefill decodes a layer's experts
+    so, a run of them at a time.
     """
 
     ensure_kernels()
     n, k = shape
     bk = _microscaled_block_k(k, block)
-    w = torch.empty((n, k), dtype=dtype, device=codes.device)
-    _mdequant_jit[(triton.cdiv(n, block_n), k // bk)](
+    stack = codes.shape[0] if codes.dim() == 3 else 1
+    w = torch.empty((stack * n, k), dtype=dtype, device=codes.device)
+    _mdequant_jit[(triton.cdiv(stack * n, block_n), k // bk)](
         codes,
         scales,
         outer if outer is not None else scale_values,  # (unread without NIBBLES)
         code_values,
         scale_values,
         w,
-        n,
+        stack * n,
         k,
+        n,
         NIBBLES=outer is not None,
         BLOCK=block,
         BLOCK_N=block_n,
         BLOCK_K=bk,
         num_warps=4,
     )
-    return w
+    return w if codes.dim() == 2 else w.reshape(stack, n, k)
 
 
 def _dequant_kernel(

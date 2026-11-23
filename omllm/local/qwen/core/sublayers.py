@@ -13,6 +13,19 @@ from .mixing import StepContext
 ##
 
 
+def _stream_arrays(r: ta.Any) -> list[Array]:
+    """
+    The arrays a residual stream holds, whatever it is: one array, or tuples of them at any depth (core/inkling2/'s
+    block sums and what its loop keeps beside them).
+    """
+
+    if r is None:
+        return []
+    if isinstance(r, tuple):
+        return [a for part in r for a in _stream_arrays(part)]
+    return [r]
+
+
 class SublayerBlock(Layer):
     """
     A layer as sublayers in order, each read from the residual stream and written back through its own connection,
@@ -72,7 +85,9 @@ class SublayerBlock(Layer):
             r = conn.write(ops, r, y, carry)
             out.extend(new)
 
-        ops.materialize(*out)  # (as Block does: a lazy backend's graph is one layer's at a time)
+        # (as Block does, the stream with the state: a lazy backend's graph is one layer's at a time, and no layer's
+        # output is left pending for every later one's evaluation to compute again)
+        ops.materialize(*_stream_arrays(r), *out)
 
         return r, tuple(out)
 
@@ -85,6 +100,6 @@ class SublayerBlock(Layer):
             r = conn.write(ops, r, y, carry)
             out.extend(new)
 
-        ops.materialize(*out)
+        ops.materialize(*_stream_arrays(r), *out)
 
         return r, tuple(out)

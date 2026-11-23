@@ -10,8 +10,7 @@ from ...ops.base import Array
 from ...ops.base import Ops
 from ..mixing import Connection
 from .depth import DepthStream
-from .depth import depth_mix
-from .depth import depth_sources
+from .depth import depth_read
 from .depth import unit_rms
 from .messages import MessageReader
 
@@ -57,7 +56,7 @@ class DepthAttentionConnection(Connection):
         if self._queries is None:
             xs = [ops.f32(r.partial)]
         else:
-            mix = depth_mix(ops, self._queries, depth_sources(ops, r, self._eps))
+            mix = depth_read(ops, self._queries, r, self._eps)
             xs = [mix[:, :, i] for i in range(len(self._norms))]
 
         if self._messages is not None and r.messages is not None:
@@ -65,7 +64,7 @@ class DepthAttentionConnection(Connection):
 
         norms = self._norms
         out = [
-            ops.cast(ops.rms_norm(x, norms[i if len(norms) > 1 else 0], self._eps), self._dtype)
+            ops.rms_norm_to(x, norms[i if len(norms) > 1 else 0], self._eps, self._dtype)
             for i, x in enumerate(xs)
         ]
         if len(out) == 1:
@@ -81,7 +80,7 @@ class DepthAttentionConnection(Connection):
                 partial=ops.f32(y),
             )
 
-        return r._replace(partial=ops.f32(r.partial) + ops.f32(y))
+        return r._replace(partial=ops.sum_to(r.partial, y, ops.dtype('f32')))
 
 
 class DepthFeedForwardConnection(Connection):
@@ -106,12 +105,12 @@ class DepthFeedForwardConnection(Connection):
         self._messages = messages
 
     def read(self, ops: Ops, r: DepthStream) -> tuple[ta.Any, ta.Any]:
-        xs = [depth_mix(ops, self._query, depth_sources(ops, r, self._eps))[:, :, 0]]
+        xs = [depth_read(ops, self._query, r, self._eps)[:, :, 0]]
 
         if self._messages is not None and r.messages is not None:
             xs = self._messages.read(ops, r.messages, xs)
 
-        return ops.cast(ops.rms_norm(xs[0], self._norm, self._eps), self._dtype), None
+        return ops.rms_norm_to(xs[0], self._norm, self._eps, self._dtype), None
 
     def write(self, ops: Ops, r: DepthStream, y: Array, carry: ta.Any) -> DepthStream:
-        return r._replace(partial=ops.cast(ops.f32(r.partial) + ops.f32(y), self._dtype))
+        return r._replace(partial=ops.sum_to(r.partial, y, self._dtype))

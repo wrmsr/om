@@ -89,8 +89,12 @@ class StateLayout(lang.Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def commit(self, ops: Ops, state: tuple[Array, ...], n: int, stacked: bool) -> tuple[Array, ...]:
-        """After a T-token step: the state after its first n tokens (`stacked`: the step returned one per token)."""
+    def commit(self, ops: Ops, state: tuple[Array, ...], n: Array, stacked: bool) -> tuple[Array, ...]:
+        """
+        After a T-token step: the state after its first n tokens (`stacked`: the step returned one per token). `n` is
+        a 0-d int array, held on the device: the static decoder commits inside a captured function
+        (decode/decoder.py), which cannot read it.
+        """
 
         raise NotImplementedError
 
@@ -108,6 +112,20 @@ class StateLayout(lang.Abstract):
         """
 
         return tuple(state) if self.capacity(ops, state) is not None else ()
+
+    def room(self, ops: Ops, state: tuple[Array, ...]) -> int | None:
+        """
+        For a fixed-size state that steps write into in place: the positions a step may still write before room has
+        to be made for more (`make_room`); None for a state that never needs it. It is read from the state, so it is
+        not for a captured function, nor for every step: the decoder asks when it takes a state up and counts down.
+        """
+
+        return None
+
+    def make_room(self, ops: Ops, state: tuple[Array, ...]) -> tuple[Array, ...]:
+        """The state with as much `room` as it ever has, where steps find the same arrays. Default: as it is."""
+
+        return state
 
 
 class EmptyStateLayout(StateLayout):
@@ -128,7 +146,7 @@ class EmptyStateLayout(StateLayout):
     def export(self, ops: Ops, state: tuple[Array, ...], seq_len: int) -> tuple[Array, ...]:
         return ()
 
-    def commit(self, ops: Ops, state: tuple[Array, ...], n: int, stacked: bool) -> tuple[Array, ...]:
+    def commit(self, ops: Ops, state: tuple[Array, ...], n: Array, stacked: bool) -> tuple[Array, ...]:
         return ()
 
     def capacity(self, ops: Ops, state: tuple[Array, ...]) -> int | None:
@@ -188,7 +206,7 @@ class CompositeStateLayout(StateLayout):
     def export(self, ops: Ops, state: tuple[Array, ...], seq_len: int) -> tuple[Array, ...]:
         return tuple(a for p, s in zip(self._parts, self._split(ops, state)) for a in p.export(ops, s, seq_len))
 
-    def commit(self, ops: Ops, state: tuple[Array, ...], n: int, stacked: bool) -> tuple[Array, ...]:
+    def commit(self, ops: Ops, state: tuple[Array, ...], n: Array, stacked: bool) -> tuple[Array, ...]:
         return tuple(a for p, s in zip(self._parts, self._split(ops, state)) for a in p.commit(ops, s, n, stacked))
 
     def capacity(self, ops: Ops, state: tuple[Array, ...]) -> int | None:
@@ -197,6 +215,13 @@ class CompositeStateLayout(StateLayout):
 
     def buffers(self, ops: Ops, state: tuple[Array, ...]) -> tuple[Array, ...]:
         return tuple(a for p, s in zip(self._parts, self._split(ops, state)) for a in p.buffers(ops, s))
+
+    def room(self, ops: Ops, state: tuple[Array, ...]) -> int | None:
+        rooms = [r for p, s in zip(self._parts, self._split(ops, state)) if (r := p.room(ops, s)) is not None]
+        return min(rooms) if rooms else None
+
+    def make_room(self, ops: Ops, state: tuple[Array, ...]) -> tuple[Array, ...]:
+        return tuple(a for p, s in zip(self._parts, self._split(ops, state)) for a in p.make_room(ops, s))
 
 
 class Mixer(lang.Abstract):

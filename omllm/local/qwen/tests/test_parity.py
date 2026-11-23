@@ -18,6 +18,7 @@ from ..api import generate
 from ..arch.qwen35 import load_qwen35
 from ..core.cache import Cache
 from ..core.config import Qwen35Config
+from ..core.mtp import MtpHead
 from ..load.weights import GGUFSource
 from ..ops.base import Ops
 from ..ops.quant import quantize as quantize_np
@@ -30,6 +31,16 @@ from .test_synthetic import write_gguf
 ##
 
 
+# tinygrad stays out of the default run, for three reasons. Its captures take minutes where a test is given one: the
+# eight tests of this file are three minutes on its CPU device, Inkling 2's and its drafter's tens of them. A
+# tinygrad other than the one the backend is written against (the `tinygrad_` submodule's revision) fails past the
+# import, where nothing skips it: the 0.14.0 release constructs the backend and then raises a TypeError from the
+# first array read back. And two processes on its GPU runtime share one small mapping budget (README.md). To run it,
+# take it out of this set -- and put 'torch' in, for the tests that take only the leading backend -- and give pytest
+# the checkout and the time:
+#
+#   DEV=CPU PARALLEL=2 PYTHONPATH=tinygrad_ ./python -m pytest omllm/local/qwen/tests/test_parity.py \
+#       -p no:cacheprovider --timeout=7200 --session-timeout=86400
 DISABLED_BACKENDS: ta.Any = {
     # 'torch',
     # 'mlx',
@@ -65,6 +76,16 @@ def backends() -> list[Ops]:
             print('tinygrad not installed; skipping')
 
     return out
+
+
+def leading_backends() -> list[Ops]:
+    """
+    For a test too long to run on every backend: the first that imports, and MLX wherever it is installed -- it runs
+    on Macs alone, and where torch is installed beside it, it would never be the first.
+    """
+
+    out = backends()
+    return [*out[:1], *(ops for ops in out[1:] if ops.name.startswith('mlx'))]
 
 
 def rel_err(a: np.ndarray, b: np.ndarray) -> float:
@@ -345,7 +366,7 @@ def test_spec_decode_parity():
 
         # (c) draft-head static step vs functional pass over the same 4 entries from an empty cache
         mtp = model.mtp
-        assert mtp is not None
+        assert isinstance(mtp, MtpHead)
         T = 4
         toks = np.array([full[1:1 + T]], dtype=np.int32)
         cache = Cache(cfg)

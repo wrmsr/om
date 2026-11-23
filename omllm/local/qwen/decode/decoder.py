@@ -89,9 +89,9 @@ class Decoder(TargetDecoder):
 
     MIN_BUCKET = 1024
 
-    # the captured steps, by (T, all_states, return_hidden, attention window): this decoder's own, or -- with the
-    # buffers they were captured against -- the last one's (core/slab.py)
-    fns: dict[tuple[int, bool, bool, int], ta.Callable[..., tuple[Array, ...]]]
+    # the captured steps, by (T, all_states, return_hidden, attention window), and each one's commit by ('settle',
+    # that): this decoder's own, or -- with the buffers they were captured against -- the last one's (core/slab.py)
+    fns: dict[tuple, ta.Callable[..., tuple[Array, ...]]]
 
     @staticmethod
     def capacity_for(capacity: int | None, seq_len: int) -> int:
@@ -149,15 +149,38 @@ class Decoder(TargetDecoder):
         self._alloc(self.capacity, first=True)
 
         if slab is not None and slab.capacity == self.capacity and slab.holds(self._buffers()):
-            self.fns = slab.fns
+            # its steps, with the arrays they are bound to: this decoder's state goes into those
+            bound = self._into(slab.state, self._flat)
+            if bound is not None:
+                self.fns = slab.fns
+                self._flat = bound
         del slab  # (taken or not, its buffers are not kept past this decoder's own)
+
+        self._room = self._read_room()  # what the states written in place still take (StateLayout.room), counted down
 
         self._leaves: StepSlab | None = None
         if self.ops.kv_in_place:
-            # kept current (`_alloc`), and put where the next decoder finds it when this one is collected -- which,
-            # nothing else holding a generation's decoder, is as its generation ends
+            # kept current (`_alloc`, and wherever the state's arrays change), and put where the next decoder finds it
+            # when this one is collected -- which, nothing else holding a generation's decoder, is as its
+            # generation ends
             self._leaves = StepSlab(self.capacity, self._buffers(), self.fns)
+            self._leaves.state = self._flat
             weakref.finalize(self, model.put_slab, self._leaves).atexit = False
+
+    def _into(self, bound: ta.Sequence[Array] | None, flat: ta.Sequence[Array]) -> list[Array] | None:
+        """
+        `flat`'s values in the arrays `bound` (`Ops.assign`), if they are laid out alike; None if not. `bound` are
+        the arrays captured steps were first run on: a step takes its arguments by copying them into those, so a
+        decoder may hold any arrays for a state its steps hand back whole -- but a state a step writes in place
+        (a window kept where it runs: core/kvspans.py) is written in the bound array, and the decoder must hold
+        that one.
+        """
+
+        if bound is None or len(bound) != len(flat):
+            return None
+        if any(b.shape != f.shape or b.dtype != f.dtype for b, f in zip(bound, flat)):
+            return None
+        return [b if b is f else self.ops.assign(b, f) for b, f in zip(bound, flat)]
 
     def _buffers(self) -> list[tuple[Array, ...] | None]:
         """Per layer, the arrays of its state that live in capacity buffers (None for a layer with none)."""
@@ -170,6 +193,26 @@ class Decoder(TargetDecoder):
     def _layers(self, flat: ta.Sequence[Array]) -> ta.Iterator[tuple[StateLayout, tuple[Array, ...]]]:
         for (o, n), layout in zip(self.model.state_offsets(), self._layouts):
             yield layout, tuple(flat[o:o + n])
+
+    def _read_room(self) -> int | None:
+        rooms = [r for layout, st in self._layers(self.flat) if (r := layout.room(self.ops, st)) is not None]
+        return min(rooms) if rooms else None
+
+    def _make_room(self, T: int) -> None:
+        """Before a step of T tokens: room made in the states that are out of it (rarely: once in their room)."""
+
+        if self._room is None or self._room >= T:
+            return
+
+        old = self.flat
+        new: list[Array] = []
+        for layout, st in self._layers(old):
+            new.extend(layout.make_room(self.ops, st))
+        self.flat = self._into(old, new) or new  # (in the arrays the steps are bound to)
+
+        self._room = self._read_room()
+        if self._room is not None and self._room < T:
+            raise ValueError(f'a step of {T} tokens over states with room for {self._room}')
 
     # the static prefill's step length: every chunk of a prompt runs as one `PREFILL_T`-token verify step (the last
     # one padded, its pad positions rewritten by the next step before anything reads them), so one captured step
@@ -207,7 +250,10 @@ class Decoder(TargetDecoder):
 
             self.commit(verified, n)
 
-            hiddens.append(verified.hidden[:, :n] if n < T else verified.hidden)
+            hidden = verified.hidden[:, :n] if n < T else verified.hidden
+            if start + T < len(toks):
+                hidden = ops.copy(hidden)  # (the step's outputs are good until it runs again: for the next chunk)
+            hiddens.append(hidden)
             last = verified.logits[:, n - 1:n]
 
         return check.not_none(last), (hiddens[0] if len(hiddens) == 1 else ops.concat(hiddens, 1))
@@ -226,7 +272,7 @@ class Decoder(TargetDecoder):
             self._pad_to(capacity)
         self._tables = self.model.decode_tables(capacity)  # (arange(capacity), then the architecture's own)
 
-        self.fns = {}
+        self.fns = {}  # by `_key`, and each such step's commit by ('settle', its key)
 
         leaves: StepSlab | None = getattr(self, '_leaves', None)
         if leaves is not None:  # new buffers, new steps: what this decoder will leave follows
@@ -244,10 +290,18 @@ class Decoder(TargetDecoder):
             b *= 2
         return min(b, self.capacity)
 
+    def _key(self, T: int, all_states: bool, return_hidden: bool) -> tuple[int, bool, bool, int]:
+        return (T, all_states, return_hidden, self.bucket(self.seq_len + T))
+
+    def has_step(self, T: int) -> bool:
+        """Whether a verify step of T tokens from here is captured already (a draft source may want it built early)."""
+
+        return self._key(T, True, True) in self.fns
+
     def _fn(self, T: int, all_states: bool, return_hidden: bool) -> ta.Callable[..., tuple[Array, ...]]:
         """The captured step for a given shape and the current attention window, built on first use."""
 
-        key = (T, all_states, return_hidden, self.bucket(self.seq_len + T))
+        key = self._key(T, all_states, return_hidden)
         if key not in self.fns:
             fn = self.model.step_fn(T, all_states, return_hidden, key[3])
             if all_states:
@@ -301,10 +355,12 @@ class Decoder(TargetDecoder):
         T = toks.shape[1]
 
         self.ensure_capacity(self.seq_len + T)
+        self._make_room(T)
 
+        key = self._key(T, all_states, True)
         out = self._fn(T, all_states, True)(toks, ops.scalar(self.seq_len), *self.tables(), *self.flat)
 
-        return Verified(out[0], out[1], list(out[2:]), all_states)
+        return Verified(out[0], out[1], list(out[2:]), all_states, key)
 
     def commit(self, verified: Verified, n: int) -> None:
         """
@@ -327,16 +383,62 @@ class Decoder(TargetDecoder):
         self._settle()  # (an earlier commit's first)
         self._kept = (verified, n)
         self.seq_len += n
+        if self._room is not None:
+            self._room -= n
 
     def _settle(self) -> None:
         kept = self._kept
-        if kept is not None:
-            self._kept = None
-            verified, n = kept
-            flat: list[Array] = []
-            for layout, st in self._layers(verified.states):
-                flat.extend(layout.commit(self.ops, st, n, verified.stacked))
-            self._flat = flat
+        if kept is None:
+            return
+        self._kept = None
+        verified, n = kept
+        ops = self.ops
+
+        if not verified.stacked:
+            # A whole step's state is what the step returned: there is nothing to pick, and nothing to ask the
+            # layouts. (Asking each of them all the same was the larger part of a plain token's host time on
+            # Inkling 2 -- 48 composite layouts walked a token, a millisecond the device spent waiting.)
+            self._flat = list(verified.states)
+            if self._leaves is not None:
+                self._leaves.state = self._flat
+            return
+
+        self._flat = list(self._settle_fn(verified.step, len(verified.states))(
+            ops.scalar(n),
+            *verified.states,
+            *self._flat,
+        ))
+        if self._leaves is not None:
+            self._leaves.state = self._flat
+
+    def _settle_fn(self, step: ta.Any, count: int) -> ta.Callable[..., tuple[Array, ...]]:
+        """
+        The commit of a step that returned a state per token, as one captured call: `fn(n, *the step's states, *the
+        state as it stands) -> the state after the step's first n tokens`, each layer's picked by its layout
+        (`StateLayout.commit`) and written into the arrays the decoder already holds -- which are what its captured
+        steps are bound to, so the next step finds its arguments in place. One per captured step: it is bound to that
+        step's outputs.
+
+        Picked on the host, a round's states were a few hundred small arrays to slice and then to copy one by one
+        into the next step's inputs: on Inkling 2 Mini 272 of them (four convolution histories a layer visit, and
+        the window of every local layer), 4.5 ms of a round that the target's step itself spent 11 to 21 on.
+        """
+
+        key = ('settle', step)
+        if key not in self.fns:
+            # (nothing of the decoder itself in the function: it is kept with the steps, which outlive the decoder
+            # -- and a decoder its own steps held would never be collected, nor leave them to the next)
+            ops = self.ops
+            layouts = list(zip(self.model.state_offsets(), self._layouts))
+
+            def fn(n, *arrays):
+                out: list[Array] = []
+                for (o, k), layout in layouts:
+                    out.extend(layout.commit(ops, tuple(arrays[o:o + k]), n, True))
+                return tuple(out)
+
+            self.fns[key] = ops.capture_carrying(fn, 0, 1 + count)
+        return self.fns[key]
 
     @property
     def flat(self) -> list[Array]:
@@ -349,6 +451,9 @@ class Decoder(TargetDecoder):
     def flat(self, flat: list[Array]) -> None:
         self._kept = None
         self._flat = flat
+        leaves: StepSlab | None = getattr(self, '_leaves', None)
+        if leaves is not None:
+            leaves.state = flat
 
     def snapshot(self) -> tuple[int, list[Array]]:
         """(seq_len, copies of the state) -- the prefix-cache primitive for the static path."""
@@ -370,6 +475,8 @@ class Decoder(TargetDecoder):
             self._pad_to(self.capacity)
             if self._leaves is not None:
                 self._leaves.layers = self._buffers()
+
+        self._room = self._read_room()
 
 
 class FunctionalDecoder(TargetDecoder):

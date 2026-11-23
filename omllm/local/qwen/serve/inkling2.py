@@ -14,12 +14,20 @@ is `{"name": ..., "args": {...}}` with the arguments' top-level keys sorted. Whe
 OpenAI client's arguments arrive as JSON text and are parsed (the template refuses them), a tool result that is not
 text is written as JSON, and images are refused -- the vision tower is not built.
 
+What a message says is never its framing. The markers are special tokens, and only they are: in a rendered prompt
+the text of a message -- a body, a header's name -- is written escaped (`inkling2_escape`), so that a tool result or
+a file that quotes `<|end_message|>` ends nothing and a user cannot write a system message, and
+`Inkling2ChatProtocol.encode` encodes it as the plain text it is. The other way, the reader is told which of what it
+reads were special tokens (`ChatReader.mark`), so a model writing about its own protocol is read as writing text.
+
 Reading is one incremental reader (`Inkling2Reader`); a finished answer is read by the same code, so a streamed
 answer's deltas concatenate to what the unstreamed one carries.
 """
 import json
 import re
 import typing as ta
+
+from omcore import check
 
 from ..constrain.framed import FramedJsonConstraint
 from ..constrain.framed import FramedPlainConstraint
@@ -53,6 +61,10 @@ INKLING2_END_SAMPLING = '<|content_model_end_sampling|>'
 INKLING2_MESSAGE_PREFIX = '<|message_'
 INKLING2_CONTENT_PREFIX = '<|content_'
 
+# what every marker opens with, and so what no message's text may be left holding in a rendered prompt
+INKLING2_MARKER_OPEN = '<|'
+INKLING2_ESCAPE = '\u241b'
+
 # what a tokenizer must have for its checkpoint to speak this protocol
 INKLING2_REQUIRED_TOKENS = (
     INKLING2_MESSAGE_USER,
@@ -67,6 +79,24 @@ INKLING2_REQUIRED_TOKENS = (
 
 # a call's body: {"name": NAME, "args": ARGUMENTS}, ended by its message's end
 INKLING2_CALL_SPELLING = JsonCallSpelling(open='{', args_key='"args"', close='')
+
+
+_UNESCAPE_RE = re.compile(f'{INKLING2_ESCAPE}({INKLING2_ESCAPE})?')
+
+
+def inkling2_escape(text: str) -> str:
+    """
+    A message's text as a rendered prompt holds it: an escape between the two characters a marker opens with,
+    wherever the text has them, so that it holds no marker; and an escape of the text's own doubled, so that
+    `inkling2_unescape` gives the text back whatever it was.
+    """
+
+    text = text.replace(INKLING2_ESCAPE, INKLING2_ESCAPE * 2)
+    return text.replace(INKLING2_MARKER_OPEN, INKLING2_MARKER_OPEN[0] + INKLING2_ESCAPE + INKLING2_MARKER_OPEN[1:])
+
+
+def inkling2_unescape(text: str) -> str:
+    return _UNESCAPE_RE.sub(lambda m: m.group(1) or '', text)
 
 
 # The thinking effort a prompt names, by the names clients use. The template's default is 'high'.
@@ -113,7 +143,7 @@ def _json(x: ta.Any, *, sort_keys: bool = False) -> str:
 
 
 def _frame(role: str, channel: str, body: str, name: str = '') -> str:
-    return f'{role}{name}{channel}{body}{INKLING2_END_MESSAGE}'
+    return f'{role}{inkling2_escape(name)}{channel}{inkling2_escape(body)}{INKLING2_END_MESSAGE}'
 
 
 def _text_parts(content: ta.Any) -> list[str] | None:
@@ -267,7 +297,6 @@ def render_inkling2(
 
 
 _MARKER_RE = re.compile(r'<\|[A-Za-z0-9_]+\|>')
-_MARKER_START = '<|'
 
 # a call's body up to its arguments: {"name": "...", "args":
 _CALL_HEAD_RE = re.compile(r'^\s*\{\s*"name"\s*:\s*"((?:[^"\\]|\\.)*)"\s*,\s*"args"\s*:\s*', re.DOTALL)
@@ -277,17 +306,18 @@ _SEGMENT_SEPARATOR = '\n\n'
 
 class Inkling2Reader(ChatReader):
     """
-    A model turn read as it is generated. Thinking messages are reasoning, text messages content (a later message of
-    a kind follows the earlier ones after a blank line), and a tool-call message is a call: its head goes out when
-    its name is known -- the message's header carries it before the JSON starts -- and its arguments as the text of
-    the JSON's `args` value, as it is written. A call whose JSON never took that shape is delivered whole when its
-    message ends, if it parses at all. Text outside any message is content.
+    A model turn read as it is generated: its special tokens through `mark`, everything else through `feed` -- which
+    reads no marker out of text, whatever the text spells. Thinking messages are reasoning, text messages content (a
+    later message of a kind follows the earlier ones after a blank line), and a tool-call message is a call: its head
+    goes out when its name is known -- the message's header carries it before the JSON starts -- and its arguments as
+    the text of the JSON's `args` value, as it is written. A call whose JSON never took that shape is delivered whole
+    when its message ends, if it parses at all. Text outside any message is content.
     """
 
     def __init__(self) -> None:
         super().__init__()
 
-        self._buf = ''
+        self._events: list[ChatEvent] = []  # everything handed back so far: `parsed` is these put together
 
         self._kind: str | None = None  # None: between messages; 'header'; 'reasoning' | 'content' | 'call'
         self._header = ''
@@ -303,15 +333,50 @@ class Inkling2Reader(ChatReader):
         self._call_args_any = False  # a non-blank piece of the arguments has gone out
 
     def feed(self, text: str) -> list[ChatEvent]:
-        self._buf += text
-        return self._drain(final=False)
+        return self._keep(self._take(text) if text else [])
+
+    def mark(self, marker: str) -> list[ChatEvent]:
+        return self._keep(self._mark(marker))
 
     def finish(self) -> list[ChatEvent]:
-        out = self._drain(final=True)
+        out: list[ChatEvent] = []
         if self._kind == 'call':
             out.extend(self._end_call())
         self._kind = None
-        return out
+        return self._keep(out)
+
+    def _keep(self, events: list[ChatEvent]) -> list[ChatEvent]:
+        self._events.extend(events)
+        return events
+
+    def parsed(self, text: str = '') -> Parsed:
+        reasoning: list[str] = []
+        content: list[str] = []
+        calls: list[dict] = []
+
+        for kind, payload in self._events:
+            if kind == 'reasoning':
+                reasoning.append(payload)
+            elif kind == 'content':
+                content.append(payload)
+            else:
+                i = payload['index']
+                if 'id' in payload:
+                    calls.append({
+                        'id': payload['id'],
+                        'type': 'function',
+                        'function': {'name': payload['function']['name'], 'arguments': ''},
+                    })
+                calls[i]['function']['arguments'] += payload['function']['arguments']
+
+        for c in calls:
+            c['function']['arguments'] = c['function']['arguments'] or '{}'
+
+        return Parsed(
+            ''.join(content),
+            ''.join(reasoning) if reasoning else None,
+            calls,
+        )
 
     # text
 
@@ -404,39 +469,6 @@ class Inkling2Reader(ChatReader):
 
     # the stream
 
-    def _drain(self, final: bool) -> list[ChatEvent]:
-        out: list[ChatEvent] = []
-
-        while self._buf:
-            at = self._buf.find(_MARKER_START)
-            m = _MARKER_RE.match(self._buf, at) if at >= 0 else None
-
-            # text up to the next marker -- or, short of one, up to what may yet be one
-            if m is None:
-                if at < 0:
-                    end = len(self._buf) - (1 if self._buf.endswith(_MARKER_START[0]) and not final else 0)
-                elif final or not _could_be_marker(self._buf[at:]):
-                    end = at + len(_MARKER_START)
-                else:
-                    end = at
-            else:
-                end = at
-
-            if end:
-                out.extend(self._take(self._buf[:end]))
-                self._buf = self._buf[end:]
-
-            if m is None:
-                if not end:
-                    break
-                continue
-
-            marker = m.group(0)
-            self._buf = self._buf[len(marker):]
-            out.extend(self._mark(marker))
-
-        return out
-
     def _take(self, text: str) -> list[ChatEvent]:
         kind = self._kind
         if kind == 'header':
@@ -479,45 +511,23 @@ class Inkling2Reader(ChatReader):
         return self._take(marker)
 
 
-def _could_be_marker(tail: str) -> bool:
-    """Whether text starting `<|` may still grow into a marker."""
-
-    return re.fullmatch(r'<\|[A-Za-z0-9_]*\|?', tail) is not None
-
-
 def parse_inkling2(text: str) -> Parsed:
-    """A finished model turn as reasoning, content and tool calls: what `Inkling2Reader` reads of it, put together."""
+    """
+    A finished model turn's text as reasoning, content and tool calls: what `Inkling2Reader` reads of it, taking
+    whatever in the text spells a marker for one -- a reading of text, which cannot tell (the engine reads tokens).
+    """
 
     reader = Inkling2Reader()
-    events = [*reader.feed(text), *reader.finish()]
 
-    reasoning: list[str] = []
-    content: list[str] = []
-    calls: list[dict] = []
+    at = 0
+    for m in _MARKER_RE.finditer(text):
+        reader.feed(text[at:m.start()])
+        reader.mark(m.group(0))
+        at = m.end()
+    reader.feed(text[at:])
+    reader.finish()
 
-    for kind, payload in events:
-        if kind == 'reasoning':
-            reasoning.append(payload)
-        elif kind == 'content':
-            content.append(payload)
-        else:
-            i = payload['index']
-            if 'id' in payload:
-                calls.append({
-                    'id': payload['id'],
-                    'type': 'function',
-                    'function': {'name': payload['function']['name'], 'arguments': ''},
-                })
-            calls[i]['function']['arguments'] += payload['function']['arguments']
-
-    for c in calls:
-        c['function']['arguments'] = c['function']['arguments'] or '{}'
-
-    return Parsed(
-        ''.join(content),
-        ''.join(reasoning) if reasoning else None,
-        calls,
-    )
+    return reader.parsed(text)
 
 
 ##
@@ -539,6 +549,11 @@ class Inkling2ChatProtocol(ChatProtocol):
         missing = [t for t in INKLING2_REQUIRED_TOKENS if t not in tok.special]
         if missing:
             raise ValueError(f'the tokenizer has no {", ".join(missing)}')
+
+        # (what `inkling2_escape` rests on: no special token survives in escaped text)
+        unbroken = [t for t in tok.special if INKLING2_MARKER_OPEN not in t]
+        if unbroken:
+            raise ValueError(f'special tokens that do not open as a marker does: {", ".join(unbroken[:8])}')
 
         inkling2_effort_level(reasoning_effort)  # (raises on a value that is no effort)
 
@@ -611,6 +626,26 @@ class Inkling2ChatProtocol(ChatProtocol):
             effort=self._effort(enable_thinking, reasoning_effort),
             continuation=continuation,
         )
+
+    def encode(self, text: str) -> list[int]:
+        """
+        A rendered prompt's ids: its markers the special tokens they are, and what lies between them -- a message's
+        text, escaped by the renderer -- unescaped and encoded as plain text, in which nothing is a special token.
+        """
+
+        tok = self._tok
+        ids: list[int] = []
+        if tok.add_bos and tok.bos_id is not None:  # (as Tokenizer.encode)
+            ids.append(tok.bos_id)
+        for chunk in check.not_none(tok.special_re).split(text):
+            if not chunk:
+                continue
+            sid = tok.special.get(chunk)
+            if sid is not None:
+                ids.append(sid)
+            else:
+                ids.extend(tok.encode(inkling2_unescape(chunk), add_bos=False, parse_special=False))
+        return ids
 
     def generation_prompt(self, rendered: str) -> str:
         return ''

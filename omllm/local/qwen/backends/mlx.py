@@ -4,8 +4,11 @@ MLX backend for `Ops`, talking to `mlx.core` directly (no mlx-lm / mlx.nn).
 
 Overrides: rms_norm (mx.fast.rms_norm), rope (mx.fast.rope), sdpa (mx.fast.scaled_dot_product_attention, GQA native),
 quantized linear (mx.quantized_matmul -- our QWeight *is* MLX's affine layout, so the packed words go in untouched),
-on-device quantize (mx.quantize). `gated_delta` uses the composed reference; an `mx.fast.metal_kernel` for the per-token
-step and `mx.compile` around the decode step are the next steps.
+on-device quantize (mx.quantize). `gated_delta` uses the composed reference; the per-token step is a Metal kernel
+(mlx_metal.py) and the decode step is under `mx.compile` (`capture`).
+
+Experts stored in a microscaled float format stay packed (mlx_microscaled.py) and are decoded as a matmul reads them.
+Everything else Inkling 2 is built from runs composed (ops/base.py), on nothing but the primitives here.
 
 MLX is lazy: nothing runs until something is evaluated. `eval()` forces it; `numpy()` does implicitly.
 """
@@ -15,8 +18,11 @@ from omcore import dataclasses as dc
 from omcore import lang
 
 from ..ops.base import Ops
+from ..ops.microscaled import MicroscaledWeight
 from ..ops.quant import QWeight
 from ..ops.quant import quantize as quantize_np
+from .mlx_microscaled import MlxMicroscaledExperts
+from .mlx_microscaled import mlx_microscaled_experts
 
 
 if ta.TYPE_CHECKING:
@@ -124,7 +130,7 @@ class MlxOps(Ops):
         mx.eval(*xs)
 
     def nbytes(self, w):
-        if isinstance(w, MlxQWeight):
+        if isinstance(w, (MlxQWeight, MlxMicroscaledExperts)):
             return w.nbytes()
         return w.nbytes
 
@@ -287,6 +293,31 @@ class MlxOps(Ops):
         if isinstance(w, MlxQWeight):
             return w.dequant(ids.reshape(-1)).reshape(*ids.shape, w.shape[1]).astype(dtype)
         return w[ids].astype(dtype)
+
+    # experts in a microscaled float format (the torch backend's composed path, without its kernels)
+
+    def microscaled(self, mw: MicroscaledWeight, dtype, name=None):
+        return mlx_microscaled_experts(mw, self.array)
+
+    def expert_dense(self, w, e, dtype):
+        if isinstance(w, MlxMicroscaledExperts):
+            return w.dequant(dtype, slice(e, e + 1))[0]
+        return super().expert_dense(w, e, dtype)
+
+    # the rows of a step whose experts are decoded together (MlxMicroscaledExperts.products): one token's, for
+    # Inkling 2 Mini -- 170 MB of float32 at a time, where a sixteen-token step's 128 rows at once are 2.7 GB
+    microscaled_rows: int = 8
+
+    def expert_linear(self, x, w, eids, x_div=1):
+        if not isinstance(w, MlxMicroscaledExperts):
+            return super().expert_linear(x, w, eids, x_div)
+
+        rows = self.repeat(x, x_div, 0) if x_div > 1 else x
+        if rows.shape[0] > self.expert_gather_max_rows:
+            return self.expert_linear_grouped(rows, w, eids)  # (a prefill's rows: expert by expert)
+
+        parts = w.products(rows, eids, self.microscaled_rows)
+        return parts[0] if len(parts) == 1 else self.concat(parts, 0)
 
     # fused overrides
 

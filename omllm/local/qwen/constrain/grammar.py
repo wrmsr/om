@@ -974,7 +974,7 @@ def response_format_schema(response_format: ta.Any) -> ta.Any:
     return {}
 
 
-class Constraint(abc.ABC):
+class Constraint(lang.Abstract):
     """
     What a generation loop is handed: a controller fed every generated token and asked what the next one may be.
     Speculative lookahead works on clones.

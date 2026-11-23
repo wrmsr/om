@@ -7,7 +7,7 @@ loads weights straight out of Ollama's blob store, plus a validation harness tha
 Two more architectures run on the same engine, each assembled from its own parts behind the same interfaces:
 Qwen3.8-Flash-Next (`qwen4_exp`; FLASHNEXT.md) and Inkling 2 Mini (`inkling2_loop`; INKLING.md), which is not a Qwen
 model at all -- its attention, residual stream, tokenizer pattern and chat protocol are its own, and it loads from its
-lab's Hugging Face checkpoint with its experts in the packed float formats they are released in.
+lab's Hugging Face checkpoint, or a GGUF of it, with its experts in the packed float formats they are released in.
 
 Dependencies: `numpy`, `regex`, and whichever backend you run on (`torch`, `mlx`, `tinygrad`). No `transformers`, no
 mlx-lm / mlx.nn, no `safetensors` package (there is a 30-line reader in `load/weights.py`), no `gguf` package (the
@@ -23,26 +23,30 @@ core/            the model, backend-free: the decoder (model.py) assembled from 
                  Inkling 2's in inkling2/ (its residual stream of block sums, the loop, its attention and experts),
                  over parts any architecture may use: short convolutions over time as mixers (shortconv.py), a
                  layer of stateful sublayers (sublayers.py), what an attention layer sees and keeps (kvspans.py),
-                 the output head (heads.py), a static step's position tables (positions.py)
+                 the output head (heads.py), a static step's position tables (positions.py), what a model hands a
+                 draft head of a position (readouts.py); and Inkling 2's draft model, a block drafter (dspark/)
 arch/            architectures: what blocks a checkpoint's layers are and how its parameters become them
                  (base.py: the interface; qwen35.py: Qwen35Architecture, load_qwen35; qwen4exp.py: Flash-Next;
-                 inkling2.py: Inkling 2; registry.py: which one, by the config's type)
+                 inkling2.py: Inkling 2, dspark.py: its drafter; registry.py: which one, by the config's type)
 ops/             the backend seam: `Ops` ABC (abstract primitives + composed reference implementations of the
                  fusable ones, base.py), `NumpyOps` the float64 golden (reference.py), weight-only int8/int4 affine
                  quantization (quant.py), microscaled float weights as checkpoints store them (microscaled.py: NVFP4,
                  MXFP8)
-backends/        torch (torch.py; Triton GEMV, DeltaNet step and attention kernels in torch_triton.py), MLX core
-                 (mlx.py; the fused DeltaNet step as a Metal kernel in mlx_metal.py), tinygrad (tinygrad.py), and
-                 backend selection (backends.py)
+backends/        torch (torch.py; Triton GEMV, DeltaNet step and attention kernels in torch_triton.py; a step's
+                 small regular pieces as a kernel each in torch_fused.py), MLX core
+                 (mlx.py; the fused DeltaNet step as a Metal kernel in mlx_metal.py; packed experts in
+                 mlx_microscaled.py), tinygrad (tinygrad.py), and backend selection (backends.py)
 load/            the loader pipeline: sources (weights.py: Ollama manifests, GGUF blobs, Ollama tensor blobs, HF
-                 checkpoints -> canonical params; inkling2.py: Inkling 2's checkpoint; families.py: which reader an
-                 HF directory gets), recipes and precision policies, the plan, materialization, the on-disk parameter
-                 cache (paramcache.py); the vendored gguf reader (gguf/)
+                 checkpoints -> canonical params; inkling2.py: Inkling 2's checkpoint, inkling2gguf.py: its GGUFs;
+                 families.py: which reader an HF directory or a GGUF gets), recipes and precision policies, the
+                 plan, materialization, the on-disk parameter cache (paramcache.py); the vendored gguf reader
+                 (gguf/), an opened file of it (gguffiles.py), its NVFP4 as ours (ggufmicroscaled.py)
 decode/          the generation loop (loop.py) and its extension points: the one token source (tokens.py: verify
                  [pending, drafts] in one step), draft sources (drafts.py), logit processors (processors.py:
                  penalties), the sampler and rejection step (sampling.py), terminators, observers, state stores;
                  the static and functional decoders (decoder.py); GenerationRunner (runners.py)
-spec/            draft sources: the MTP head (mtp.py), prompt lookup (lookup.py), test oracles (oracle.py)
+spec/            draft sources: the MTP head (mtp.py), the block drafter (dspark.py), which of them a model's
+                 draft head takes (registry.py), prompt lookup (lookup.py), test oracles (oracle.py)
 constrain/       tool-call / JSON-mode grammars -> per-step token masks (grammar.py: both call syntaxes), as a
                  logit processor; what the function syntax asks of a parameter's schema (schemas.py)
 prefix/          prefix snapshots: exact-prefix reuse of decode state across requests, device + pinned-host tiers
@@ -77,7 +81,7 @@ python -m omllm.local.qwen.generate --model qwen3.5:0.8b --backend torch --devic
 ```
 
 `--model` accepts an Ollama name (`qwen3.5:0.8b`, `qwen3.8:27b`), a `.gguf` path, a blob path, or a Hugging Face
-checkpoint directory (the only form Inkling 2 is read from: INKLING.md has the download). `--backend`
+checkpoint directory (Inkling 2 is read from one, or from a GGUF: INKLING.md has the downloads). `--backend`
 defaults to mlx on macOS when it is installed, torch otherwise; `numpy` is the (slow) reference.
 
 ## Quantizing it yourself
@@ -288,6 +292,12 @@ the boolean position mask native). Both are on when Metal is present (`MlxOps(me
 references); `tests/test_mlx_metal.py` checks them against the references on Apple silicon and is skipped
 elsewhere.
 
+Inkling 2 on MLX is written and has not been run (INKLING.md, sections 7 and 9): every operation it adds is the
+composed one over MLX's primitives, and its experts stay packed (`backends/mlx_microscaled.py`: the checkpoint's
+bytes on the device, a few rows' experts decoded at a time by a table lookup). `tests/test_composed.py` runs each
+composed operation on every backend that imports against the numpy reference, and the Inkling and drafter tests
+take MLX in wherever it is installed.
+
 What remains in the graph after the two kernels is glue -- norms, casts, gates, the attention prologue -- and
 `--compile` (`TorchOps(compile=True)`) hands each step function to `torch.compile` (`Ops.compile_fn`) before it
 is graph-captured, so inductor fuses that glue into a few generated kernels. The compiled step runs once eagerly first (`_DeferredCompile`), which is when the Triton wrappers resolve their launch configurations, so dynamo then traces straight-line code. Step functions take everything as
@@ -422,10 +432,49 @@ submission, microseconds per kernel. So nothing per token may be scheduled eager
   reaches ~1 TB/s (13.9 us for a 5120x5120 int4 GEMV on the 5090), once per kernel shape, persisted in tinygrad's
   cache database.
 - This GPU has no resizable BAR, and tinygrad's NV runtime maps CPU-visible memory per eagerly compiled graph out of
-  that 256 MiB, kept while its template is cached: the backend keys graphs by structure (`HCQ_CACHE_THRESH`),
-  keeps offsets symbolic so structures recur, drops the template cache past a count, and captures steps once.
-  Two tinygrad processes on the GPU share the budget, so run tests against it one process at a time
-  (`test_parity.py` keeps it disabled by default for that reason).
+  that 256 MiB, kept while its template is cached: tinygrad keys a graph's template by its structure, and the
+  backend keeps offsets symbolic so structures recur, drops the template cache past a count, and captures steps
+  once. Two tinygrad processes on the GPU share the budget, so run tests against it one process at a time (one of
+  the reasons `test_parity.py` keeps it disabled by default: the others, and how to run it, are beside the switch
+  there).
+- A capture runs nothing -- tinygrad records what the capturing function schedules and runs it once the capture
+  is over -- and no JIT may be captured inside another. So inside a step `copy` is one more lazy value of the
+  step's, and nothing there may read a value on the host. A step's token arrives as a host value in one round (a
+  prompt's, a commit's) and as a device value in the next (the one the round before sampled); the capture's slot
+  is one kind, and the other is turned into it.
+- A concatenation is a pad of each part and a sum, and a pad is pushed into what it pads: a part that still
+  carries a division holds 0 / 0 outside its region, which this tinygrad's JIT compile fails to fold. Such a part
+  is given storage of its own first (`TinygradOps._unpadded`).
+- Experts stored in a microscaled float format (Inkling 2's) stay packed and are decoded by arithmetic on their
+  bytes' bits, exactly: each expert once, from a slice of the stack, where code runs as it is built; each row's
+  by a gather inside a captured step -- which tinygrad spells as a comparison against every expert but does not
+  pay for 128 of them: 0.11 s for a token's eight rows of Inkling 2 Mini's gate and up experts on the CPU device,
+  the time of those rows' own weights.
+- A step's outputs are buffers its next run overwrites, and the engine reads what it wants of them in time -- which,
+  where nothing runs until it is asked for, is no more than a graph. So before a step runs again, whatever still
+  pends on its last outputs is computed, into storage of its own (`TinyJitStep._settle_readers`): a draft's
+  probability under the head, read a few drafts later, was the last draft's row's (spec/tests/test_lookup.py's
+  test of several lengths).
+- A uniform draw is a slice of a pool at an offset bound to a variable named by the draw's size, and several of
+  one size held together now get names apart: two of one name in one graph were one draw, silently, and a run of
+  sampled drafts, which takes its noise a row a draft, drew every draft with one row (the same file's test of
+  runs).
+- A graph JIT's outputs are scratch too, which suited a round's values and not a forward's: run as it is built, a
+  forward meets the same graph again with the last one's values still live -- layers of a kind are one structure,
+  and Inkling 2 runs its looped layers three times a token and reads the block sums of the pass before -- and its
+  logits were wrong from the third pass on. What `realized` computes now lands in buffers allocated for the call
+  and handed to the JIT to write; only a view of a buffer, read or copied at once, still lands in scratch.
+- The decoder's commit of a verify step, one captured call elsewhere, has nothing but state to hand back and runs
+  as it is built: its picks at the kept count are plain shrinks (`select_at`, `kv_take`), which the step they go
+  to copies into its held buffers -- the per-token ones by the JIT with the count bound, the window of keys an
+  Inkling 2 local layer keeps by a graph scheduled eagerly a round.
+- A draft model's functions are captured as steps are: the write of a step's rows into the block drafter's memory
+  is one in every respect, and its block's drafts a function of one token, its sampler's arguments between the
+  position and the tables -- one of which that is not the array last given (a sampled round's noise) is copied in.
+- A layer of sublayers (Inkling 2's) hands `materialize` its residual stream with its state, as a block does its
+  output: left pending, the stream was computed again by every later layer's evaluation, and a static decode of the
+  synthetic checkpoint that takes a minute and a half had not finished in eighteen.
+- A parameter larger than a slab is a slab by itself: Inkling 2 Mini's embedding at float32 is 1.9 GB.
 
 Measured on the 27B at int4 on the 5090 with a 20-token prompt (the `generate` command under "Serving" with
 `--backend tinygrad`, capacity 131072): the first `--compile` run's warm-up adds ~10 minutes of kernel search, later
@@ -437,6 +486,15 @@ window grows), against ~170 tok/s on torch. Correctness is the parity suite's. O
 (the M=4 int4 GEMV runs at 700-780 GB/s against 1.2 TB/s at M=1; `TinyJitStep.DEFAULT_BEAM` 2 gains ~5% for
 several times the search), ~10 ms the step replays' submission, ~13 ms the graph JITs' calls at ~1 ms each, and
 the rest the engine's Python between them.
+
+Those numbers are from before 2026-11-23, when a graph JIT's results became buffers of their own and a step's
+pending readers came to be computed before it runs again (above): neither has been timed on the GPU. What was run
+that day was the CPU device (`DEV=CPU`), against the submodule's revision, with the backend taken out of
+`DISABLED_BACKENDS`: the parity, composed-operation, sampler, prefix and prompt-lookup tests, and Inkling 2's and
+its drafter's with tinygrad the only backend beside numpy, pass; and the released Inkling 2 Mini at float32 gives
+torch's tokens -- through the forward as it is built (torch's logits to 5e-5; eight to eleven minutes for a
+five-token prompt), through the static decoder (six minutes to the first token, ten seconds a token) and with its
+draft model -- in 60 GiB of host memory (INKLING.md, section 7).
 
 ## fp8 KV cache
 
@@ -457,6 +515,11 @@ server is quantised, an fp8 one resumed by a bf16 server is dequantised, so flip
 does not lose the cache. MLX stays bf16 (no fp8 there, and the memory is not the constraint).
 
 ## Speculative decoding (MTP)
+
+(`--spec` drafts with whatever draft model a checkpoint carries -- which draft source goes with which is a table,
+`spec/registry.py`. This section is Qwen's head. Inkling 2's is a block drafter of another kind entirely, with its
+own way of deciding how many drafts a round is worth: INKLING.md, sections 4.7 and 8. The round below -- verify in
+one step, accept, commit -- is the same for both.)
 
 The 27B checkpoints carry a one-layer multi-token-prediction head (`blk.64` / `nextn.*` in the GGUF, `mtp.*` in
 HF; `nextn_predict_layers = 1`). `MtpHead` implements it: `rmsnorm(embed(x_{p+1}))` and `rmsnorm(h_p)` (the

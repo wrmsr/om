@@ -55,10 +55,10 @@ class ShortConvStateLayout(StateLayout):
     def export(self, ops: Ops, state: tuple[Array, ...], seq_len: int) -> tuple[Array, ...]:
         return tuple(ops.copy(a) for a in state)
 
-    def commit(self, ops: Ops, state: tuple[Array, ...], n: int, stacked: bool) -> tuple[Array, ...]:
+    def commit(self, ops: Ops, state: tuple[Array, ...], n: Array, stacked: bool) -> tuple[Array, ...]:
         if not stacked:
             return state
-        return tuple(ops.select(a, n - 1) for a in state)
+        return tuple(ops.select_at(a, n - 1) for a in state)
 
     def capacity(self, ops: Ops, state: tuple[Array, ...]) -> int | None:
         return None
@@ -87,31 +87,6 @@ class ShortConv(lang.Abstract):
         raise NotImplementedError
 
 
-def _short_conv_inputs(
-        ops: Ops,
-        x: Array,
-        state: tuple[Array, ...] | None,
-        kernel: int,
-) -> tuple[Array, Array]:
-    """x as [B, C, T] float32, and [history | x] along time, [B, C, K - 1 + T]."""
-
-    B, T, C = x.shape
-    f32 = ops.dtype('f32')
-
-    xf = ops.transpose(ops.f32(x), (0, 2, 1))
-    hist = state[0] if state is not None else ops.zeros((B, C, kernel - 1), f32)
-    return xf, ops.concat([hist, xf], -1)
-
-
-def _short_conv_history(ops: Ops, inp: Array, T: int, kernel: int, all_states: bool) -> tuple[Array, ...]:
-    if all_states:
-        return (ops.stack([inp[..., t + 1:t + kernel] for t in range(T)], 0),)  # [T, B, C, K - 1]
-
-    # a dense copy, not a slice of the input (which a view would keep alive, with strides that depend on T: see
-    # GatedDeltaNet._mix)
-    return (ops.copy(inp[..., -(kernel - 1):]),)
-
-
 class StaticShortConv(ShortConv):
     def __init__(self, weight: Array) -> None:
         """`weight`: [C, K] float32, each channel's taps oldest first (a conv1d weight with its unit axis dropped)."""
@@ -135,13 +110,14 @@ class StaticShortConv(ShortConv):
             state: tuple[Array, ...] | None,
             all_states: bool,
     ) -> tuple[Array, tuple[Array, ...]]:
-        T = x.shape[1]
-        K = self._kernel
-
-        xf, inp = _short_conv_inputs(ops, x, state, K)
-        y = (xf + ops.conv1d_causal(inp, self._weight)) * self._scale
-
-        return ops.cast(ops.transpose(y, (0, 2, 1)), x.dtype), _short_conv_history(ops, inp, T, K, all_states)
+        y, after = ops.short_conv(
+            x,
+            state[0] if state is not None else None,
+            self._weight,
+            scale=self._scale,
+            all_states=all_states,
+        )
+        return y, (after,)
 
 
 class DynamicShortConv(ShortConv):
@@ -173,23 +149,17 @@ class DynamicShortConv(ShortConv):
             state: tuple[Array, ...] | None,
             all_states: bool,
     ) -> tuple[Array, tuple[Array, ...]]:
-        B, T, C = x.shape
-        K = self._kernel
-        H = self._heads
+        B, T, _ = x.shape
 
-        xf, inp = _short_conv_inputs(ops, x, state, K)
-        dyn = ops.reshape(ops.f32(ops.linear(cond, self._proj)), (B, T, H, K))
-
-        acc = None
-        for lag in range(K):
-            at = K - 1 - lag
-            tap = self._weight[lag][None, :, None] + ops.repeat(ops.transpose(dyn[..., lag], (0, 2, 1)), C // H, 1)
-            term = tap * inp[..., at:at + T]
-            acc = term if acc is None else acc + term
-
-        y = (xf + acc) * self._scale
-
-        return ops.cast(ops.transpose(y, (0, 2, 1)), x.dtype), _short_conv_history(ops, inp, T, K, all_states)
+        y, after = ops.short_conv_dynamic(
+            x,
+            state[0] if state is not None else None,
+            self._weight,
+            ops.reshape(ops.f32(ops.linear(cond, self._proj)), (B, T, self._heads, self._kernel)),
+            scale=self._scale,
+            all_states=all_states,
+        )
+        return y, (after,)
 
 
 ##

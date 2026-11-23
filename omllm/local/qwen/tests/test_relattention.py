@@ -63,15 +63,16 @@ def test_composed_references():
 
         for sink_value in (0.0, 30.0, -30.0):  # an ordinary sink, one that takes nearly everything, one that takes none
             sink = rng.standard_normal((1, H, T)) + sink_value
-            got = ops.sdpa_static_rel(q, (k, v), np.asarray(pos, dtype=np.int32), np.arange(L), 0.3, rel, sink)
+            # (the term as features and their projection: here the table itself, projected by the identity)
+            p = np.asarray(pos, dtype=np.int32)
+            got = ops.sdpa_static_rel(q, (k, v), p, np.arange(L), 0.3, rel, np.eye(E), sink)
             want = _by_hand(q[0], k[0], v[0], 0.3, rel, sink[0], qpos, kpos)
             assert np.abs(got[0] - want).max() < 1e-9, (T, pos, sink_value)
 
             if sink_value == 30.0:
                 assert np.abs(got).max() < 1e-6  # (its share is not handed back to the keys)
             if sink_value == -30.0:
-                p = np.asarray(pos, dtype=np.int32)
-                gone = ops.sdpa_static_rel(q, (k, v), p, np.arange(L), 0.3, rel, sink - 30)
+                gone = ops.sdpa_static_rel(q, (k, v), p, np.arange(L), 0.3, rel, np.eye(E), sink - 30)
                 assert np.abs(got - gone).max() < 1e-9
 
 
@@ -155,7 +156,7 @@ def test_length_aware_relative_attention():
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     rng = np.random.default_rng(3)
-    H, KV, D, E, L = 4, 2, 16, 8, 64
+    H, KV, D, E, L, R = 4, 2, 16, 8, 64, 4
 
     def t(a: np.ndarray, dtype: torch.dtype = torch.float32) -> torch.Tensor:
         return torch.from_numpy(a.astype(np.float32)).to(device).to(dtype)
@@ -170,19 +171,20 @@ def test_length_aware_relative_attention():
             for pos in ((0, 1, 5, 7, 8, 9, 20, 40, L - T) if device == 'cuda' else (0, 7, 8, 40)):
                 state = ops.kv_new(t(rng.standard_normal((1, KV, L, D))), t(rng.standard_normal((1, KV, L, D))))
                 q = t(rng.standard_normal((1, H, T, D)))
-                rel = t(rng.standard_normal((T, H, E)))
+                rel = t(rng.standard_normal((T, H, R)))
+                rel_proj = t(rng.standard_normal((E, R)))
                 sink = t(rng.standard_normal((1, H, T)) * 3)
                 p = torch.full((), pos, dtype=torch.int32, device=device)
 
-                want = Ops.sdpa_static_rel(ops, q, state, p, ar, 0.25, rel, sink)
+                want = Ops.sdpa_static_rel(ops, q, state, p, ar, 0.25, rel, rel_proj, sink)
 
                 # (the two-part form itself: what `sdpa_static_rel` is on CUDA, run here on any device)
-                got = ops.sdpa_static_rel_split(q, state, p, 0.25, rel, sink)
+                got = ops.sdpa_static_rel_split(q, state, p, 0.25, rel, rel_proj, sink)
                 err = ((got - want).abs().max() / want.abs().max()).item()
-                assert err < 2e-5, (kv_dtype, T, pos, err)
+                assert err < 3e-5, (kv_dtype, T, pos, err)
 
                 if device == 'cuda':
-                    assert torch.equal(ops.sdpa_static_rel(q, state, p, ar, 0.25, rel, sink), got)
+                    assert torch.equal(ops.sdpa_static_rel(q, state, p, ar, 0.25, rel, rel_proj, sink), got)
 
     # a prefill's far keys: the causal partials through the same kernel, every row at once on one split of the keys,
     # against the composed form -- whose rows with no key weigh nothing, as the kernel's must

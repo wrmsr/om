@@ -11,15 +11,18 @@ from ..ops.base import Array
 @dc.dataclass(frozen=True)
 class Verified:
     """
-    What one target step over T tokens returned: logits [1, T, V] float32, the final-normed hidden states [1, T, H],
-    and the decoder's state after the step -- `stacked` when it holds the state after every token, so a commit can keep
-    any prefix. Only the decoder that produced it reads `states`.
+    What one target step over T tokens returned: logits [1, T, V] float32, the model's hidden output [1, T, F] (the
+    final-normed hidden states, and whatever else of the stack its readout hands a draft head: core/readouts.py), and
+    the decoder's state after the step -- `stacked` when it holds the state after every token, so a commit can keep
+    any prefix. Only the decoder that produced it reads `states` and `step`, which is its own name for the step that
+    ran.
     """
 
     logits: Array
     hidden: Array
     states: ta.Any
     stacked: bool
+    step: ta.Any = None
 
 
 @dc.dataclass(frozen=True)

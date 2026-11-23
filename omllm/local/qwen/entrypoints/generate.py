@@ -362,7 +362,7 @@ def main() -> None:
             reasoning_effort=effort,
         )
     )
-    ids = tok.encode(text)
+    ids = tok.encode(text) if args.raw else protocol.encode(text)
     print(f'[gen] {len(ids)} prompt tokens ({protocol.name})')
     eos = frozenset(protocol.eos_ids)
 
@@ -458,7 +458,7 @@ def main() -> None:
             enable_thinking=think,
             continuation=True,  # (the first turn carries the reasoning-effort instruction, if any)
         )
-        ids2 = ids + protocol.close_answer(out) + tok.encode(cont)
+        ids2 = ids + protocol.close_answer(out) + protocol.encode(cont)
         print(f'\n[gen] follow-up: {len(ids2)} prompt tokens')
         run(ids2)
 

@@ -21,8 +21,18 @@ and effective values, except where the checkpoint's layout is not the model's:
                                                 rows (the checkpoint alternates them)
     layers.{i}.mlp.experts.down                 [E, hidden, I]: `w2_weight`
 
-Norm weights are used as stored (nothing is added to them). `model.visual.*` (the vision tower) and the separate
-draft model are not read.
+Norm weights are used as stored (nothing is added to them). `model.visual.*` (the vision tower) is not read.
+
+The draft model (core/dspark/) is a file of its own beside the model's, `mtp.safetensors`, and its canonical names
+are that file's under `mtp.`, except:
+
+    mtp.tap_mix                                 [readers, taps] float32: `fuse_weight` softmaxed over the taps (and
+                                                rounded as bfloat16 holds it, which is how the reference uses it)
+    mtp.markov_head.state_proj.weight           [3 R, 2 R]: `rnn_proj`'s columns for the state and the last token
+    mtp.markov_head.input_proj.weight           [3 R, 2 H]: its columns for the block's output and the head's view
+    mtp.markov_head.out.weight                  [vocab, R]: unembed hidden_out -- the head's correction is made in
+    mtp.markov_head.out.bias                    [vocab]     hidden space and goes through the target's output
+                                                projection; folded, a draft costs a pass over R columns, not H
 
 The experts are stored in microscaled float formats (ops/microscaled.py) -- NVFP4 in most layers, MXFP8 in the last
 few, told apart by the tensors' dtypes -- with their scales beside them (`*_weight_scale`, and for NVFP4 a per-expert
@@ -61,6 +71,9 @@ class Inkling2HFSource(TensorSource):
 
     _PREFIX: ta.ClassVar[str] = 'model.llm.'
 
+    _DRAFT_FILE: ta.ClassVar[str] = 'mtp.safetensors'
+    _DRAFT_PREFIX: ta.ClassVar[str] = 'mtp.'
+
     def __init__(self, path: str) -> None:
         super().__init__()
 
@@ -80,6 +93,11 @@ class Inkling2HFSource(TensorSource):
                 self._files[raw] = st
         if not self._files:
             raise FileNotFoundError(f'{path}: no *.safetensors')
+
+        self._draft: SafetensorsFile | None = None
+        draft = os.path.join(path, self._DRAFT_FILE)
+        if self.config.draft is not None and os.path.exists(draft):
+            self._draft = SafetensorsFile(draft)  # type: ignore[arg-type]
 
         self._recipes = self._build_recipes()
 
@@ -184,6 +202,33 @@ class Inkling2HFSource(TensorSource):
                 if P + 'middle_cycle_cross_pass_queries' in have and P + 'middle_cycle_cross_pass_kv_queries' in have:
                     r[q + 'message_queries'] = ('messages', i - c.loop_start)
 
+        if self._draft is not None and c.draft is not None:
+            r.update(self._build_draft_recipes(self._draft, c.draft.markov_rank))
+
+        return r
+
+    def _build_draft_recipes(self, st: SafetensorsFile, rank: int) -> dict[str, tuple]:
+        D = self._DRAFT_PREFIX
+        r: dict[str, tuple] = {}
+
+        derived: dict[str, dict[str, tuple]] = {
+            'fuse_weight': {'tap_mix': ('draft_softmax',)},
+            'markov_head.rnn_proj.weight': {
+                'markov_head.state_proj.weight': ('draft_columns', 0, 2 * rank),
+                'markov_head.input_proj.weight': ('draft_columns', 2 * rank, None),
+            },
+            'markov_head.hidden_out.weight': {'markov_head.out.weight': ('draft_unembedded',)},
+            'markov_head.hidden_out.bias': {'markov_head.out.bias': ('draft_unembedded',)},
+        }
+
+        for raw in st.names():
+            if raw not in derived:
+                r[D + raw] = ('draft', raw)
+                continue
+            for canon, (kind, *args) in derived[raw].items():
+                if kind != 'draft_unembedded' or self._PREFIX + 'unembed.weight' in self._files:
+                    r[D + canon] = (kind, raw, *args)
+
         return r
 
     def names(self) -> list[str]:
@@ -263,6 +308,9 @@ class Inkling2HFSource(TensorSource):
 
         raw = recipe[1]
 
+        if kind.startswith('draft'):
+            return self._get_draft(kind, raw, *recipe[2:])
+
         if kind == 'experts':
             mw = self.get_microscaled(name)
             if mw is not None:
@@ -283,3 +331,31 @@ class Inkling2HFSource(TensorSource):
             check.state(x.ndim == 3 and x.shape[1] == 1, f'{raw}: {x.shape}')
             return np.ascontiguousarray(x[:, 0, :])
         raise ValueError(kind)
+
+    def _get_draft(self, kind: str, raw: str, *args: ta.Any) -> np.ndarray:
+        x = np.ascontiguousarray(check.not_none(self._draft).get(raw), dtype=np.float32)
+        if kind == 'draft':
+            return x
+
+        if kind == 'draft_softmax':
+            e = np.exp(x - x.max(-1, keepdims=True))
+            return _inkling2_as_bf16(e / e.sum(-1, keepdims=True))
+
+        if kind == 'draft_columns':
+            return np.ascontiguousarray(x[:, args[0]:args[1]])
+
+        if kind == 'draft_unembedded':
+            # (the reference folds in float64 and holds the result as bfloat16; float32 here, held as the model's
+            # dense weights are)
+            u = self._f32(self._PREFIX + 'unembed.weight')[:self.config.vocab_size]
+            return np.ascontiguousarray(u @ x)
+
+        raise ValueError(kind)
+
+
+def _inkling2_as_bf16(x: np.ndarray) -> np.ndarray:
+    """float32 values rounded to the nearest bfloat16 (ties to even), as float32."""
+
+    u = np.ascontiguousarray(x, dtype=np.float32).view(np.uint32)
+    u = (u + np.uint32(0x7fff) + ((u >> np.uint32(16)) & np.uint32(1))) & np.uint32(0xffff0000)
+    return u.view(np.float32)

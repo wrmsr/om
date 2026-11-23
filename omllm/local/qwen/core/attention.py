@@ -53,7 +53,7 @@ class KvStateLayout(StateLayout):
     def export(self, ops: Ops, state: tuple[Array, ...], seq_len: int) -> tuple[Array, ...]:
         return ops.kv_slice(state, seq_len)
 
-    def commit(self, ops: Ops, state: tuple[Array, ...], n: int, stacked: bool) -> tuple[Array, ...]:
+    def commit(self, ops: Ops, state: tuple[Array, ...], n: Array, stacked: bool) -> tuple[Array, ...]:
         return state
 
     def capacity(self, ops: Ops, state: tuple[Array, ...]) -> int | None:

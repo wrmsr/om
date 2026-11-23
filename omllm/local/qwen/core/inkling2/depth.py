@@ -35,23 +35,16 @@ class DepthStream(ta.NamedTuple):
 def unit_rms(ops: Ops, x: Array, eps: float) -> Array:
     """x / sqrt(mean(x^2) + eps) over the last axis, float32: an RMS norm with no weight."""
 
-    xf = ops.f32(x)
-    return xf * ops.rsqrt(ops.mean(xf * xf, -1, keepdims=True) + eps)
+    return ops.unit_rms(x, eps)
 
 
-def depth_mix(ops: Ops, queries: Array, sources: ta.Sequence[Array]) -> Array:
+def depth_read(ops: Ops, queries: Array, r: DepthStream, eps: float) -> Array:
     """
-    `queries` [Q, hidden] float32 over `sources`, each [B, T, hidden] float32 at unit RMS: per query, the sources'
-    softmax(q . source / sqrt(hidden))-weighted sum. [B, T, Q, hidden] float32. Nothing here sees another position.
+    What `queries` [Q, hidden] read of the stream, [B, T, Q, hidden] float32: `Ops.depth_mix` over the finished
+    blocks' sums (kept at unit RMS) and the sum under way (brought to it).
     """
 
-    z = ops.stack(list(sources), 2)  # [B, T, N, hidden]
-    w = ops.softmax(ops.linear(z, queries) * (int(z.shape[-1]) ** -0.5), 2)  # [B, T, N, Q]
-    return ops.transpose(w, (0, 1, 3, 2)) @ z
-
-
-def depth_sources(ops: Ops, r: DepthStream, eps: float) -> list[Array]:
-    return [*r.completed, unit_rms(ops, r.partial, eps)]
+    return ops.depth_mix(queries, [*r.completed, r.partial], raw=1, eps=eps)
 
 
 class DepthResidualStream(ResidualStream):
@@ -81,7 +74,7 @@ class DepthResidualStream(ResidualStream):
         return DepthStream((), ops.rms_norm(x, self._embed_norm, self._eps))
 
     def exit(self, ops: Ops, r: DepthStream) -> Array:
-        mix = depth_mix(ops, self._query, depth_sources(ops, r, self._eps))[:, :, 0]
+        mix = depth_read(ops, self._query, r, self._eps)[:, :, 0]
         return ops.cast(ops.rms_norm(mix, self._norm, self._eps), self._dtype)
 
     def tail(self, ops: Ops, r: DepthStream, n: int) -> DepthStream:

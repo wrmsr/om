@@ -288,6 +288,232 @@ def _process_dataclass__73fa29e6a5ed12e668ab903c3a600466a6071e97():
 
 
 @_register(
+    installer_sha1='276e9f1d13f56065be3311a9c0509039068845d2',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
+            "lse, False, False, False), ((('fmt', True, True, None, True, False, False, None), 'instance', 'missing', N"
+            "one, False, False, False), (('codes', True, True, None, True, False, False, None), 'instance', 'missing', "
+            "None, False, False, False), (('scales', True, True, None, True, False, False, None), 'instance', 'missing'"
+            ", None, False, False, False), (('outer', True, True, None, True, False, False, None), 'instance', 'missing"
+            "', None, False, False, False), (('code_values', True, True, None, True, False, False, None), 'instance', '"
+            "missing', None, False, False, False), (('scale_values', True, True, None, True, False, False, None), 'inst"
+            "ance', 'missing', None, False, False, False), (('block', True, True, None, True, False, False, None), 'ins"
+            "tance', 'missing', None, False, False, False), (('shape', True, True, None, True, False, False, None), 'in"
+            "stance', 'missing', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False,"
+            " False, ()), ((),), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('omllm.local.qwen.backends.mlx_microscaled', 'MlxMicroscaledExperts'),
+    ),
+)
+def _process_dataclass__276e9f1d13f56065be3311a9c0509039068845d2():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__6__annotation = __dataclass__spec.fields[6].annotation
+        __dataclass__init__fields__7__annotation = __dataclass__spec.fields[7].annotation
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                fmt=self.fmt,
+                codes=self.codes,
+                scales=self.scales,
+                outer=self.outer,
+                code_values=self.code_values,
+                scale_values=self.scale_values,
+                block=self.block,
+                shape=self.shape,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.fmt == other.fmt and
+                self.codes == other.codes and
+                self.scales == other.scales and
+                self.outer == other.outer and
+                self.code_values == other.code_values and
+                self.scale_values == other.scale_values and
+                self.block == other.block and
+                self.shape == other.shape
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass__set_cls_attr(__class__, '__hash__', None, 'replace')
+
+        def __init__(
+            self,
+            fmt: __dataclass__init__fields__0__annotation,
+            codes: __dataclass__init__fields__1__annotation,
+            scales: __dataclass__init__fields__2__annotation,
+            outer: __dataclass__init__fields__3__annotation,
+            code_values: __dataclass__init__fields__4__annotation,
+            scale_values: __dataclass__init__fields__5__annotation,
+            block: __dataclass__init__fields__6__annotation,
+            shape: __dataclass__init__fields__7__annotation,
+        ) -> __dataclass__None:
+            self.fmt = fmt
+            self.codes = codes
+            self.scales = scales
+            self.outer = outer
+            self.code_values = code_values
+            self.scale_values = scale_values
+            self.block = block
+            self.shape = shape
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"fmt={self.fmt!r}")
+            parts.append(f"codes={self.codes!r}")
+            parts.append(f"scales={self.scales!r}")
+            parts.append(f"outer={self.outer!r}")
+            parts.append(f"code_values={self.code_values!r}")
+            parts.append(f"scale_values={self.scale_values!r}")
+            parts.append(f"block={self.block!r}")
+            parts.append(f"shape={self.shape!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    installer_sha1='eb56f27d6ed047710f212e9cb226786c99b173fc',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
+            "lse, False, False, False), ((('fmt', True, True, None, True, False, False, None), 'instance', 'missing', N"
+            "one, False, False, False), (('codes', True, True, None, True, False, False, None), 'instance', 'missing', "
+            "None, False, False, False), (('scales', True, True, None, True, False, False, None), 'instance', 'missing'"
+            ", None, False, False, False), (('outer', True, True, None, True, False, False, None), 'instance', 'missing"
+            "', None, False, False, False), (('block', True, True, None, True, False, False, None), 'instance', 'missin"
+            "g', None, False, False, False), (('shape', True, True, None, True, False, False, None), 'instance', 'missi"
+            "ng', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), (("
+            "),), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('omllm.local.qwen.backends.tinygrad', 'TinyMicroscaledExperts'),
+    ),
+)
+def _process_dataclass__eb56f27d6ed047710f212e9cb226786c99b173fc():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                fmt=self.fmt,
+                codes=self.codes,
+                scales=self.scales,
+                outer=self.outer,
+                block=self.block,
+                shape=self.shape,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.fmt == other.fmt and
+                self.codes == other.codes and
+                self.scales == other.scales and
+                self.outer == other.outer and
+                self.block == other.block and
+                self.shape == other.shape
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass__set_cls_attr(__class__, '__hash__', None, 'replace')
+
+        def __init__(
+            self,
+            fmt: __dataclass__init__fields__0__annotation,
+            codes: __dataclass__init__fields__1__annotation,
+            scales: __dataclass__init__fields__2__annotation,
+            outer: __dataclass__init__fields__3__annotation,
+            block: __dataclass__init__fields__4__annotation,
+            shape: __dataclass__init__fields__5__annotation,
+        ) -> __dataclass__None:
+            self.fmt = fmt
+            self.codes = codes
+            self.scales = scales
+            self.outer = outer
+            self.block = block
+            self.shape = shape
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"fmt={self.fmt!r}")
+            parts.append(f"codes={self.codes!r}")
+            parts.append(f"scales={self.scales!r}")
+            parts.append(f"outer={self.outer!r}")
+            parts.append(f"block={self.block!r}")
+            parts.append(f"shape={self.shape!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
     installer_sha1='030e598f2fd59ebe3517822a2ee45e56cbb497ac',
     spec_keys=(
         (
@@ -2277,7 +2503,218 @@ def _process_dataclass__e79f1626b80b0af441173b1bec386ec889b53a1d():
 
 
 @_register(
-    installer_sha1='d9bf1b8c74e317ef5414dc3d4026732fc46e3701',
+    installer_sha1='a2a705672ae6f091b45677b9742d6c22236c4bc1',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
+            "se, False, False, False), ((('hidden_size', True, True, None, True, False, False, None), 'instance', 'miss"
+            "ing', None, False, False, False), (('num_layers', True, True, None, True, False, False, None), 'instance',"
+            " 'missing', None, False, False, False), (('num_heads', True, True, None, True, False, False, None), 'insta"
+            "nce', 'missing', None, False, False, False), (('num_kv_heads', True, True, None, True, False, False, None)"
+            ", 'instance', 'missing', None, False, False, False), (('head_dim', True, True, None, True, False, False, N"
+            "one), 'instance', 'missing', None, False, False, False), (('intermediate_size', True, True, None, True, Fa"
+            "lse, False, None), 'instance', 'missing', None, False, False, False), (('rms_eps', True, True, None, True,"
+            " False, False, None), 'instance', 'missing', None, False, False, False), (('rope_theta', True, True, None,"
+            " True, False, False, None), 'instance', 'missing', None, False, False, False), (('window', True, True, Non"
+            "e, True, False, False, None), 'instance', 'missing', None, False, False, False), (('local_layers', True, T"
+            "rue, None, True, False, False, None), 'instance', 'missing', None, False, False, False), (('block', True, "
+            "True, None, True, False, False, None), 'instance', 'missing', None, False, False, False), (('markov_rank',"
+            " True, True, None, True, False, False, None), 'instance', 'missing', None, False, False, False), (('taps',"
+            " True, True, None, True, False, False, None), 'instance', 'missing', None, False, False, False)), False, 0"
+            ", ()), ((False,), (False,), (), (False,), (False, True, ()), ((),), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('omllm.local.qwen.core.dspark.config', 'DsparkConfig'),
+    ),
+)
+def _process_dataclass__a2a705672ae6f091b45677b9742d6c22236c4bc1():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__00__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__01__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__02__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__03__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__04__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__05__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__06__annotation = __dataclass__spec.fields[6].annotation
+        __dataclass__init__fields__07__annotation = __dataclass__spec.fields[7].annotation
+        __dataclass__init__fields__08__annotation = __dataclass__spec.fields[8].annotation
+        __dataclass__init__fields__09__annotation = __dataclass__spec.fields[9].annotation
+        __dataclass__init__fields__10__annotation = __dataclass__spec.fields[10].annotation
+        __dataclass__init__fields__11__annotation = __dataclass__spec.fields[11].annotation
+        __dataclass__init__fields__12__annotation = __dataclass__spec.fields[12].annotation
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                hidden_size=self.hidden_size,
+                num_layers=self.num_layers,
+                num_heads=self.num_heads,
+                num_kv_heads=self.num_kv_heads,
+                head_dim=self.head_dim,
+                intermediate_size=self.intermediate_size,
+                rms_eps=self.rms_eps,
+                rope_theta=self.rope_theta,
+                window=self.window,
+                local_layers=self.local_layers,
+                block=self.block,
+                markov_rank=self.markov_rank,
+                taps=self.taps,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.hidden_size == other.hidden_size and
+                self.num_layers == other.num_layers and
+                self.num_heads == other.num_heads and
+                self.num_kv_heads == other.num_kv_heads and
+                self.head_dim == other.head_dim and
+                self.intermediate_size == other.intermediate_size and
+                self.rms_eps == other.rms_eps and
+                self.rope_theta == other.rope_theta and
+                self.window == other.window and
+                self.local_layers == other.local_layers and
+                self.block == other.block and
+                self.markov_rank == other.markov_rank and
+                self.taps == other.taps
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'hidden_size',
+            'num_layers',
+            'num_heads',
+            'num_kv_heads',
+            'head_dim',
+            'intermediate_size',
+            'rms_eps',
+            'rope_theta',
+            'window',
+            'local_layers',
+            'block',
+            'markov_rank',
+            'taps',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.hidden_size,
+                self.num_layers,
+                self.num_heads,
+                self.num_kv_heads,
+                self.head_dim,
+                self.intermediate_size,
+                self.rms_eps,
+                self.rope_theta,
+                self.window,
+                self.local_layers,
+                self.block,
+                self.markov_rank,
+                self.taps,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            hidden_size: __dataclass__init__fields__00__annotation,
+            num_layers: __dataclass__init__fields__01__annotation,
+            num_heads: __dataclass__init__fields__02__annotation,
+            num_kv_heads: __dataclass__init__fields__03__annotation,
+            head_dim: __dataclass__init__fields__04__annotation,
+            intermediate_size: __dataclass__init__fields__05__annotation,
+            rms_eps: __dataclass__init__fields__06__annotation,
+            rope_theta: __dataclass__init__fields__07__annotation,
+            window: __dataclass__init__fields__08__annotation,
+            local_layers: __dataclass__init__fields__09__annotation,
+            block: __dataclass__init__fields__10__annotation,
+            markov_rank: __dataclass__init__fields__11__annotation,
+            taps: __dataclass__init__fields__12__annotation,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'hidden_size', hidden_size)
+            __dataclass__object_setattr(self, 'num_layers', num_layers)
+            __dataclass__object_setattr(self, 'num_heads', num_heads)
+            __dataclass__object_setattr(self, 'num_kv_heads', num_kv_heads)
+            __dataclass__object_setattr(self, 'head_dim', head_dim)
+            __dataclass__object_setattr(self, 'intermediate_size', intermediate_size)
+            __dataclass__object_setattr(self, 'rms_eps', rms_eps)
+            __dataclass__object_setattr(self, 'rope_theta', rope_theta)
+            __dataclass__object_setattr(self, 'window', window)
+            __dataclass__object_setattr(self, 'local_layers', local_layers)
+            __dataclass__object_setattr(self, 'block', block)
+            __dataclass__object_setattr(self, 'markov_rank', markov_rank)
+            __dataclass__object_setattr(self, 'taps', taps)
+            self.__post_init__()
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"hidden_size={self.hidden_size!r}")
+            parts.append(f"num_layers={self.num_layers!r}")
+            parts.append(f"num_heads={self.num_heads!r}")
+            parts.append(f"num_kv_heads={self.num_kv_heads!r}")
+            parts.append(f"head_dim={self.head_dim!r}")
+            parts.append(f"intermediate_size={self.intermediate_size!r}")
+            parts.append(f"rms_eps={self.rms_eps!r}")
+            parts.append(f"rope_theta={self.rope_theta!r}")
+            parts.append(f"window={self.window!r}")
+            parts.append(f"local_layers={self.local_layers!r}")
+            parts.append(f"block={self.block!r}")
+            parts.append(f"markov_rank={self.markov_rank!r}")
+            parts.append(f"taps={self.taps!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    installer_sha1='208f8c13a134465e971a023386438ae8886deaef',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -2314,16 +2751,17 @@ def _process_dataclass__e79f1626b80b0af441173b1bec386ec889b53a1d():
             "e, False), (('logit_softcap', True, True, None, True, False, False, None), 'instance', 'missing', None, Fa"
             "lse, False, False), (('context_length', True, True, None, True, False, False, None), 'instance', 'value', "
             "None, False, False, False), (('eos_id', True, True, None, True, False, False, None), 'instance', 'value', "
-            "None, False, False, False), (('extra', True, True, None, True, False, False, None), 'instance', 'factory',"
-            " None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, True, ()), ((),), "
-            "(), (False,)))"
+            "None, False, False, False), (('draft', True, True, None, True, False, False, None), 'instance', 'value', N"
+            "one, False, False, False), (('extra', True, True, None, True, False, False, None), 'instance', 'factory', "
+            "None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, True, ()), ((),), ("
+            "), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.local.qwen.core.inkling2.config', 'Inkling2Config'),
     ),
 )
-def _process_dataclass__d9bf1b8c74e317ef5414dc3d4026732fc46e3701():
+def _process_dataclass__208f8c13a134465e971a023386438ae8886deaef():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2364,7 +2802,9 @@ def _process_dataclass__d9bf1b8c74e317ef5414dc3d4026732fc46e3701():
         __dataclass__init__fields__30__annotation = __dataclass__spec.fields[30].annotation
         __dataclass__init__fields__30__default = __dataclass__spec.fields[30].default.must()
         __dataclass__init__fields__31__annotation = __dataclass__spec.fields[31].annotation
-        __dataclass__init__fields__31__default_factory = __dataclass__spec.fields[31].default.must().fn
+        __dataclass__init__fields__31__default = __dataclass__spec.fields[31].default.must()
+        __dataclass__init__fields__32__annotation = __dataclass__spec.fields[32].annotation
+        __dataclass__init__fields__32__default_factory = __dataclass__spec.fields[32].default.must().fn
         __dataclass__HAS_DEFAULT_FACTORY = __dataclass__globals['__dataclass__HAS_DEFAULT_FACTORY']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -2405,6 +2845,7 @@ def _process_dataclass__d9bf1b8c74e317ef5414dc3d4026732fc46e3701():
                 logit_softcap=self.logit_softcap,
                 context_length=self.context_length,
                 eos_id=self.eos_id,
+                draft=self.draft,
                 extra=self.extra,
             )
 
@@ -2447,6 +2888,7 @@ def _process_dataclass__d9bf1b8c74e317ef5414dc3d4026732fc46e3701():
                 self.logit_softcap == other.logit_softcap and
                 self.context_length == other.context_length and
                 self.eos_id == other.eos_id and
+                self.draft == other.draft and
                 self.extra == other.extra
             )
 
@@ -2487,10 +2929,11 @@ def _process_dataclass__d9bf1b8c74e317ef5414dc3d4026732fc46e3701():
             logit_softcap: __dataclass__init__fields__28__annotation,
             context_length: __dataclass__init__fields__29__annotation = __dataclass__init__fields__29__default,
             eos_id: __dataclass__init__fields__30__annotation = __dataclass__init__fields__30__default,
-            extra: __dataclass__init__fields__31__annotation = __dataclass__HAS_DEFAULT_FACTORY,
+            draft: __dataclass__init__fields__31__annotation = __dataclass__init__fields__31__default,
+            extra: __dataclass__init__fields__32__annotation = __dataclass__HAS_DEFAULT_FACTORY,
         ) -> __dataclass__None:
             if extra is __dataclass__HAS_DEFAULT_FACTORY:
-                extra = __dataclass__init__fields__31__default_factory()
+                extra = __dataclass__init__fields__32__default_factory()
             self.vocab_size = vocab_size
             self.hidden_size = hidden_size
             self.embed_size = embed_size
@@ -2522,6 +2965,7 @@ def _process_dataclass__d9bf1b8c74e317ef5414dc3d4026732fc46e3701():
             self.logit_softcap = logit_softcap
             self.context_length = context_length
             self.eos_id = eos_id
+            self.draft = draft
             self.extra = extra
             self.__post_init__()
 
@@ -2561,6 +3005,7 @@ def _process_dataclass__d9bf1b8c74e317ef5414dc3d4026732fc46e3701():
             parts.append(f"logit_softcap={self.logit_softcap!r}")
             parts.append(f"context_length={self.context_length!r}")
             parts.append(f"eos_id={self.eos_id!r}")
+            parts.append(f"draft={self.draft!r}")
             parts.append(f"extra={self.extra!r}")
             return (
                 f"{self.__class__.__qualname__}("
@@ -3247,7 +3692,7 @@ def _process_dataclass__ed6d679767f56a92f671092d3accfb1525a59a37():
 
 
 @_register(
-    installer_sha1='863852c85ce726bde1c54f4f1fc142df83a0b186',
+    installer_sha1='53057b666f0c8a26eed5ede8333db87b2bafe006',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -3255,15 +3700,16 @@ def _process_dataclass__ed6d679767f56a92f671092d3accfb1525a59a37():
             " None, False, False, False), (('hidden', True, True, None, True, False, False, None), 'instance', 'missing"
             "', None, False, False, False), (('states', True, True, None, True, False, False, None), 'instance', 'missi"
             "ng', None, False, False, False), (('stacked', True, True, None, True, False, False, None), 'instance', 'mi"
-            "ssing', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()),"
-            " ((),), (), (False,)))"
+            "ssing', None, False, False, False), (('step', True, True, None, True, False, False, None), 'instance', 'va"
+            "lue', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ("
+            "(),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.local.qwen.decode.rounds', 'Verified'),
     ),
 )
-def _process_dataclass__863852c85ce726bde1c54f4f1fc142df83a0b186():
+def _process_dataclass__53057b666f0c8a26eed5ede8333db87b2bafe006():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3274,6 +3720,8 @@ def _process_dataclass__863852c85ce726bde1c54f4f1fc142df83a0b186():
         __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
         __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
         __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -3288,6 +3736,7 @@ def _process_dataclass__863852c85ce726bde1c54f4f1fc142df83a0b186():
                 hidden=self.hidden,
                 states=self.states,
                 stacked=self.stacked,
+                step=self.step,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -3301,7 +3750,8 @@ def _process_dataclass__863852c85ce726bde1c54f4f1fc142df83a0b186():
                 self.logits == other.logits and
                 self.hidden == other.hidden and
                 self.states == other.states and
-                self.stacked == other.stacked
+                self.stacked == other.stacked and
+                self.step == other.step
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -3311,6 +3761,7 @@ def _process_dataclass__863852c85ce726bde1c54f4f1fc142df83a0b186():
             'hidden',
             'states',
             'stacked',
+            'step',
         }
 
         def __setattr__(self, name, value):
@@ -3339,6 +3790,7 @@ def _process_dataclass__863852c85ce726bde1c54f4f1fc142df83a0b186():
                 self.hidden,
                 self.states,
                 self.stacked,
+                self.step,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -3349,11 +3801,13 @@ def _process_dataclass__863852c85ce726bde1c54f4f1fc142df83a0b186():
             hidden: __dataclass__init__fields__1__annotation,
             states: __dataclass__init__fields__2__annotation,
             stacked: __dataclass__init__fields__3__annotation,
+            step: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'logits', logits)
             __dataclass__object_setattr(self, 'hidden', hidden)
             __dataclass__object_setattr(self, 'states', states)
             __dataclass__object_setattr(self, 'stacked', stacked)
+            __dataclass__object_setattr(self, 'step', step)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -3364,6 +3818,7 @@ def _process_dataclass__863852c85ce726bde1c54f4f1fc142df83a0b186():
             parts.append(f"hidden={self.hidden!r}")
             parts.append(f"states={self.states!r}")
             parts.append(f"stacked={self.stacked!r}")
+            parts.append(f"step={self.step!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

@@ -10,6 +10,7 @@ from ..api import generate
 from ..arch.qwen35 import load_qwen35
 from ..core.block import Block
 from ..core.config import Qwen35Config
+from ..core.mtp import MtpHead
 from ..load.weights import GGUFSource
 from ..load.weights import OllamaTensorSource
 from ..load.weights import mlx_affine_dequant
@@ -172,7 +173,7 @@ def test_param_cache():
         assert torch.equal(m.forward(ids), a.forward(ids))
     # a later load with the draft head adds only its entries
     d = load_qwen35(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir, mtp=True)
-    assert d.mtp is not None and isinstance(d.mtp.fc, TorchQWeight)
+    assert isinstance(d.mtp, MtpHead) and isinstance(d.mtp.fc, TorchQWeight)
     assert len(list(root.glob('*.json'))) == n_entries(src.names())
     e = load_qwen35(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir, mtp=True)
     assert torch.equal(e.mtp.fc.q, d.mtp.fc.q)  # type: ignore

@@ -21,6 +21,11 @@ class StepSlab:
     `layers` is, per layer, the layer's state arrays where that state lives in capacity buffers (None for a fixed-size
     one), as the decoder last held them. What the buffers contain is of no account: a state says how many positions of
     it are valid, and the rest is rewritten before anything reads it.
+
+    `state` is every array of the decoder's state as it last held them, the fixed-size ones too: the arrays the
+    captured steps are bound to. The next decoder takes its own state into them (`Ops.assign`) and holds those: a
+    step that writes part of a fixed-size state in place writes into the array it is bound to, and a decoder
+    holding another array for it would hold what the step has not written.
     """
 
     def __init__(
@@ -34,6 +39,7 @@ class StepSlab:
         self.capacity = capacity
         self.layers = list(layers)
         self.fns = fns
+        self.state: list[Array] | None = None
 
     def holds(self, layers: ta.Sequence[tuple[Array, ...] | None]) -> bool:
         """Whether `layers` (laid out as `self.layers`) are these very buffers, array for array."""

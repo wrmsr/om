@@ -60,10 +60,10 @@ class RecurrentStateLayout(StateLayout):
     def export(self, ops: Ops, state: tuple[Array, ...], seq_len: int) -> tuple[Array, ...]:
         return tuple(ops.copy(a) for a in state)
 
-    def commit(self, ops: Ops, state: tuple[Array, ...], n: int, stacked: bool) -> tuple[Array, ...]:
+    def commit(self, ops: Ops, state: tuple[Array, ...], n: Array, stacked: bool) -> tuple[Array, ...]:
         if not stacked:
             return state
-        return tuple(ops.select(a, n - 1) for a in state)
+        return tuple(ops.select_at(a, n - 1) for a in state)
 
     def capacity(self, ops: Ops, state: tuple[Array, ...]) -> int | None:
         return None

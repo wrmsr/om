@@ -53,12 +53,16 @@ from ..core.config import ModelConfig
 from ..core.config import Qwen4ExpConfig
 from ..core.config import Qwen35Config
 from ..ops.microscaled import MicroscaledWeight
+from .gguffiles import GgufFile
 
 
 if ta.TYPE_CHECKING:
     import numpy as np
+
+    from . import families
 else:
     np = lang.proxy_import('numpy')
+    families = lang.proxy_import('.families', __package__)  # (lazily: the families' readers build on this module)
 
 
 ##
@@ -320,13 +324,12 @@ class GGUFSource(TensorSource):
 
     config: Qwen35Config
 
-    def __init__(self, path: str | pathlib.Path) -> None:
-        from .gguf.reader import GGUFReader
-
-        self.path = pathlib.Path(path)
-        self.reader = GGUFReader(str(self.path))
-        self._tensors = {t.name: t for t in self.reader.tensors}
-        arch = self.kv('general.architecture')
+    def __init__(self, path: str | pathlib.Path | GgufFile) -> None:
+        self.file = file = path if isinstance(path, GgufFile) else GgufFile(str(path))
+        self.path = pathlib.Path(file.path)
+        self.reader = file.reader
+        self._tensors = file.tensors
+        arch = file.architecture
         if arch != 'qwen35':
             raise ValueError(f'unsupported GGUF architecture {arch!r} (want qwen35)')
         self.arch = arch
@@ -339,8 +342,7 @@ class GGUFSource(TensorSource):
     # metadata helpers
 
     def kv(self, key: str, default=None):
-        f = self.reader.fields.get(key)
-        return default if f is None else f.contents()
+        return self.file.kv(key, default)
 
     def akv(self, key: str, default=None):
         return self.kv(f'{self.arch}.{key}', default)
@@ -434,20 +436,8 @@ class GGUFSource(TensorSource):
         return from_tensors
 
     def _build_tokenizer_spec(self) -> dict:
-        kv = self.kv
-        return {
-            'kind': 'gguf',
-            'model': kv('tokenizer.ggml.model'),
-            'pre': kv('tokenizer.ggml.pre', 'qwen2'),
-            'tokens': kv('tokenizer.ggml.tokens'),
-            'token_type': kv('tokenizer.ggml.token_type'),
-            'merges': kv('tokenizer.ggml.merges'),
-            'eos_id': kv('tokenizer.ggml.eos_token_id'),
-            'bos_id': kv('tokenizer.ggml.bos_token_id'),
-            'pad_id': kv('tokenizer.ggml.padding_token_id'),
-            'add_bos': bool(kv('tokenizer.ggml.add_bos_token', False)),
-            'chat_template': kv('tokenizer.chat_template'),
-        }
+        spec = self.file.tokenizer_spec()
+        return {**spec, 'pre': spec['pre'] if spec['pre'] is not None else 'qwen2'}
 
     # name mapping GGUF -> canonical
 
@@ -558,14 +548,8 @@ class GGUFSource(TensorSource):
         return name in self._canon
 
     def raw(self, gguf_name: str) -> np.ndarray:
-        from .gguf.quants import dequantize
-
-        t = self._tensors[gguf_name]
-        arr = dequantize(t.data, t.tensor_type)
         # gguf-py hands back numpy arrays in row-major (reversed ggml ne) order, i.e. HF [out, in].
-        return np.ascontiguousarray(arr, dtype=np.float32).reshape(
-            tuple(reversed([int(d) for d in t.shape])),
-        )
+        return self.file.dense(gguf_name)
 
     def get(self, name: str) -> np.ndarray:
         gname, tag = self._canon[name]
@@ -906,9 +890,7 @@ def resolve_weights(model: str) -> pathlib.Path | OllamaModel | TensorSource:
 
     p = pathlib.Path(model).expanduser()
     if p.is_dir():
-        from .families import open_hf_source  # (a function-local import: the families' readers build on this module)
-
-        return open_hf_source(str(find_hf_checkpoint(p)))
+        return families.open_hf_source(str(find_hf_checkpoint(p)))
     if p.is_file() and p.suffix == '.gguf':
         return p
     if p.is_file():  # maybe a raw blob: sniff magic
@@ -930,14 +912,17 @@ def resolve_weights(model: str) -> pathlib.Path | OllamaModel | TensorSource:
 
 
 def open_source(model: str) -> TensorSource:
-    """`model` is an Ollama model name (qwen3.5:0.8b), a path to a .gguf, or a path to an Ollama manifest."""
+    """
+    `model` is an Ollama model name (qwen3.5:0.8b), a path to a .gguf or a GGUF blob (read by whichever source its
+    architecture has: families.py), a path to an Ollama manifest, or a Hugging Face checkpoint directory.
+    """
 
     r = resolve_weights(model)
     if isinstance(r, TensorSource):
         return r
     if isinstance(r, OllamaModel):
         return OllamaTensorSource(r)
-    return GGUFSource(r)
+    return families.open_gguf_source(str(r))
 
 
 def describe_gguf(path: str | pathlib.Path, max_blocks: int = 4) -> str:

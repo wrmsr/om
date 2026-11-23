@@ -25,9 +25,11 @@ A third architecture, and the first that is not a Qwen: `thinkingmachines/Inklin
 from its released Hugging Face checkpoint, the text decoder exact against the reference implementation at float32,
 served with reasoning and tool calls. INKLING.md is its document: what was added to the engine to hold it (a model's
 execution order as layers with their own state slots, the chat protocol as an interface, packed float weights as
-stored, a sliding-window KV state, a grammar controller for framed messages), what was verified, and what is left
--- attention for long prefills, its draft model, the launches of an uncompiled step. Nothing below was written with it in mind; where an item says "the
-model" it means the 27B.
+stored, a sliding-window KV state, a grammar controller for framed messages), what was verified, and what is left.
+On 2026-11-23 its step's small pieces became kernels of their own (47 to 127 tokens/s uncompiled), its draft
+model was built (`--spec 7`: 190 to 240 on code and reasoning), a verify step's rows and commit were made cheap,
+its local layers' windows stopped being moved, and its prefill doubled (3,300 tokens/s); INKLING.md section 8
+has the measurements, and what was tried and did not work. Nothing below was written with it in mind; where an item says "the model" it means the 27B.
 
 
 ## 0. Immediate: the checkpoints' own chat format

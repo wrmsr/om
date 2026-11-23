@@ -17,6 +17,7 @@ from ..decode.rounds import Round
 from ..decode.sampling import Sampler
 from ..decode.state import Snapshot
 from ..ops.base import Array
+from .draws import DraftDraws
 
 
 if ta.TYPE_CHECKING:
@@ -84,8 +85,8 @@ class MtpDraftSource(DraftSource):
     ) -> None:
         super().__init__()
 
-        if model.mtp is None:
-            raise ValueError('no MTP head loaded')
+        if not isinstance(model.mtp, MtpHead):
+            raise ValueError('no MTP head loaded')  # noqa: TRY004
         lengths = (k,) if isinstance(k, int) else tuple(sorted(set(k)))
         if not lengths or not all(1 <= n <= self.MAX_K for n in lengths):
             raise ValueError(f'draft tokens must be 1..{self.MAX_K}, got {k}')
@@ -115,8 +116,7 @@ class MtpDraftSource(DraftSource):
         self._mlogits_last: Array | None = None  # [1, V or draft_vocab]: the head's logits from its last entry
         self._d_last: Array | None = None  # [1, 1, H]: the head's normed output at its last entry
         self._leaves: StepSlab | None = None  # the head's buffers and captured steps, for the next generation's
-        self._no_noise: Array | None = None  # what a greedy run is handed for its noise
-        self._settings_arrays: tuple[Array, ...] | None = None
+        self._draws = DraftDraws(self._ops, sampler)
 
     @staticmethod
     def _decoder(gen: Generation) -> Decoder:
@@ -219,7 +219,7 @@ class MtpDraftSource(DraftSource):
         """
 
         ops = self._ops
-        c = check.not_none(self._model.mtp).cfg  # (the head's own: its block has the text model's geometry)
+        c = self._mtp.cfg  # (the head's own: its block has the text model's geometry)
         dec = self._decoder(gen)
         T = Decoder.PREFILL_T
 
@@ -296,8 +296,8 @@ class MtpDraftSource(DraftSource):
                 lead,
                 hid,
                 ops.scalar(n + max(a - 1, 0)),  # (the run's first step is on draft a, at the position before its own)
-                self._noise(b - a, width),
-                *self._settings(),
+                self._draws.noise(b - a, width),
+                *self._draws.settings(),
                 *dec.tables(),
                 *self._mflat,
             )
@@ -355,29 +355,6 @@ class MtpDraftSource(DraftSource):
             q=q_rows,
             q_d=q_d,
         )
-
-    def _settings(self) -> tuple[Array, ...]:
-        """The sampler's settings as arrays: a captured run takes them as arguments, so one serves every setting."""
-
-        if self._settings_arrays is None:
-            ops = self._ops
-            f32 = ops.dtype('f32')
-            self._settings_arrays = tuple(ops.zeros((), f32) + v for v in self._sampler.settings())
-        return self._settings_arrays
-
-    def _noise(self, count: int, width: int) -> Array:
-        """
-        The uniform draws a run of `count` sampled drafts makes, a [1, width] row each as `Sampler.draw` would take
-        them one at a time (so a seed's stream is what it was when drafts were drawn one by one). Greedy takes none.
-        """
-
-        ops = self._ops
-        if self._sampler.greedy:
-            if self._no_noise is None:
-                self._no_noise = ops.zeros((1, 1), ops.dtype('f32'))
-            return self._no_noise
-        rows = [ops.random_uniform((1, width)) for _ in range(count)]
-        return rows[0] if count == 1 else ops.concat(rows, 0)
 
     def _stage_fn(
             self,

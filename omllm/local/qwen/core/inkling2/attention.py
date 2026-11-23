@@ -48,14 +48,6 @@ else:
 ##
 
 
-def l2_clip(ops: Ops, x: Array, threshold: float) -> Array:
-    """x * min(1, threshold / (|x| + 1e-6)) over the last axis: vectors within the threshold pass unchanged."""
-
-    xf = ops.f32(x)
-    norm = ops.sqrt(ops.sum(xf * xf, -1, keepdims=True))
-    return ops.cast(xf * ops.minimum(threshold / (norm + 1e-6), 1.0), x.dtype)
-
-
 class LogScaling(ta.NamedTuple):
     """1 + alpha log(max((pos + 1) / floor, 1)): what a global layer's queries grow by with their position."""
 
@@ -133,28 +125,32 @@ class Inkling2Attention(Mixer):
     def _queries(self, ops: Ops, xq: Array, tau: Array | None) -> tuple[Array, Array, Array, Array]:
         """
         From the query input [B, T, hidden]: q [B, H, T, D]; each query's bias by backward distance [B, T, H, extent]
-        float32; the sinks [B, H, T] float32; the output gate [B, T, H * D] float32. `tau`: [T] float32, a global
+        float32; the sinks [B, H, T] float32; the output gate's logits [B, T, H * D]. `tau`: [T] float32, a global
         layer's scaling at each position.
         """
 
         B, T, _ = xq.shape
         H = self._num_heads
         D = self._head_dim
-        dtype = xq.dtype
 
-        q = l2_clip(ops, ops.reshape(ops.linear(xq, self._wq), (B, T, H, D)) * self._q_scale, self._qk_clip)
-        rel = l2_clip(ops, ops.reshape(ops.linear(xq, self._wr), (B, T, H, -1)) * self._rel_scale, self._rel_clip)
+        # (a global layer's scaling comes after the clip, each rounded to the model's dtype first)
+        q = ops.l2_clip(
+            ops.reshape(ops.linear(xq, self._wq), (B, T, H, D)),
+            self._qk_clip,
+            scale=self._q_scale,
+            after=tau,
+        )
+        rel = ops.l2_clip(
+            ops.reshape(ops.linear(xq, self._wr), (B, T, H, -1)),
+            self._rel_clip,
+            scale=self._rel_scale,
+            after=tau,
+        )
 
-        if tau is not None:
-            # (after the clip, each rounded to the model's dtype first)
-            q = ops.cast(ops.f32(q) * tau[None, :, None, None], dtype)
-            rel = ops.cast(ops.f32(rel) * tau[None, :, None, None], dtype)
-
-        bias = ops.f32(ops.linear(rel, self._rel_proj))
         sink = ops.transpose(ops.f32(ops.linear(xq, self._sink)), (0, 2, 1))
-        gate = ops.sigmoid(ops.f32(ops.linear(xq, self._gate)))
+        gate = ops.linear(xq, self._gate)
 
-        return ops.transpose(q, (0, 2, 1, 3)), bias, sink, gate
+        return ops.transpose(q, (0, 2, 1, 3)), rel, sink, gate
 
     def _keys(
             self,
@@ -174,32 +170,16 @@ class Inkling2Attention(Mixer):
         k, k_hist = self._k_conv(ops, ops.linear(xk, self._wk), xk, k_hist, all_states)
         v, v_hist = self._v_conv(ops, ops.linear(xv, self._wv), xv, v_hist, all_states)
 
-        k = l2_clip(ops, ops.reshape(k, (B, T, KV, D)), self._qk_clip)
+        k = ops.l2_clip(ops.reshape(k, (B, T, KV, D)), self._qk_clip)
         v = ops.reshape(v, (B, T, KV, D))
         v = ops.cast(unit_rms(ops, v, self._eps), v.dtype)
 
         return ops.transpose(k, (0, 2, 1, 3)), ops.transpose(v, (0, 2, 1, 3)), k_hist, v_hist
 
-    def _score_bias(self, ops: Ops, rel: Array, qpos: Array, kpos: Array, within: int | None = None) -> Array:
-        """
-        What is added to t queries' scores over n keys, [1, H, t, n] float32: each query's relative term at the
-        key's distance back -- nothing past the extent -- and -1e30 where the query does not see the key, or, with
-        `within`, where the key is that far back or further (it is scored elsewhere). `rel`: [t, H, extent]; `qpos`
-        [t], `kpos` [n]: integer positions on the device.
-        """
-
-        delta = qpos[:, None] - kpos[None, :]
-        sees = self._span.sees(ops, delta)
-        if within is not None:
-            sees = sees * ops.cast(delta < within, sees.dtype)
-        bias = ops.rel_bias(rel, qpos, kpos) + ((1 - sees) * -1e30)[..., None]  # [t, n, H]
-        return ops.transpose(bias, (2, 0, 1))[None]
-
     def _out(self, ops: Ops, o: Array, gate: Array) -> Array:
         B, H, T, D = o.shape
         o = ops.reshape(ops.transpose(o, (0, 2, 1, 3)), (B, T, H * D))
-        o = ops.cast(ops.f32(o) * gate, o.dtype)
-        return ops.linear(o, self._wo)
+        return ops.linear(ops.sigmoid_gated(o, gate, o.dtype), self._wo)
 
     def _split(self, ops: Ops, state: ta.Any) -> tuple[ta.Any, ta.Any, ta.Any]:
         if state is None:
@@ -228,7 +208,7 @@ class Inkling2Attention(Mixer):
             qp = np.arange(pos, pos + T, dtype=np.float64)
             tau = ops.array((1 + ls.alpha * np.log(np.maximum((qp + 1) / ls.floor, 1))).astype(np.float32), f32)
 
-        q, bias, sink, gate = self._queries(ops, xq, tau)
+        q, rel, sink, gate = self._queries(ops, xq, tau)
         k, v, k_hist, v_hist = self._keys(ops, xk, xv, k_hist, v_hist, False)
 
         kv, kd, vd, first = self._span.extend(ops, kv, pos, k, v, q.dtype)
@@ -236,10 +216,11 @@ class Inkling2Attention(Mixer):
         # One softmax a query, in parts. Where a query sees every earlier position, the keys past its relative
         # term's extent -- in a long prefill, nearly all of them -- carry no term, and are scored as plain causal
         # attention ending `extent` positions before the query: no bias is built for them, and a backend's kernel
-        # reads them where they are. The keys within the query's reach, or its extent, get the term and the mask,
-        # a tile of queries at a time against the keys the tile can see.
+        # reads them where they are. The keys within the query's reach, or its extent, are a window to it, scored
+        # with the term as a step's are (`Ops.sdpa_window_rel`), a tile of queries at a time against the keys the
+        # tile can see.
         reach = self._span.reach
-        extent = int(bias.shape[-1])
+        extent = int(self._rel_proj.shape[0])
         near = reach if reach is not None else extent
         far = None
         if reach is None and pos + T - 1 - extent >= first:
@@ -253,22 +234,29 @@ class Inkling2Attention(Mixer):
             lo = max(pos + a - (near - 1), first)
             hi = pos + b
 
-            parts = [ops.sdpa_partials(
+            # the tile's window as a step's is laid out: near - 1 slots before its first query, the ones for
+            # positions there are no keys at empty (a kernel that walks the slots in tiles then sums a token's
+            # scores in the order a step does: under a KV format that rounds, a last bit decides a code)
+            kt = kd[:, :, lo - first:hi - first]
+            vt = vd[:, :, lo - first:hi - first]
+            short = lo - (pos + a - (near - 1))
+            if short:
+                pad = ops.zeros((kt.shape[0], kt.shape[1], short, kt.shape[3]), kt.dtype)
+                kt = ops.concat([pad, kt], 2)
+                vt = ops.concat([pad, vt], 2)
+
+            outs.append(ops.sdpa_window_rel(
                 q[:, :, a:b],
-                kd[:, :, lo - first:hi - first],
-                vd[:, :, lo - first:hi - first],
-                self._scale,
-                self._score_bias(
-                    ops,
-                    bias[0, a:b],
-                    ops.array(np.arange(pos + a, pos + b, dtype=np.int32)),
-                    ops.array(np.arange(lo, hi, dtype=np.int32)),
-                    within=extent if far is not None else None,
-                ),
-            )]
-            if far is not None:
-                parts.append((far[0][:, :, a:b], far[1][:, :, a:b], far[2][:, :, a:b]))
-            outs.append(ops.sdpa_merge(parts, sink[:, :, a:b], q.dtype))
+                kt,
+                vt,
+                ops.scalar(pos + a),
+                scale=self._scale,
+                rel=rel[0, a:b],
+                rel_proj=self._rel_proj,
+                sink=sink[:, :, a:b],
+                window=near,
+                more=() if far is None else [(far[0][:, :, a:b], far[1][:, :, a:b], far[2][:, :, a:b])],
+            ))
 
         o = outs[0] if len(outs) == 1 else ops.concat(outs, 2)
 
@@ -284,15 +272,25 @@ class Inkling2Attention(Mixer):
 
         kv, k_hist, v_hist = self._split(ops, state)
 
-        qpos = ops.reshape(ctx.pos, (1,)) + ops.arange(T)  # [T]
-
         tau: Array | None = None
         if (ls := self._log_scaling) is not None:
+            qpos = ops.reshape(ctx.pos, (1,)) + ops.arange(T)  # [T]
             tau = ops.log(ops.maximum(ops.f32(qpos + 1) / ls.floor, 1.0)) * ls.alpha + 1
 
-        q, bias, sink, gate = self._queries(ops, xq, tau)
+        q, rel, sink, gate = self._queries(ops, xq, tau)
         k, v, k_hist, v_hist = self._keys(ops, xk, xv, k_hist, v_hist, ctx.all_states)
 
-        kv, o = self._span.attend(ops, kv, ctx, q, k, v, scale=self._scale, rel=bias[0], sink=sink)
+        kv, o = self._span.attend(
+            ops,
+            kv,
+            ctx,
+            q,
+            k,
+            v,
+            scale=self._scale,
+            rel=rel[0],
+            rel_proj=self._rel_proj,
+            sink=sink,
+        )
 
         return self._out(ops, o, gate), (*kv, *k_hist, *v_hist)

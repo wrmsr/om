@@ -21,18 +21,37 @@ ChatEvent: ta.TypeAlias = tuple[str, ta.Any]  # ('reasoning' | 'content', text) 
 
 class ChatReader(lang.Abstract):
     """
-    One answer read as it is generated: fed decoded text, it hands back deltas -- ('reasoning', str), ('content', str),
-    or ('tool_call', dict): a call's id and name with empty arguments as soon as the name is known, then pieces of the
-    arguments' JSON text (the OpenAI delta shape: clients concatenate them). Text that may be the start of a marker
-    is held back until it is one or clearly is not.
+    One answer read as it is generated: fed what is decoded -- text (`feed`), and the tokenizer's special tokens each
+    as itself (`mark`) -- it hands back deltas: ('reasoning', str), ('content', str), or ('tool_call', dict): a call's
+    id and name with empty arguments as soon as the name is known, then pieces of the arguments' JSON text (the
+    OpenAI delta shape: clients concatenate them). A reader that finds its markers in text holds back text that may
+    be the start of one until it is one or clearly is not.
     """
 
     @abc.abstractmethod
     def feed(self, text: str) -> list[ChatEvent]:
         raise NotImplementedError
 
+    def mark(self, marker: str) -> list[ChatEvent]:
+        """
+        One special token, by its text. Where a protocol's framing is special tokens this is what tells a marker from
+        text that spells one -- a model writing about its own protocol, a file that quotes it. Default: read as the
+        text it decodes to (a reader whose markers are found in text).
+        """
+
+        return self.feed(marker)
+
     @abc.abstractmethod
     def finish(self) -> list[ChatEvent]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def parsed(self, text: str) -> Parsed:
+        """
+        The finished answer, whole, after `finish`. `text` is all that was fed, special tokens as the text they decode
+        to: what a reader that reads text reads it from, and one that was told its markers has no need of.
+        """
+
         raise NotImplementedError
 
 
@@ -74,7 +93,16 @@ class ChatProtocol(lang.Abstract):
         The prompt for an OpenAI-style message list (roles system / user / assistant / tool), up to where the model
         answers. `continuation`: the messages go on a conversation already rendered -- no preamble of the
         conversation's own (the reasoning-effort instruction, the tools) is written again.
+
+        The text is the protocol's own form of a prompt, for `encode` to turn into ids: a protocol may write what a
+        message says escaped, so that nothing a message says reads as the protocol's framing.
         """
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def encode(self, text: str) -> list[int]:
+        """The ids of a rendered prompt, or of a stretch of one cut where its turns meet."""
 
         raise NotImplementedError
 
@@ -98,7 +126,10 @@ class ChatProtocol(lang.Abstract):
 
     @abc.abstractmethod
     def parse(self, text: str, tools: ta.Sequence[dict] | None = None, *, enable_thinking: bool = True) -> Parsed:
-        """A finished answer's text (the end-of-turn token not in it) as reasoning, content and tool calls."""
+        """
+        A finished answer's text (the end-of-turn token not in it) as reasoning, content and tool calls. A reading of
+        text, in which whatever spells a marker is one; the engine reads an answer's tokens (`reader`).
+        """
 
         raise NotImplementedError
 

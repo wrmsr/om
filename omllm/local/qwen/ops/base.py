@@ -100,6 +100,15 @@ class Ops(lang.Abstract):
 
         raise NotImplementedError
 
+    def assign(self, dst: Array, src: Array) -> Array:
+        """
+        An array holding `src`'s values in `dst`'s place: on a backend that writes in place, `dst` itself, written --
+        so that what is bound to it (a captured step: `capture`) finds the values -- and on one that does not, `src`.
+        The two are of one shape and dtype.
+        """
+
+        return src
+
     def to_host(self, x: Array) -> ta.Any:
         """
         Move an array to host memory for the prefix cache's host tier, in a form `from_host` brings back. Default: the
@@ -232,6 +241,197 @@ class Ops(lang.Abstract):
     def sqrt(self, x: Array) -> Array:
         return 1.0 / self.rsqrt(x)  # (0 -> 1 / inf -> 0, where x * rsqrt(x) would be a NaN)
 
+    def unit_rms(self, x: Array, eps: float) -> Array:
+        """x / sqrt(mean(x^2) + eps) over the last axis, float32: an RMS norm with no weight."""
+
+        xf = self.f32(x)
+        return xf * self.rsqrt(self.mean(xf * xf, -1, keepdims=True) + eps)
+
+    def l2_clip(
+            self,
+            x: Array,
+            threshold: float,
+            *,
+            scale: Array | None = None,
+            after: Array | None = None,
+    ) -> Array:
+        """
+        The vectors along x's last axis held to an l2 norm: v min(1, threshold / (|v| + 1e-6)), in x's dtype, where v
+        is x -- or with `scale` (broadcast against x) x * scale, in x's dtype. With `after`, a float32 factor for each
+        row of x [B, T, ...] ([T]), the clipped vectors -- rounded to x's dtype first -- times their row's.
+        """
+
+        if scale is not None:
+            x = x * scale
+
+        xf = self.f32(x)
+        norm = self.sqrt(self.sum(xf * xf, -1, keepdims=True))
+        y = self.cast(xf * self.minimum(threshold / (norm + 1e-6), 1.0), x.dtype)
+
+        if after is not None:
+            y = self.cast(self.f32(y) * self.reshape(after, (1, -1, *([1] * (len(x.shape) - 2)))), x.dtype)
+
+        return y
+
+    def depth_mix(
+            self,
+            queries: Array,
+            sources: ta.Sequence[Array],
+            *,
+            raw: int = 0,
+            eps: float = 0.,
+    ) -> Array:
+        """
+        `queries` [Q, H] float32 over `sources`, each [B, T, H]: for each query, the sources' softmax(q . source /
+        sqrt(H))-weighted sum, [B, T, Q, H] float32. The sources are taken at unit RMS: the last `raw` of them are
+        given as they are and brought to it here (an RMS norm with no weight, `eps` under its root); the rest are at
+        it already. Nothing here sees another position.
+        """
+
+        n = len(sources)
+        srcs = [self.unit_rms(s, eps) if i >= n - raw else self.f32(s) for i, s in enumerate(sources)]
+
+        z = self.stack(srcs, 2)  # [B, T, N, H]
+        w = self.softmax(self.linear(z, queries) * (int(z.shape[-1]) ** -0.5), 2)  # [B, T, N, Q]
+        return self.transpose(w, (0, 1, 3, 2)) @ z
+
+    def sigmoid_route(self, logits: Array, bias: Array, k: int, *, total: float) -> tuple[Array, Array]:
+        """
+        A sigmoid router's pick: for `logits` [N, E] float32, each row's scores are their sigmoids; its k experts
+        are the largest by score + `bias` [E], largest first; and their weights are their own scores -- not the
+        biased ones the pick was made on -- scaled to sum to `total`. (indices [N, k] int, weights [N, k] float32).
+        """
+
+        f32 = self.dtype('f32')
+
+        scores = self.sigmoid(self.f32(logits))
+        _, idx = self.topk(scores + bias, k)
+
+        # the picked experts' own scores: a one-hot sum, exact
+        picked = self.cast(idx[..., None] == self.arange(int(scores.shape[-1])), f32)  # [N, k, E]
+        sel = self.sum(scores[:, None, :] * picked, -1)
+
+        return idx, sel * (total / (self.sum(sel, -1, keepdims=True) + 1e-20))
+
+    def capped_gate(self, h: Array, *, gate_cap: float, up_cap: float) -> Array:
+        """
+        A gated activation with soft caps: for h [R, 2 I], its halves g | u, (gate_cap tanh(g / gate_cap))
+        sigmoid(g) (up_cap tanh(u / up_cap)) -- the sigmoid reads the gate as it is, not its capped value. [R, I] in
+        h's dtype, computed in float32.
+        """
+
+        n = int(h.shape[-1]) // 2
+        g, u = self.split(self.f32(h), [n, n], -1)
+        a = (self.tanh(g / gate_cap) * gate_cap) * self.sigmoid(g) * (self.tanh(u / up_cap) * up_cap)
+        return self.cast(a, h.dtype)
+
+    def weighted_rows(self, y: Array, w: Array, dtype: ta.Any) -> Array:
+        """y [N, K, H] summed over K with weights w [N, K] float32, in float32; [N, H] in `dtype`."""
+
+        return self.cast(self.sum(self.f32(y) * w[..., None], 1), dtype)
+
+    def bottleneck_blend(
+            self,
+            x: Array,
+            m: Array,
+            down: Weight,
+            forget: Array,
+            gain: Array,
+            *,
+            eps: float,
+            dtype: ta.Any,
+    ) -> Array:
+        """
+        Two inputs [..., H] float32 blended by gates computed through a narrow bottleneck from both: with u =
+        [unit_rms(x) | unit_rms(m)] and z = down u (down [R, 2 H], applied in `dtype`), the blend is (1 - tanh(forget
+        z)) x + tanh(gain z) m (forget, gain [H, R] float32). float32. Nothing here sees another position.
+        """
+
+        u = self.concat([self.unit_rms(x, eps), self.unit_rms(m, eps)], -1)
+        z = self.f32(self.linear(self.cast(u, dtype), down))
+
+        f = self.tanh(self.linear(z, forget))
+        g = self.tanh(self.linear(z, gain))
+
+        return (1 - f) * x + g * m
+
+    def short_conv(
+            self,
+            x: Array,
+            hist: Array | None,
+            weight: Array,
+            *,
+            scale: float,
+            all_states: bool = False,
+    ) -> tuple[Array, Array]:
+        """
+        A causal convolution over time, a channel at a time, with a residual: for x [B, T, C] and each channel's K
+        taps `weight` [C, K] float32, oldest first, y[t] = (x[t] + sum_a w[a] x[t - (K - 1) + a]) * scale in x's
+        dtype, the K - 1 inputs before x[0] being `hist` [B, C, K - 1] float32 (zeros for None). And the history
+        after: the last K - 1 inputs, [B, C, K - 1] float32 -- or, with `all_states`, as it stands after each of the
+        T tokens, [T, B, C, K - 1].
+        """
+
+        B, T, C = x.shape
+        K = int(weight.shape[-1])
+        f32 = self.dtype('f32')
+
+        xf = self.transpose(self.f32(x), (0, 2, 1))
+        if hist is None:
+            hist = self.zeros((B, C, K - 1), f32)
+        inp = self.concat([hist, xf], -1)  # [B, C, K - 1 + T]
+        y = (xf + self.conv1d_causal(inp, weight)) * scale
+
+        if all_states:
+            after = self.stack([inp[..., t + 1:t + K] for t in range(T)], 0)
+        else:
+            # a dense copy, not a slice of the input (which a view would keep alive, with strides that depend on T)
+            after = self.copy(inp[..., -(K - 1):])
+
+        return self.cast(self.transpose(y, (0, 2, 1)), x.dtype), after
+
+    def short_conv_dynamic(
+            self,
+            x: Array,
+            hist: Array | None,
+            weight: Array,
+            dyn: Array,
+            *,
+            scale: float,
+            all_states: bool = False,
+    ) -> tuple[Array, Array]:
+        """
+        `short_conv` whose taps a position adds to: `weight` [K, C] float32 the channels' own, by backward lag (0:
+        the current input), and `dyn` [B, T, G, K] float32 each position's, by lag too, a group's shared by its C / G
+        channels. y[t] = (x[t] + sum_lag (weight[lag] + dyn[t, lag]) x[t - lag]) * scale; the histories as
+        `short_conv`'s.
+        """
+
+        B, T, C = x.shape
+        K = int(weight.shape[0])
+        G = int(dyn.shape[2])
+        f32 = self.dtype('f32')
+
+        xf = self.transpose(self.f32(x), (0, 2, 1))
+        if hist is None:
+            hist = self.zeros((B, C, K - 1), f32)
+        inp = self.concat([hist, xf], -1)  # [B, C, K - 1 + T]
+
+        acc = None
+        for lag in range(K):
+            at = K - 1 - lag
+            tap = weight[lag][None, :, None] + self.repeat(self.transpose(dyn[..., lag], (0, 2, 1)), C // G, 1)
+            term = tap * inp[..., at:at + T]
+            acc = term if acc is None else acc + term
+        y = (xf + acc) * scale
+
+        if all_states:
+            after = self.stack([inp[..., t + 1:t + K] for t in range(T)], 0)
+        else:
+            after = self.copy(inp[..., -(K - 1):])
+
+        return self.cast(self.transpose(y, (0, 2, 1)), x.dtype), after
+
     def maximum(self, x: Array, v: float) -> Array:
         """max(x, v) elementwise against a scalar, in x's dtype (integer arrays included)."""
 
@@ -270,6 +470,14 @@ class Ops(lang.Abstract):
         """x[i]: the entry at a static index along the first axis, that axis dropped (a commit's per-token state)."""
 
         return x[i]
+
+    def select_at(self, x: Array, i: Array) -> Array:
+        """
+        `select` for an index held on the device (a 0-d int array): what a captured function picks a per-token state
+        with, as it cannot read the index.
+        """
+
+        return x[self.reshape(i, (1,))][0]
 
     def gather_rows(self, probs: Array, toks: Array) -> Array:
         """probs[i, toks[i]] for each row i of [T, V] -> [T]. Reference: a one-hot sum, O(T V)."""
@@ -412,6 +620,21 @@ class Ops(lang.Abstract):
         xf = self.f32(x)
         y = xf * self.rsqrt(self.mean(xf * xf, -1, keepdims=True) + eps)
         return self.cast(y * self.f32(w), x.dtype)
+
+    def sigmoid_gated(self, x: Array, g: Array, dtype: ta.Any) -> Array:
+        """x * sigmoid(g), two arrays of one shape and any dtypes, in float32 and handed over in `dtype`."""
+
+        return self.cast(self.f32(x) * self.sigmoid(self.f32(g)), dtype)
+
+    def sum_to(self, a: Array, b: Array, dtype: ta.Any) -> Array:
+        """a + b, two arrays of one shape and any dtypes, added in float32 and handed over in `dtype`."""
+
+        return self.cast(self.f32(a) + self.f32(b), dtype)
+
+    def rms_norm_to(self, x: Array, w: Array, eps: float, dtype: ta.Any) -> Array:
+        """`rms_norm` with one weight [D], handed over in `dtype` (a float32 stream's read, in the model's)."""
+
+        return self.cast(self.rms_norm(x, w, eps), dtype)
 
     def l2_norm(self, x: Array, eps: float = 1e-6) -> Array:
         # FLA-style: x / sqrt(sum(x^2) + eps)   (llama.cpp: rms_norm(x, eps/n) / sqrt(n) -- identical)
@@ -727,6 +950,23 @@ class Ops(lang.Abstract):
 
         return tuple(self.copy(a[:, :, start:stop]) for a in state)
 
+    def kv_take(self, state: tuple[Array, ...], positions: Array) -> tuple[Array, ...]:
+        """The positions `positions` [N] (an int array, on the device) of a state, as a state of their own."""
+
+        return tuple(a[:, :, positions] for a in state)
+
+    def kv_move(self, state: tuple[Array, ...], src: int, dst: int, n: int) -> tuple[Array, ...]:
+        """
+        The state with its n positions from `src` on moved to `dst` on (a window brought back to the front of the
+        buffers it runs in: core/kvspans.py). A backend that writes buffers in place moves them there and returns
+        the same arrays; the default builds new ones.
+        """
+
+        out = []
+        for a in state:
+            out.append(self.concat([a[:, :, :dst], a[:, :, src:src + n], a[:, :, dst + n:]], 2))
+        return tuple(out)
+
     def kv_join(self, a: tuple[Array, ...], b: tuple[Array, ...]) -> tuple[Array, ...]:
         """Two states of one format end to end: a's positions, then b's."""
 
@@ -917,6 +1157,46 @@ class Ops(lang.Abstract):
             return ms[0], ls[0], os_[0]
         return self.concat(ms, 2), self.concat(ls, 2), self.concat(os_, 2)
 
+    def sdpa_span_partials(
+            self,
+            q: Array,
+            kbuf: Array,
+            vbuf: Array,
+            lo: Array,
+            hi: Array,
+            ar: Array,
+            scale: float,
+    ) -> tuple[Array, Array, Array]:
+        """
+        `sdpa_partials` of T queries that all see the same stretch of a fixed-capacity KV buffer: q [B, H, T, D];
+        kbuf, vbuf [B, KV, L, D]; the keys at lo <= index < hi (0-d int arrays) seen and no others, ar = arange(L).
+        No order among the queries -- a block drafter's (core/dspark/) -- and every shape independent of the stretch,
+        so a backend can capture the step around it. An empty stretch gives m = -1e30, which weighs nothing against
+        any finite score in `sdpa_merge`.
+        """
+
+        B, H, T, D = q.shape
+        KV = kbuf.shape[1]
+        G = H // KV
+        f32 = self.dtype('f32')
+
+        def rows(x: Array) -> Array:  # [B, H, T, ...] -> [B, KV, T * G, ...]: row t * G + g
+            x = self.reshape(x, (B, KV, G, T, *x.shape[3:]))
+            return self.reshape(self.transpose(x, (0, 1, 3, 2, *range(4, len(x.shape)))), (B, KV, T * G, *x.shape[4:]))
+
+        def heads(x: Array) -> Array:  # ... and back
+            x = self.reshape(x, (B, KV, T, G, *x.shape[3:]))
+            return self.reshape(self.transpose(x, (0, 1, 3, 2, *range(4, len(x.shape)))), (B, H, T, *x.shape[4:]))
+
+        seen = self.cast(ar >= lo, f32) * self.cast(ar < hi, f32)  # [L]
+        s = self.f32(rows(q) @ self.transpose(kbuf, (0, 1, 3, 2))) * scale + (1 - seen) * -1e30  # [B, KV, T * G, L]
+        m = self.amax(s, -1, keepdims=True)
+        p = self.exp(s - m) * seen
+        l = self.sum(p, -1)
+        o = self.f32(self.cast(p, vbuf.dtype) @ vbuf)
+
+        return heads(m[..., 0]), heads(l), heads(o)
+
     def sdpa_merge(self, parts: ta.Sequence[tuple[Array, Array, Array]], sink: Array | None, dtype: ta.Any) -> Array:
         """
         The attention output [B, H, T, D] in `dtype` of one softmax over the sets of keys whose `sdpa_partials` are
@@ -948,6 +1228,80 @@ class Ops(lang.Abstract):
 
         return a + self.maximum(b - a, 0.)
 
+    def sdpa_window_rel(
+            self,
+            q: Array,
+            k: Array,
+            v: Array,
+            pos: Array,
+            *,
+            scale: float,
+            rel: Array,
+            rel_proj: Weight,
+            sink: Array,
+            window: int,
+            more: ta.Sequence[tuple[Array, Array, Array]] = (),
+    ) -> Array:
+        """
+        Attention of T queries q [B, H, T, D] at positions pos.. over a window's keys and values k, v [B, KV, N, D]
+        (plain arrays), slot j standing for position pos + T - N + j -- no position where that is negative. A query
+        sees the keys 0 <= d < `window` positions back. Each score has a relative term, rel[t, h] . rel_proj[d] for a
+        key d back (`rel` [T, H, R], `rel_proj` [E, R]; nothing for d >= E), and each softmax one more logit, `sink`
+        [B, H, T], with nothing behind it (`sdpa_sink`). [B, H, T, D] in q's dtype. Batch 1.
+
+        `more`: other sets of keys under the same softmax, as their `sdpa_partials` -- the keys of a layer that sees
+        everything which lie further back than the window, scored without the term.
+        """
+
+        f32 = self.dtype('f32')
+        T = q.shape[2]
+        N = k.shape[2]
+
+        table = self.f32(self.linear(rel, rel_proj))  # [T, H, E]: each query's term by distance
+        qpos = self.reshape(pos, (1,)) + self.arange(T)
+        kpos = (self.reshape(pos, (1,)) + (T - N)) + self.arange(N)
+        delta = qpos[:, None] - kpos[None, :]
+        seen = self.cast(delta >= 0, f32) * self.cast(delta < window, f32) * self.cast(kpos >= 0, f32)[None, :]
+        bias = self.rel_bias(table, qpos, kpos) + ((1 - seen) * -1e30)[..., None]  # [T, N, H]
+        bias = self.transpose(bias, (2, 0, 1))[None]
+
+        if not more:
+            return self.sdpa_sink(q, k, v, scale, bias, sink)
+        return self.sdpa_merge([self.sdpa_partials(q, k, v, scale, bias), *more], sink, q.dtype)
+
+    def sdpa_window_rel_at(
+            self,
+            q: Array,
+            state: tuple[Array, ...],
+            base: Array,
+            slots: int,
+            pos: Array,
+            *,
+            scale: float,
+            rel: Array,
+            rel_proj: Weight,
+            sink: Array,
+            window: int,
+    ) -> Array:
+        """
+        `sdpa_window_rel` over a window kept inside a KV state: the state's `slots` positions from `base` on (a 0-d
+        int array), slot j of them standing for position pos + T - slots + j. The composed form gathers them, plain
+        in q's dtype; a backend's kernel reads them where they are, and the window is then never moved to be read.
+        """
+
+        k, v = self.kv_gather(state, self.reshape(base, (1,)) + self.arange(slots), q.dtype)
+        return self.sdpa_window_rel(
+            q,
+            k[None],
+            v[None],
+            pos,
+            scale=scale,
+            rel=rel,
+            rel_proj=rel_proj,
+            sink=sink,
+            window=window,
+        )
+
     def rel_bias(self, rel: Array, qpos: Array, kpos: Array) -> Array:
         """
         A relative term on attention scores: `rel` [t, H, E] float32 is each of t queries' bias, per head, for a key
@@ -974,15 +1328,16 @@ class Ops(lang.Abstract):
             ar: Array,
             scale: float,
             rel: Array,
+            rel_proj: Weight,
             sink: Array,
     ) -> Array:
         """
         Decode attention for T new tokens against fixed-capacity KV buffers (as `sdpa_static_state`: q [B, H, T, D]
         at positions pos..pos+T-1, `state` holding positions 0..pos+T-1, `ar` = arange over the buffer) with a
-        relative term and a sink. Query t's score for the key d positions back is q . k * scale, plus rel[t, h, d]
-        for the d < E nearest (`rel`: [T, H, E] float32, `rel_bias`); each softmax has one more logit, `sink`
-        [B, H, T], with nothing behind it (`sdpa_sink`). Batch 1. The composed reference reads the whole buffer; a
-        kernel reads the positions in use.
+        relative term and a sink. Query t's score for the key d positions back is q . k * scale, plus rel[t, h] .
+        rel_proj[d] for the d < E nearest (`rel` [T, H, R], `rel_proj` [E, R]: as `sdpa_window_rel`); each softmax
+        has one more logit, `sink` [B, H, T], with nothing behind it (`sdpa_sink`). Batch 1. The composed reference
+        reads the whole buffer; a kernel reads the positions in use.
         """
 
         f32 = self.dtype('f32')
@@ -993,8 +1348,9 @@ class Ops(lang.Abstract):
         qpos = self.reshape(pos, (1,)) + self.arange(T)
         kpos = ar[:n]
 
+        table = self.f32(self.linear(rel, rel_proj))  # [T, H, E]: each query's term by distance back
         unseen = self.cast(kpos[None, :] > qpos[:, None], f32) * -1e30  # [T, n]
-        bias = self.rel_bias(rel, qpos, kpos) + unseen[..., None]
+        bias = self.rel_bias(table, qpos, kpos) + unseen[..., None]
         return self.sdpa_sink(q, kd, vd, scale, self.transpose(bias, (2, 0, 1))[None], sink)
 
     def sdpa_static_state(self, q: Array, state: tuple[Array, ...], pos: Array, ar: Array, scale: float) -> Array:

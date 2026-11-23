@@ -55,16 +55,20 @@ def reasoning_effort_of(value: ta.Any) -> tuple[str | None, bool | None]:
 
 
 class _ChatmlReader(ChatReader):
-    def __init__(self, parser: StreamParser) -> None:
+    def __init__(self, parser: StreamParser, parse: ta.Callable[[str], Parsed]) -> None:
         super().__init__()
 
         self._parser = parser
+        self._parse = parse
 
     def feed(self, text: str) -> list[ChatEvent]:
         return self._parser.feed(text)
 
     def finish(self) -> list[ChatEvent]:
         return self._parser.finish()
+
+    def parsed(self, text: str) -> Parsed:
+        return self._parse(text)  # (the finished text read whole, as it always was: `parse_output`)
 
 
 class ChatmlProtocol(ChatProtocol):
@@ -163,6 +167,9 @@ class ChatmlProtocol(ChatProtocol):
             fmt=self._format,
         )
 
+    def encode(self, text: str) -> list[int]:
+        return self._tok.encode(text)
+
     def generation_prompt(self, rendered: str) -> str:
         return rendered[rendered.rfind('<|im_start|>assistant'):]
 
@@ -172,7 +179,10 @@ class ChatmlProtocol(ChatProtocol):
     # answers
 
     def reader(self, tools: ta.Sequence[dict] | None = None, *, enable_thinking: bool = True) -> ChatReader:
-        return _ChatmlReader(StreamParser(self._opened(enable_thinking), self._format, tools))
+        return _ChatmlReader(
+            StreamParser(self._opened(enable_thinking), self._format, tools),
+            lambda text: self.parse(text, tools, enable_thinking=enable_thinking),
+        )
 
     def parse(self, text: str, tools: ta.Sequence[dict] | None = None, *, enable_thinking: bool = True) -> Parsed:
         return parse_output(text, think_open=self._opened(enable_thinking), fmt=self._format, tools=tools)

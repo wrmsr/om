@@ -16,4 +16,4 @@
 # OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 # gguf 0.19.0
-# https://github.com/ggml-org/llama.cpp/tree/a290ce626663dae1d54f70bce3ca6d8f67aab62f/gguf-py
+# https://github.com/ggml-org/llama.cpp/tree/c622f623fca9f0f085eb82f38874d1ab4a1791cd/gguf-py

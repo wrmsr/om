@@ -14,6 +14,7 @@ from ...core.block import Block
 from ...core.mixing import Connection
 from ...core.mixing import PlainConnection
 from ...core.mixing import ResidualStream
+from ...core.mtp import MtpHead
 from ...load.policies import QWEN35_LAYOUT
 from ...load.recipe import LoadRecipe
 from ...tests.test_parity import synthetic_source
@@ -73,7 +74,7 @@ def test_every_path_goes_through_the_residual_stream():
     assert isinstance(branched.residual, TwoBranchResidual)
     first = branched.blocks[0]
     assert isinstance(first, Block) and isinstance(first.mixer_conn, TwoBranchConnection)
-    assert branched.mtp is not None and isinstance(branched.mtp.residual, TwoBranchResidual)
+    assert isinstance(branched.mtp, MtpHead) and isinstance(branched.mtp.residual, TwoBranchResidual)
     assert Qwen35Architecture().layout is QWEN35_LAYOUT
 
     ids = np.asarray([prompt])

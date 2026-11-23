@@ -64,7 +64,7 @@ class IndexedKvStateLayout(StateLayout):
     def export(self, ops: Ops, state: tuple[Array, ...], seq_len: int) -> tuple[Array, ...]:
         return (*self._kv.export(ops, state[:-1], seq_len), ops.copy(state[-1][:, :, :seq_len]))
 
-    def commit(self, ops: Ops, state: tuple[Array, ...], n: int, stacked: bool) -> tuple[Array, ...]:
+    def commit(self, ops: Ops, state: tuple[Array, ...], n: Array, stacked: bool) -> tuple[Array, ...]:
         return state  # (positions past the commit are rewritten before anything reads them, as for the KV)
 
     def capacity(self, ops: Ops, state: tuple[Array, ...]) -> int | None:

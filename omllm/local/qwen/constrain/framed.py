@@ -34,13 +34,14 @@ take the whitespace it is still offered, again and again, to the length limit. A
 in a row outside a string no more are offered, so the model moves on; what it writes is as valid, less indented at
 worst. Inside strings whitespace is content and is left alone.
 
-One thing is not held, here or in the ChatML controllers: the protocol's reader works on decoded text, so a marker
-spelled out in ordinary tokens inside a body reads as the marker.
+A body may spell a marker in ordinary tokens -- the acceptor's vocabulary has no special token in it -- and it is
+text when it does: the protocol's reader is told which tokens were special (`ChatReader.mark`).
 """
 import typing as ta
 
 from omcore import check
 from omcore import dataclasses as dc
+from omcore import lang
 
 from ..tokenizer import Tokenizer
 from .grammar import Acceptor
@@ -122,7 +123,7 @@ class _FrameSets:
         return frozenset(out)
 
 
-class _FramedConstraint(Constraint):
+class _FramedConstraint(Constraint, lang.Abstract):
     """Where a turn stands in the framing, as the protocol's reader tracks it; the two controllers below share it."""
 
     tok: Tokenizer

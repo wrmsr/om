@@ -288,3 +288,37 @@ def test_cuda_graph_steps_carry_the_state():
     for a, b in zip(outs['cuda'][1], outs['cpu'][1]):
         assert a.shape == b.shape and rel_err(a, b) < 1e-3, rel_err(a, b)
     print(f'CUDA graph steps vs CPU: logits rel err {e:.1e}')
+
+
+def test_a_static_prefill_keeps_every_chunks_hidden_states():
+    """
+    A prompt through the captured step (`Decoder.prefill`) is several runs of it, and what a run hands back is good
+    until the next: the hidden states of every chunk but the last have to be kept as they come. On CUDA, where a
+    step's outputs are its graph's own buffers, a 40-token prompt's first 32 rows were not the prompt's.
+    """
+
+    try:
+        import torch
+    except ImportError:
+        return
+
+    from ...tests.test_parity import rel_err
+
+    cfg, hf, src = synthetic_source()
+    prompt = np.random.default_rng(17).integers(0, cfg.vocab_size, 40).tolist()
+
+    for device in ('cpu', 'cuda'):
+        if device == 'cuda' and not torch.cuda.is_available():
+            print('no CUDA device; skipping')
+            continue
+
+        ops = TorchOps(device, capture_mode='static') if device == 'cpu' else TorchOps(device)
+        model = load_qwen35(src, ops, dtype='f32', verbose=False)
+        want_logits, want = model.forward(np.asarray([prompt]), return_hidden=True)
+
+        logits, hidden = Decoder(model, model.new_cache(), capacity=64).prefill(prompt)
+        assert hidden.shape == want.shape
+        for a in range(0, len(prompt), Decoder.PREFILL_T):
+            b = a + Decoder.PREFILL_T
+            assert rel_err(ops.numpy(hidden[:, a:b]), ops.numpy(want[:, a:b])) < 1e-4, (device, a)
+        assert rel_err(ops.numpy(logits), ops.numpy(want_logits[:, -1:])) < 1e-4, device
