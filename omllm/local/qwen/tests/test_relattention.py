@@ -132,6 +132,13 @@ def _skip() -> bool:
     except ImportError:
         print('torch not installed; skipping')
         return True
+
+    from ..backends.torch_triton import HAVE_TRITON
+
+    if not HAVE_TRITON:
+        print('triton not installed; skipping')
+        return True
+
     return False
 
 
