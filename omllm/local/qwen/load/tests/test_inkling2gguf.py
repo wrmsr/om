@@ -5,7 +5,9 @@ out (inkling2ggufs.py) gives the same config, the same canonical parameters name
 bytes among them -- the same tokenization and the same logits. And what a GGUF may hold that the checkpoint does not:
 tensors of quantized types, a factor beside a weight, metadata this code refuses.
 """
+import json
 import os.path
+import shutil
 import tempfile
 import typing as ta
 
@@ -20,6 +22,7 @@ from ...arch.registry import architecture_for
 from ...arch.tests.inkling2checkpoints import RELEASED_CONFIG
 from ...arch.tests.inkling2checkpoints import inkling2_test_config
 from ...arch.tests.inkling2checkpoints import write_inkling2_checkpoint
+from ...arch.tests.inkling2checkpoints import write_inkling2_draft
 from ...core.inkling2.config import Inkling2Config
 from ...core.inkling2.config import inkling2_config_from_gguf
 from ...core.inkling2.config import inkling2_config_from_hf
@@ -281,6 +284,71 @@ def test_a_factor_beside_a_weight():
             open_source(path).get('layers.7.mlp.experts.down')
 
 
+def test_a_draft_model_beside_the_file():
+    """
+    A GGUF holds no draft model: the checkpoint's two files put beside it are its, read as the checkpoint's source
+    reads them, and the model drafts with them.
+    """
+
+    def draft_of(path: str) -> ta.Any:
+        cfg = open_source(path).config
+        assert isinstance(cfg, Inkling2Config)
+        return cfg.draft
+
+    with tempfile.TemporaryDirectory() as tmp:
+        checkpoint, bare = _write(tmp)
+        write_inkling2_draft(checkpoint)
+        hf = open_source(checkpoint)
+        assert isinstance(hf, Inkling2HFSource) and hf.config.draft is not None
+
+        # (written before the draft model: a GGUF of the model alone, in a directory of its own)
+        d = os.path.join(tmp, 'gguf')
+        os.mkdir(d)
+        path = os.path.join(d, 'model.gguf')
+        shutil.copy(bare, path)
+
+        # nothing beside it, or half of it, or another model's config: no draft model
+        assert draft_of(path) is None
+        shutil.copy(os.path.join(checkpoint, 'mtp.safetensors'), d)
+        assert draft_of(path) is None
+        with open(os.path.join(d, 'config.json'), 'w') as f:
+            json.dump(dict(model_type='qwen3_5', mtp_config=dict(hidden_size=8)), f)
+        assert draft_of(path) is None
+
+        shutil.copy(os.path.join(checkpoint, 'config.json'), d)
+        src = open_source(path)
+        assert isinstance(src, Inkling2GgufSource)
+        assert src.config.draft == hf.config.draft
+
+        names = [n for n in hf.names() if n.startswith('mtp.')]
+        assert names and 'mtp.markov_head.out.weight' in names
+        assert sorted(n for n in src.names() if n.startswith('mtp.')) == sorted(names)
+        for name in names:
+            assert src.get_microscaled(name) is None
+            # (the file is the checkpoint without loss, its output table among the rest: the folded head too)
+            assert np.array_equal(src.get(name), hf.get(name)), name
+
+        # ... and the model built from it drafts as the checkpoint's does
+        ops = NumpyOps()
+        prompt = np.random.default_rng(3).integers(0, 200, 9).tolist()
+        outs = []
+        for s in (hf, src):
+            model = load_qwen35(s, ops, dtype='f32', verbose=False, mtp=True)
+            res = generate(model, prompt, max_new_tokens=24, spec=3)
+            assert res.drafted
+            outs.append(list(res.tokens))
+        assert outs[0] == outs[1]
+
+        # a draft model of another width is not this model's
+        with open(os.path.join(d, 'config.json')) as f:
+            cfg = json.load(f)
+        cfg['mtp_config']['hidden_size'] += 8
+        with open(os.path.join(d, 'config.json'), 'w') as f:
+            json.dump(cfg, f)
+        with pytest.raises(ValueError, match='wide'):
+            open_source(path)
+
+
 def test_comparing_sources():
     """What compares a real GGUF with the checkpoint it was made from (comparesources.py), on the synthetic two."""
 
@@ -292,7 +360,7 @@ def test_comparing_sources():
         assert compare_configs(src.config, hf.config) == []
 
         results = [compare_tensor(src, hf, name) for name in src.names()]
-        assert all(c.equal and c.max_abs == 0 for c in results)
+        assert all(c.equal and c.max_abs == 0 and c.rel_rms == 0 for c in results)
         assert {c.how for c in results} == {'packed nvfp4', 'float32', 'float32 (dense / mxfp8)'}
 
         tokenizers = (Tokenizer.from_spec(src.tokenizer_spec), Tokenizer.from_spec(hf.tokenizer_spec))
@@ -302,6 +370,7 @@ def test_comparing_sources():
         _, path = _write(tmp, dense_type=Q8_0)
         lossy = compare_tensor(open_source(path), hf, 'layers.0.attn.wq_du.weight')
         assert not lossy.equal and 0 < lossy.max_abs < 0.01
+        assert 0 < lossy.rel_rms < 0.02  # (what Q8_0 costs: half a percent, a little more on a matrix this small)
 
         rounded = dc.replace(hf.config, log_scale_alpha=0.1, window=7)
         assert [line.split(':')[0] for line in compare_configs(src.config, rounded)] == ['window', 'log_scale_alpha']

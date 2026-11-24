@@ -401,7 +401,11 @@ class Inkling2Architecture(Architecture):
         if mtp:
             names = self.draft_param_names(cfg)
             if not names or not all(src.has(n) for n in names):
-                raise ValueError('no draft model in this checkpoint (its config\'s mtp_config and mtp.safetensors)')
+                raise ValueError(
+                    'no draft model with this model: a checkpoint has one as its config\'s mtp_config and '
+                    'mtp.safetensors, and a GGUF takes the checkpoint\'s config.json and mtp.safetensors from '
+                    'beside it',
+                )
             specs += loader.plan(names)
         params = loader.materialize(specs, on_progress=on_progress)
 

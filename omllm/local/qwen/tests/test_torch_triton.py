@@ -22,25 +22,8 @@ from .tritonmodes import triton_modes
 ##
 
 
-def _skip() -> bool:
-    if torch is None:
-        print('torch not installed; skipping')  # type: ignore
-        return True
-
-    from ..backends.torch_triton import HAVE_TRITON
-
-    if not HAVE_TRITON:
-        print('triton not installed; skipping')
-        return True
-
-    return False
-
-
 @triton_modes('interpret', 'compiled')
 def test_qlinear_kernel():
-    if _skip():
-        return
-
     from ..backends.torch import TorchOps
     from ..backends.torch_triton import qlinear
 
@@ -107,9 +90,6 @@ def test_qgemv_experts_kernel():
     dequantized experts. And TorchOps.expert_linear on such a stack equals it on the dense stack.
     """
 
-    if _skip():
-        return
-
     from ..backends.torch import TorchOps
     from ..backends.torch_triton import qgemv_experts
 
@@ -150,9 +130,6 @@ def test_dequantize_kernel():
     in row chunks.
     """
 
-    if _skip():
-        return
-
     from ..backends.torch import TorchOps
     from ..backends.torch_triton import dequantize
 
@@ -192,9 +169,6 @@ def test_gdn_step_kernel():
     chunk of 64, and not a multiple of it), and 300 where compiled (the interpreter takes a minute over it), against
     the per-token recurrence in float64 -- the definition; the kernel is that recurrence in float32.
     """
-
-    if _skip():
-        return
 
     from ..backends.torch import TorchOps
     from ..backends.torch_triton import gdn_step
@@ -271,9 +245,6 @@ def test_attn_decode_kernel():
     holds (32): T = 11 (33 rows: a second block of one row), 16 and 22 (three blocks) -- a long verify step.
     """
 
-    if _skip():
-        return
-
     from ..backends.torch import TorchOps
     from ..backends.torch_triton import attn_decode
 
@@ -324,9 +295,6 @@ def test_attn_prefill_kernel():
     not a multiple of the query block, keys spanning several key blocks.
     """
 
-    if _skip():
-        return
-
     from ..backends.torch import TorchOps
     from ..backends.torch_triton import attn_prefill
 
@@ -360,9 +328,6 @@ def test_attn_fp8_kernels():
     dequantized keys and values (the kernels' scale handling is exact), the quantizer is exact to half an e4m3 step, and
     fp8 attention is a bounded perturbation of bf16.
     """
-
-    if _skip():
-        return
 
     from ..backends.torch import TorchOps
     from ..backends.torch_triton import attn_decode
@@ -423,9 +388,6 @@ def test_fp8_compiled_write():
     the process's mode all the same, so this is isolated like the rest.
     """
 
-    if _skip():
-        return
-
     from ..backends.torch import TorchOps
 
     B, KV, L, D = 1, 2, 16, 32
@@ -474,9 +436,6 @@ def test_fp8_compiled_write():
 def test_model_decode_with_kernel():
     """A quantized model's static decode step gives the same logits with and without the kernel."""
 
-    if _skip():
-        return
-
     from ..backends.torch import TorchOps
     from ..core.cache import Cache
     from ..decode.decoder import Decoder
@@ -506,9 +465,6 @@ def test_model_prefill_with_kernel():
     composed chunked path's logits, in one pass and in chunks through the cache; and the state it leaves is the one
     decode continues from.
     """
-
-    if _skip():
-        return
 
     from ..backends.torch import TorchOps
     from ..core.cache import Cache
@@ -562,9 +518,6 @@ def test_prompt_lengths_do_not_multiply_kernel_variants():
     positions runs the variant the first one compiled. Only the single-token / single-row forms keep one of their own
     (the decode step's, which every warm-up compiles).
     """
-
-    if _skip():
-        return
 
     from ..backends.torch import TorchOps
     from ..backends.torch_triton import gdn_step

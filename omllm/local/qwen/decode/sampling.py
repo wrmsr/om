@@ -147,6 +147,11 @@ class Sampler:
         l = logits / temperature
 
         k = self.top_k if 0 < self.top_k < V else V
+        if k == V and not self.top_p < 1.0 and not self.min_p > 0:
+            # nothing is cut, so no order is needed: sorting a whole row for a threshold that is its minimum was a
+            # fifth of a millisecond a round, on the settings a request has when it sets none
+            return ops.softmax(l, -1)
+
         vals, _ = ops.topk(l, k)  # [T, k] descending
         thr = vals[:, k - 1:k]  # the k-th largest: everything below it is out
 

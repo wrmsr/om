@@ -21,10 +21,14 @@ whatever a file quantizes its projections to, and the experts of the last layers
 MXFP8 and a GGUF has no type for (BF16 in the lossless file, where they are the same weights exactly; Q8_0 and
 k-quants in smaller ones).
 
-A GGUF of the model holds no draft model (that is a file of its own, `dflash`) and no vision tower (`mmproj`).
+A GGUF of the model holds no draft model (llama.cpp's is a GGUF of its own, `dflash`, which is not read) and no
+vision tower (`mmproj`). The checkpoint's draft model is taken from beside the GGUF when it is there -- its
+`mtp.safetensors` and the config.json that describes it, in the GGUF's directory (inkling2draft.py) -- and served
+under `mtp.` as the checkpoint's source serves it, its head folded with this file's output table.
 """
 import typing as ta
 
+from omcore import check
 from omcore import lang
 
 from ..core.inkling2.config import Inkling2Config
@@ -32,7 +36,10 @@ from ..core.inkling2.config import inkling2_config_from_gguf
 from ..ops.microscaled import MicroscaledWeight
 from .gguffiles import GgufFile
 from .ggufmicroscaled import microscaled_from_ggml_nvfp4
+from .inkling2 import INKLING2_HF_MODEL_TYPES
 from .inkling2 import INKLING2_PRETOKENIZER
+from .inkling2draft import Inkling2DraftFile
+from .inkling2draft import inkling2_draft_config_beside
 from .weights import TensorSource
 
 
@@ -68,7 +75,26 @@ class Inkling2GgufSource(TensorSource):
 
         self.tokenizer_spec = self._build_tokenizer_spec()
 
+        self._draft: Inkling2DraftFile | None = None
+        beside = inkling2_draft_config_beside(
+            file.path,
+            model_types=INKLING2_HF_MODEL_TYPES,
+            hidden_size=self.config.hidden_size,
+        )
+        if beside is not None:
+            draft, self.config.draft = beside
+            self._draft = Inkling2DraftFile(
+                draft,
+                rank=self.config.draft.markov_rank,
+                unembed=self._unembed if 'output.weight' in file.tensors else None,
+            )
+
         self._recipes = self._build_recipes()
+
+    def _unembed(self) -> np.ndarray:
+        """The output table, [vocab, hidden] float32, as this file holds it."""
+
+        return self.get('unembed.weight')
 
     def _build_tokenizer_spec(self) -> dict:
         spec = self._file.tokenizer_spec()
@@ -143,6 +169,10 @@ class Inkling2GgufSource(TensorSource):
                         add(q + f'controllers.{n}.{w}_weight', 'plain', p + f'loop_{g}_ctrl_{w}.weight')
                 add(q + 'message_queries', 'plain', p + 'loop_msg_query.weight')
 
+        if self._draft is not None:
+            for name in self._draft.names():
+                r[name] = ('draft',)
+
         return r
 
     def names(self) -> list[str]:
@@ -179,9 +209,10 @@ class Inkling2GgufSource(TensorSource):
         return x * (outer.reshape(-1, 1, 1) if stack else outer[0])
 
     def get_microscaled(self, name: str) -> MicroscaledWeight | None:
-        kind, raw, *_ = self._recipes[name]
-        if kind != 'experts':
+        recipe = self._recipes[name]
+        if recipe[0] != 'experts':
             return None
+        raw = recipe[1]
 
         t = self._file.tensors[raw]
         if t.tensor_type != gguf_constants.GGMLQuantizationType.NVFP4:
@@ -192,6 +223,9 @@ class Inkling2GgufSource(TensorSource):
         return microscaled_from_ggml_nvfp4(t.data, outer if outer is not None else np.ones(E, dtype=np.float32))
 
     def get(self, name: str) -> np.ndarray:
+        if self._recipes[name][0] == 'draft':
+            return check.not_none(self._draft).get(name)
+
         kind, raw, *args = self._recipes[name]
 
         if kind == 'experts':

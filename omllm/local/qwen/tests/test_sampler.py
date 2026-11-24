@@ -53,6 +53,7 @@ def test_sampler_distribution():
                 dict(temperature=0.7, top_k=20, top_p=0.8),
                 dict(temperature=1.0, top_k=8, min_p=0.1),
                 dict(temperature=1.0, top_p=0.5),  # top_k=0: sorts the vocabulary
+                dict(temperature=0.7),  # nothing cut: no sort at all
         ):
             s = Sampler(seed=1, **kw)  # type: ignore
             s.bind(ops)
@@ -68,6 +69,12 @@ def test_sampler_distribution():
             emp = np.bincount(got, minlength=V) / n
             err = np.abs(emp - exp).max()
             assert err < 0.04, (ops.name, kw, err)
+        # with nothing to cut a row is not sorted, and is what the general arithmetic gives when it cuts nothing
+        s = Sampler(temperature=0.7, seed=1)
+        s.bind(ops)
+        g = Sampler(temperature=0.7, min_p=1e-37, seed=1)  # (a floor far under the row's smallest probability)
+        g.bind(ops)
+        assert np.array_equal(ops.numpy(s.probs(rows[:3])), ops.numpy(g.probs(rows[:3]))), ops.name
         # greedy is an argmax
         s = Sampler()
         s.bind(ops)

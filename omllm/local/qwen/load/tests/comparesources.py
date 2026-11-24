@@ -8,6 +8,10 @@ text, and with --logits a forward of each on the CPU over the text's first token
 The exit status says whether they are the same model: the parameters and the token ids equal, the configs equal but
 for floats one source keeps as float32, the logits within --logits-tolerance. Needs the real files, and for the
 logits memory for a float32 model at a time.
+
+A file that stores some tensors with loss is not the same model, and the report then says how far each kind of
+parameter is from the checkpoint's: its relative RMS error, which should be what its storage type costs (half a
+percent for Q8_0, three and a half for Q5_K) and nothing like it where a type is decoded wrongly.
 """
 import argparse
 import collections
@@ -37,6 +41,7 @@ class TensorComparison:
     how: str  # 'packed nvfp4', 'float32', ...
     equal: bool
     max_abs: float  # the largest difference of two float32 readings; nan for packed bytes that differ
+    rel_rms: float = 0.  # |a - b| over |b| for two float32 readings that differ: what a lossy storage type cost
 
 
 def compare_configs(a: ta.Any, b: ta.Any) -> list[str]:
@@ -79,9 +84,25 @@ def compare_tensor(a: TensorSource, b: TensorSource, name: str) -> TensorCompari
     x = pa.dequantize() if pa is not None else a.get(name)
     y = pb.dequantize() if pb is not None else b.get(name)
     if x.shape != y.shape:
-        return TensorComparison(name, how, False, math.inf)
+        return TensorComparison(name, how, False, math.inf, math.inf)
 
-    return TensorComparison(name, how, bool(np.array_equal(x, y)), float(np.abs(x - y).max()))
+    if np.array_equal(x, y):
+        return TensorComparison(name, how, True, 0.)
+
+    return TensorComparison(name, how, False, float(np.abs(x - y).max()), relative_rms(x, y))
+
+
+def relative_rms(x: np.ndarray, y: np.ndarray) -> float:
+    """|x - y| / |y| over all their elements, summed in float64 a slice of the first axis at a time."""
+
+    x, y = np.atleast_1d(x), np.atleast_1d(y)
+    step = max(1, len(x) // 16)
+    d = n = 0.
+    for i in range(0, len(x), step):
+        xs, ys = x[i:i + step].astype(np.float64), y[i:i + step].astype(np.float64)
+        d += float(((xs - ys) ** 2).sum())
+        n += float((ys ** 2).sum())
+    return math.sqrt(d / n) if n else math.inf
 
 
 def compare_tokenizers(a: Tokenizer, b: Tokenizer, texts: ta.Sequence[str]) -> tuple[bool, int]:
@@ -146,11 +167,15 @@ def _main() -> None:
         c = compare_tensor(a, b, name)
         kinds[(re.sub(r'\.\d+\.', '.*.', name), c.how)].append(c)
         if not c.equal:
-            print(f'  {name}: {c.how}, max |difference| {c.max_abs:.3g}')
+            print(f'  {name}: {c.how}, max |difference| {c.max_abs:.3g}, relative RMS error {c.rel_rms:.3g}')
     for (kind, how), cs in kinds.items():
         ok = ok and all(c.equal for c in cs)
         worst = max(c.max_abs for c in cs)
-        print(f'  {kind:44s} {len(cs):3d}  {how:28s} {sum(c.equal for c in cs):3d} equal, max |difference| {worst:.3g}')
+        far = max(c.rel_rms for c in cs)
+        print(
+            f'  {kind:44s} {len(cs):3d}  {how:28s} {sum(c.equal for c in cs):3d} equal, '
+            f'max |difference| {worst:.3g}' + (f', relative RMS error up to {far:.3g}' if far else ''),
+        )
     print(f'  ({time.time() - t0:.0f} s)')
 
     texts = []

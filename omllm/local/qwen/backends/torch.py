@@ -1157,9 +1157,24 @@ class TorchOps(Ops):
     # where a 128-token one took 0.2.)
     microscaled_gemv_rows_per_expert: int = 20
 
+    # Experts held dense (a GGUF's that are in no packed format) have no kernel: a row's expert is gathered -- a copy
+    # of it -- and multiplied. So many rows are gathered at once, and no more: a captured step keeps what it
+    # allocated for as long as it lives, so gathering every row's expert in one go held rows x an expert's bytes in
+    # every step captured (Inkling 2 Mini from a GGUF, 10 MiB an expert: 0.3 GiB in a four-row verify step, 2.5 in a
+    # 32-token prefill step, and a server with a draft model and `--step-prefill-max` out of the card's memory on
+    # its second request). A token's eight at a time, the step keeps 79 MiB whatever its rows.
+    expert_gather_rows: int = 8
+
     def expert_linear(self, x, w, eids, x_div=1):
         if not isinstance(w, (TorchQExperts, TorchMicroscaledExperts)):
-            return super().expert_linear(x, w, eids, x_div)
+            rows = x.repeat_interleave(x_div, 0) if x_div > 1 else x
+            n = self.expert_gather_rows
+            if not (n < rows.shape[0] <= self.expert_gather_max_rows):
+                return super().expert_linear(x, w, eids, x_div)
+            return torch.cat([
+                (w[eids[a:a + n]] @ rows[a:a + n, :, None])[..., 0]
+                for a in range(0, rows.shape[0], n)
+            ], 0)
         if isinstance(w, TorchQExperts) and self.triton and x.is_cuda:
             return qgemv_experts(
                 x,

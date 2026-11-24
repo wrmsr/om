@@ -58,13 +58,66 @@ hf download unsloth/Inkling-2-Mini-GGUF Inkling-2-Mini-UD-Q8_K_XL.gguf \
 ```
 
 `--model` takes the file, and what loads is the checkpoint's model (sections 5 and 7), less two things. A GGUF of the
-model holds no draft model, so `--spec` is refused. And the experts of layers 20..23 are held dense: 7.6 GiB at bf16
+model holds no draft model, so `--spec` is refused -- unless the checkpoint's is beside the file, its
+`mtp.safetensors` and the config.json that describes it (0.6 GB; load/inkling2draft.py reads them for either
+source):
+
+```bash
+hf download thinkingmachines/Inkling-2-Mini mtp.safetensors config.json \
+    --revision b85c3cfa615fc413cc9af3379f491b963f3b586a --local-dir ~/hf/Inkling-2-Mini-GGUF
+```
+
+And the experts of layers 20..23 are held dense: 7.6 GiB at bf16
 where the checkpoint's MXFP8 is 3.9, so 21.3 GiB of weights where the paragraphs below say 17.6. It is also slower
 to load, 70 s where the checkpoint takes 13: fifteen for the reader over the file's header (the tokenizer's
 lists), thirty regrouping the NVFP4 bytes on one core, the rest expanding the last layers' bf16. On the 5090 it
-is 21.4 GiB on the device and decodes at 87 tokens/s where the checkpoint is at 92 (the last four layers' dense
-experts are gathered and multiplied a token at a time); its first 160 greedy tokens are the checkpoint's. None of
-the numbers below were taken from a GGUF.
+is 21.4 GiB on the device and decodes at 122 tokens/s where the checkpoint is at 129 (the last four layers' dense
+experts are gathered and multiplied a token at a time); of two greedy answers one is the checkpoint's for all its
+366 tokens and the other for its first 278. None of the numbers below were taken from a GGUF.
+
+The smaller files of that repository that keep the experts as NVFP4 (`UD-IQ4_XS` and up) load the same way, with
+whatever else they store dequantized by the vendored quantizers. Two were run, fetched by the same command with
+their names. In both the forty NVFP4 stacks are the checkpoint's to the byte and the 550 tensors stored as float32
+or bf16 its to the bit; the rest are as far from the checkpoint's, by relative RMS, as their storage types cost:
+
+| the file | stored with loss, and how far from the checkpoint's | KL from the checkpoint (median, mean), same top token |
+| --- | --- | --- |
+| `UD-Q4_K_M` (16.6 GB) | Q8_0 0.54 to 0.7%; Q5_K 3.6% | 8.1e-3, 0.067; 91.8% |
+| `UD-IQ4_XS` (15.7 GB) | Q8_0 0.54%; Q6_K 1.8 to 2.0%; Q5_K 3.7%; Q5_0 4.1%; Q4_K 7.5%; IQ4_XS and IQ4_NL 7.9% | 7.0e-3, 0.080; 92.2% |
+
+(Over 600 positions of a conversation at bf16 on the 5090, where the lossless file is at 2.9e-5 and 100%: the
+files' loss, not the reader's.) Either takes about 90 s to load, is 21.4 GiB on the device like the lossless file
+(what is not NVFP4 is held dense whatever it was stored as, so a smaller file saves disk and nothing else),
+decodes at 122 tokens/s, and answers sensibly: the checkpoint's tokens for the first 95 and 217 of the same two
+answers from the first file, 94 and 67 from the second. The files below `UD-IQ4_XS` store the experts in types
+that come out dense, 49 GB of them, and have not been run.
+
+With the draft model beside it (22.0 GiB on the device) a GGUF drafts as the checkpoint does -- 3.7 drafts
+submitted and 2.5 kept a round on terse reasoning, 3.0 and 2.0 on a tutorial and on JSON, from the lossless file
+and from `UD-IQ4_XS` alike, the checkpoint's own counts -- and gains less by it, since every row a round verifies
+pays for the last four layers' dense experts: reasoning, a tutorial, JSON and a chat answer at 1.43, 1.33, 1.25
+and 1.0 to 1.05 times a GGUF's plain 122 tokens/s (175, 163, 153, 121 to 127), where the checkpoint's are 1.57,
+1.38, 1.36 and 1.12 times its 130 on the same prompts and lengths. The count rule's costs (section 4.7) are the
+checkpoint's, not a GGUF's.
+
+As a server on a 32 GiB card a GGUF wants the prefix cache given less of the device than its default 4 GiB
+(`--cache-device-mib`), because its weights with the draft model are 22 GiB where the checkpoint's are 18.3.
+Through `serve --spec 7 --lookup 6 --lookup-k 7 --step-prefill-max 48 --warmup` on `UD-IQ4_XS`, the agent
+evaluation (section 10) reads:
+
+| | tasks of 17 | |
+| --- | --- | --- |
+| `--capacity 32768 --cache-device-mib 512` | 16 | 93 s |
+| `--capacity 8192` | 16 | 111 s |
+| `--capacity 32768 --no-prefix-cache` | 17 | 170 s: every turn prefilled again |
+| `--capacity 16384` | 14, then out of memory | the stored prefixes filling what the weights left |
+| `--capacity 32768` | 4, then out of memory | |
+
+(the checkpoint's server at 32,768: 15 and 16, in 108 s with the draft model and 173 without; the one task missed
+here is a copy that fails as often from the checkpoint). Before a step over dense experts gathered them a token's
+eight at a time (backends/torch.py, `expert_gather_rows`), every captured step kept a copy of each of its rows'
+experts, 0.3 GiB in a four-row verify step, and the last of those servers was out of memory on its second
+request.
 
 ```bash
 python -m omllm.local.qwen.entrypoints.generate --model ~/hf/Inkling-2-Mini --think -n 256 \
@@ -127,7 +180,7 @@ engine around it; the BPE tokenizer core; the injector bindings, none of which c
 | `Connection` | `DepthAttentionConnection`, `DepthFeedForwardConnection` (core/inkling2/connections.py) |
 | `ResidualStream` | `DepthResidualStream` (core/inkling2/depth.py) |
 | `StateLayout` | `SlidingKvStateLayout`, `RunningKvStateLayout` (core/kvspans.py), `ShortConvStateLayout` (core/shortconv.py) |
-| `TensorSource` | `Inkling2HFSource` (load/inkling2.py), `Inkling2GgufSource` (load/inkling2gguf.py) |
+| `TensorSource` | `Inkling2HFSource` (load/inkling2.py), `Inkling2GgufSource` (load/inkling2gguf.py); the draft model's file for either, `Inkling2DraftFile` (load/inkling2draft.py) |
 | architecture | `Inkling2Architecture` (arch/inkling2.py) |
 | grammar constraint | `FramedToolConstraint`, `FramedJsonConstraint`, `FramedPlainConstraint` (constrain/framed.py), over the existing acceptor |
 
@@ -311,7 +364,7 @@ a state of 256, zero at the block's start, stepped on the last token's row of a 
 output and the head's view of the last committed position, as a gated recurrence; its output, through a second
 projection, is a correction *in hidden space*, added to the slot's output before the target's output projection and
 softcap. Without the head the drafts are barely usable (0.9 of seven kept where 2.3 are with it): it is what makes
-the second draft depend on the first. The loader hands the correction over folded (load/inkling2.py) -- `unembed
+the second draft depend on the first. The loader hands the correction over folded (load/inkling2draft.py) -- `unembed
 hidden_out`, a [vocabulary, 256] matrix -- so a draft is a pass over 256 columns of the vocabulary and not 2,304;
 the recurrence's projection comes in two halves, of which the one over the slots' outputs runs for all seven at
 once.
@@ -363,7 +416,9 @@ metadata describes for native NVFP4 / MXFP8 inference: activations here are bf16
 implementation, which decodes the experts on load. This is a decoded-weights model with packed storage, not native
 microscaled arithmetic.
 
-Not read: `model.visual.*` (422 tensors), `mtp.safetensors`.
+Not read: `model.visual.*` (422 tensors). `mtp.safetensors` beside the shards is the draft model's (section 4.7),
+read by load/inkling2draft.py into its own names under `mtp.` -- for this source from the checkpoint's directory,
+and for a GGUF's from beside the GGUF, with whichever model's output table the head is folded into.
 
 **As a GGUF** (load/inkling2gguf.py; the file's metadata and tensors through the vendored reader, load/gguffiles.py).
 llama.cpp's converter keeps the checkpoint's tensors under its own names and changes few of them, and the canonical
@@ -480,6 +535,8 @@ specification.
 | **The released GGUF (`UD-Q8_K_XL`), all 704 parameters** | the checkpoint's, source against source | **equal: 40 NVFP4 stacks byte for byte, layers 20..23's bf16 the MXFP8 decode exactly, the rest to the bit** |
 | ... its tokenizer, 59,285 tokens of documents and source | the checkpoint's | the same vocabulary, the same ids |
 | ... float32 on the CPU, 8 positions x 200,058 logits | the checkpoint, the same way | equal to the bit |
+| Two lossy GGUFs (`UD-Q4_K_M`, `UD-IQ4_XS`), all 704 parameters | the checkpoint's, source against source | 40 NVFP4 stacks byte for byte, 550 float32 and bf16 tensors to the bit; the rest at their types' cost in relative RMS: Q8_0 0.5 to 0.7%, Q6_K 2%, Q5_K and Q5_0 4%, Q4_K, IQ4_XS and IQ4_NL 8% |
+| ... bf16 on the 5090, 600 positions | the checkpoint, the same way | KL 8.1e-3 and 7.0e-3 median, top-1 91.8% and 92.2% (the lossless file: 2.9e-5, 100%) |
 | Renderer, 44 conversation shapes and the refused efforts | the checkpoint's template | character for character |
 | Packed-expert kernels, length-aware attention (a step's and a prefill's) | the composed references | within 2e-5 relative (compiled and interpreted) |
 | A prefill's attention in parts, 5,000 tokens of the released checkpoint at float32 | the one-softmax form it replaced | 1.5e-3 abs on the logits, inside what two chunkings of either differ by |
@@ -495,10 +552,15 @@ is part of its arithmetic), as README.md already says of the 27B.
 And the GGUF is the checkpoint (load/tests/comparesources.py: section 10). Its config differs in three floats by
 their rounding to float32 (`rms_eps`, `qk_clip`, `log_scale_alpha`), which a float32 computation does not see.
 Through the generate entrypoint on the CPU it answers as the checkpoint does, token for token, framed by the
-protocol its tokenizer was found to speak. On the 5090 at bf16 its first 160 greedy tokens are the checkpoint's as
-well, though layers 20..23 take the dense path there beside the others' packed one (a synthetic file's mix of the
-two is also run on CUDA with the kernels on, in the suite). What the comparison does not reach is any of the
-smaller files.
+protocol its tokenizer was found to speak. On the 5090 at bf16 its greedy tokens are the checkpoint's as well --
+all 366 of one answer, the first 278 of another, a bf16 tie apart after that -- though layers 20..23 take the dense
+path there beside the others' packed one (a synthetic file's mix of the
+two is also run on CUDA with the kernels on, in the suite). Of the smaller files two were run, `UD-Q4_K_M` and
+`UD-IQ4_XS` (section 2): the same comparison says they are not the checkpoint, as it should, and by how much each
+kind of parameter is not -- nothing where a file stores it exactly, and what its storage type costs elsewhere,
+halving with each bit from 8% at four to 0.5% at eight, which is what a correct reading of a lossy file looks like
+and a wrong one does not. Nothing here runs llama.cpp on those files to compare logits with, so that is the
+evidence there is; the other small files have not been read at all.
 
 In the suite (no reference library needed: its values for the tests' own synthetic checkpoints are kept beside them,
 `arch/tests/inkling2reference.py`): `arch/tests/test_inkling2.py` (config forms, the execution order and weight
@@ -506,7 +568,8 @@ sharing, reference logits and generation, partial acceptance at every count, pre
 decoder slabs, the window state, fp8 KV, CUDA graphs, kernels and compiled steps, the injector, and the live
 comparison where a transformers with the model is installed), `load/tests/test_inkling2gguf.py` (a synthetic
 checkpoint converted as llama.cpp's converter lays one out: the two sources' configs, parameters, packed bytes,
-token ids and logits equal; a file of quantized types; what is refused), `tests/test_inkling2chat.py`,
+token ids and logits equal; a file of quantized types; what is refused; the checkpoint's draft model beside the
+file, its parameters the checkpoint source's and its drafted tokens the checkpoint's), `tests/test_inkling2chat.py`,
 `tests/test_microscaled.py`, `tests/test_relattention.py`, and `tests/test_framed.py` (the grammar: what is offered
 at each point of a turn, that whatever token sequence the controllers admit the reader reads as valid calls or a
 valid value, and the engine holding a random model to them).
@@ -534,7 +597,13 @@ rounds against the by-the-book evaluation. And the released checkpoint at float3
 through the forward as it is built, with torch's logits to 5e-5 over the whole vocabulary at each of three positions
 (eight to eleven minutes for a five-token prompt, one and a half to three a token); through the static decoder, six
 minutes to the first token and ten seconds a token; and with the draft model, eight tokens in six rounds. 60 GiB
-of host memory at the peak. None of it has been run on a GPU.
+of host memory at the peak. None of it has been run on a GPU. The synthetic-checkpoint tests among these (the
+logits, the generations, partial acceptance, a resume, the composed operations: fourteen tests, 36 minutes) were
+run again on the day's last tree, after the windows kept in place and the operations that came with them, and pass.
+
+Without Triton (it has no macOS build, and CI's image has none) the suite passes: the tests that run kernels all go
+through one decorator (tests/tritonmodes.py), which skips them where triton cannot be found. Checked here with the
+import made to fail, with a GPU and without: 142 and 141 tests pass, 54 and 55 are skipped.
 
 MLX has not been run at all: it is not installable here. It takes every operation above composed, over primitives
 it had, and keeps the experts packed (section 9). What stands in for a run: tests/test_composed.py holds every
@@ -715,21 +784,32 @@ without it:
 
 A block costs 2.5 ms whether its drafts are used or not, and each submitted row 1.6 to 1.7 ms whether it is kept
 or not: measured whole, a drafted round is 1.67 plain rounds (of 7.7 ms) with one draft submitted and 0.19 more
-for each further one. The count rule (section 4.7) is what keeps free prose near par; nothing tried keeps it above
-without costing more elsewhere (resting the drafter after rounds that lost: a story at par, the rest lower).
+for each further one. Of a block's 2.3 ms on the device, 1.4 is three groups of products that are each at the
+card's memory rate -- the output table over the block's seven rows 0.56, the three layers' sixteen projections
+0.46, the head's seven passes over its folded table 0.40 -- and the rest some 580 small launches. The count rule
+(section 4.7) is what keeps free prose near par; nothing tried keeps it above. Resting the drafter where its rounds
+have not been paying -- no block at all for sixteen rounds and more once a smoothed value of its rounds fell under
+0.95, which rounds recorded offline said was worth 6% on a story -- was run on the released checkpoint over eight
+texts and bought nothing that could be told from noise (two stories, an essay and a poem at 0.96 to 1.15 of the
+plain speed with it and without; reasoning, code and JSON as they were): a round the source sits out still costs
+1.06 plain rounds (the drafter's memory is written every round, drafted or not), and the rounds it sat out had
+been losing less than the offline costs said. It was not kept.
 Sampled (temperature 0.7, top-p 0.95) a draft is drawn from the head's distribution at the sampler's temperature
 and accepted by rejection, which keeps the target's distribution; the same seven texts then read 1.53, 1.71,
 1.56, 1.83, 1.41, 1.03 and 0.93 times the plain speed (126 tokens/s): fewer drafts survive a rejection than a
-match, and a sampled round does more besides (the target's rows are each warped, and the rejection step works on
-whole rows of the vocabulary). Behind 30,000 tokens of context a question about code reads 119 tokens/s plain and
+match, and a sampled round does more besides -- 1.2 ms more than a greedy one with as many drafts: 0.44 the
+block's seven draws, 0.1 their noise, the rest the target's rows warped and the rejection step, each some dozens
+of operations over whole rows of the vocabulary. (With no top-k, top-p or min-p -- a request that sets none --
+nothing is cut and a row is no longer sorted to find that out: 0.8 ms more than greedy, not 1.2.) Behind 30,000 tokens of context a question about code reads 119 tokens/s plain and
 230 with the drafter. The agent evaluation (section 10) through a
 server with `--spec 7 --lookup 6 --lookup-k 7 --step-prefill-max 48` takes 108 s where one without the drafter
 takes 173: 15 and 16 of its 17 tasks, the twelve file tasks every time and the five copies as they fall (one
 copy fails either way, another only in this drafted run; earlier in the day both failed either way).
 
 The drafter's weights are 0.9 GiB on the device with the folded head, its memory 12 KB a position of capacity (6
-with `--kv-dtype fp8`, which it follows, at no visible cost in drafts kept), and a 32,768-token prompt peaks 3.7
-GiB higher with it than without: its memory, and the prompt's hidden output held whole while that is written.
+with `--kv-dtype fp8`, which it follows, at no visible cost in drafts kept: 0.8 GiB at 65,536 positions), and a
+prompt's hidden output, 18 KB a token, is held whole while the memory is written (0.6 GiB at 32,768 tokens). The
+bench's 32,768-token prompt at a capacity of 65,536 peaks at 24.0 GiB with it.
 
 The global layers' attention is length-aware: on torch with Triton, `sdpa_static_rel` sends the keys at least 1,024
 back -- which carry no relative term -- through the decode attention kernel Qwen uses, at a position 1,024 earlier,
@@ -826,8 +906,11 @@ Roughly in the order it would matter to an agent loop:
    instructions a weight,
    and three ways around that did not work (section 8); what has not been tried is a kernel written below
    Triton. The products of a few rows past eight still go to cuBLAS. And of a drafted round: sampled, it costs
-   1.7 ms more than greedy (the target's rows warped one by one, the rejection step over whole rows of the
-   vocabulary), which is what puts a sampled story at 0.93 of the plain speed and a chat answer at par.
+   0.8 to 1.2 ms more than greedy (section 8: the block's draws, the target's rows warped, the rejection step,
+   all of it plain operations over whole rows of the vocabulary and none of it one large piece), which is what
+   puts a sampled story at 0.93 of the plain speed and a chat answer at par; a kernel that draws a row's token
+   and one for the rejection step would take most of it back. The block's own 2.3 ms is mostly products at the
+   memory rate; a draft vocabulary, as the MTP head has, would cut two of the three.
 5. **Expert kernels on MLX and tinygrad.** Both keep the experts packed now, as torch does, and decode what a matmul
    reads: tinygrad by arithmetic on the bytes' bits (on its CPU device, ten seconds a token of the released
    checkpoint, 0.11 s for one expert product's eight rows), MLX by a table lookup a byte, a token's rows' experts
@@ -839,12 +922,21 @@ Roughly in the order it would matter to an agent loop:
    would be exact (their values are MXFP8's: section 7) and give back 3.7 GiB and the packed kernels; the NVFP4
    bytes are regrouped at every load, thirty seconds of one core, where a kernel reading GGML's grouping would take
    them as they lie; a file's Q8_0 tensors are dequantized, and with `--quant` quantized again, where they are int8
-   already; and only the lossless file was compared with the checkpoint, on the CPU -- the smaller ones that keep
-   the NVFP4 experts (`UD-IQ4_XS` and up) go through the same code on a synthetic file only, and those below hold
-   their experts in types that come out dense, 49 GB of them. Not read at all, each a `TensorSource` to write:
+   already; of the smaller files that keep the NVFP4 experts `UD-Q4_K_M` and `UD-IQ4_XS` were run (section 2:
+   seven lossy types between them, where the suite's synthetic file has only Q8_0) and `UD-Q4_K_XL` was not;
+   those below hold their experts in types that come out dense, 49 GB of them, and were not run; and a small
+   file is as large on the device as the lossless one, since what is not NVFP4 is held dense -- packing the
+   last four layers' experts again at load, with a format's loss where the file already has one, would give a
+   small file the checkpoint's 17.7 GiB. No file was compared with llama.cpp's own reading of it. Not read at
+   all, each a `TensorSource` to write:
    Unsloth's earlier GGUF layout (`inkling2`: other names for the loop's tensors and keys), the draft model's GGUFs
-   (`dflash`: so no `--spec` from a GGUF), and the Ollama library entry. The first two are refused by name with
-   what to take instead.
+   (`dflash`: `--spec` from a GGUF takes the checkpoint's draft files from beside it instead, section 2), and the
+   Ollama library entry. The first two are refused by name with what to take instead. And a GGUF's drafted rounds
+   gain less than the checkpoint's (section 2) for the same reason its plain ones are slower, the last four
+   layers' experts held dense: a kernel that reads a row's dense experts where they lie, as the packed ones are
+   read, would close both gaps, and packing them at load the 3.7 GiB for which a GGUF's server has to be told
+   to keep fewer prefixes on a 32 GiB card (section 2): the prefix cache is bounded by its own budget, not by
+   what the card has left.
 7. **Vision.** `model.visual.*` is a 23-layer tower and a projector into the embedding; image content is refused.
 8. **The first token.** 0.11 s before any request's first token, a prefix hit or not: the eager forward's
    launches, on however few tokens. `--step-prefill-max` gets under it for a short follow-up; compiling
@@ -871,6 +963,10 @@ GGUF's model, ten minutes in all on two threads -- with the exit status saying w
     --model ~/hf/Inkling-2-Mini-GGUF/Inkling-2-Mini-UD-Q8_K_XL.gguf --logits 8 \
     --text README.md CODESTYLE.md omllm/local/qwen/{README.md,INKLING.md,tokenizer.py,load/inkling2.py}
 ```
+
+On a file that stores tensors with loss (`UD-Q4_K_M`, `UD-IQ4_XS`: two minutes without `--logits`) the status is
+that they are not one model, and the report gives each kind of parameter's relative RMS error against the
+checkpoint's.
 
 The bench (tests/bench.py), which for this model takes its prompts through the chat protocol and adds a copy under
 prompt-lookup drafts; `--check` compares greedy transcripts against a saved run:

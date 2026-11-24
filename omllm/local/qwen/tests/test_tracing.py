@@ -24,7 +24,6 @@ from omcore import lang
 from ..api import generate
 from ..arch.qwen35 import load_qwen35
 from ..backends.torch import TorchOps
-from ..backends.torch_triton import HAVE_TRITON
 from ..decode.drafts import DraftSource
 from ..decode.drafts import point_drafts
 from ..decode.processors import CompositeLogitProcessor
@@ -59,10 +58,6 @@ def test_compiled_steps_trace_whole():
     dataclass is being constructed or replaced inside a compiled step: make it a stdlib dataclass (see the block above
     GemvConfig in backends/torch_triton.py), or build it outside the step.
     """
-
-    if not HAVE_TRITON:
-        print('triton not installed; skipping')
-        return
 
     counters = dynamo.utils.counters
 

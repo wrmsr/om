@@ -29,7 +29,11 @@ stored, a sliding-window KV state, a grammar controller for framed messages), wh
 On 2026-11-23 its step's small pieces became kernels of their own (47 to 127 tokens/s uncompiled), its draft
 model was built (`--spec 7`: 190 to 240 on code and reasoning), a verify step's rows and commit were made cheap,
 its local layers' windows stopped being moved, and its prefill doubled (3,300 tokens/s); INKLING.md section 8
-has the measurements, and what was tried and did not work. Nothing below was written with it in mind; where an item says "the model" it means the 27B.
+has the measurements, and what was tried and did not work. It is also read from a GGUF in llama.cpp's layout --
+the lossless file is the checkpoint parameter for parameter, two smaller ones were run and are as far from it as
+their storage types cost -- with the checkpoint's draft model taken from beside the file (INKLING.md sections 2
+and 9: what a GGUF still costs over the checkpoint, and what would close it). Nothing below was written with it in
+mind; where an item says "the model" it means the 27B.
 
 
 ## 0. Immediate: the checkpoints' own chat format

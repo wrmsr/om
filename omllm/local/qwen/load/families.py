@@ -11,6 +11,7 @@ import os.path
 import typing as ta
 
 from .gguffiles import GgufFile
+from .inkling2 import INKLING2_HF_MODEL_TYPES
 from .inkling2 import Inkling2HFSource
 from .inkling2gguf import INKLING2_GGUF_ARCHITECTURE
 from .inkling2gguf import Inkling2GgufSource
@@ -23,8 +24,7 @@ from .weights import TensorSource
 
 
 HF_SOURCES: ta.Mapping[str, ta.Callable[[str], TensorSource]] = {
-    'inkling2_loop': Inkling2HFSource,
-    'inkling2_loop_text': Inkling2HFSource,
+    **dict.fromkeys(INKLING2_HF_MODEL_TYPES, Inkling2HFSource),
 }
 
 

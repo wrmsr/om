@@ -6,6 +6,9 @@ environment fixes how Triton executes them, once per requested mode.
              only). All a machine without CUDA can do.
   compiled   TRITON_INTERPRET unset: kernels are compiled and run on CUDA. Skipped where there is none.
 
+Where Triton is not installed at all (it has no macOS build, and a CI image need not carry it) every mode is skipped:
+the decorator is the one place that says so, so a body never has to check for it.
+
 Why a process each: interpreted and compiled Triton cannot share one. Triton picks between them every time a kernel is
 jitted, and three things then stay as they were first made for the life of the process:
 
@@ -68,6 +71,12 @@ DEFAULT_TIMEOUT_S = 60.
 TIMEOUT_MARGIN_S = 15.
 
 BODY_ATTR = '_triton_modes_body'
+
+
+def has_triton() -> bool:
+    """Whether a child could run a kernel at all: torch and triton both found (neither is imported here)."""
+
+    return lang.can_import('torch') and lang.can_import('triton')
 
 
 def has_cuda() -> bool:
@@ -149,6 +158,9 @@ def triton_modes(
 
     def inner(fn: ta.Callable[[], None]) -> ta.Callable[..., None]:
         def test(triton_mode: str) -> None:
+            if not has_triton():
+                pytest.skip('triton not installed')
+
             if triton_mode == 'compiled' and not has_cuda():
                 pytest.skip('cuda not available')
 

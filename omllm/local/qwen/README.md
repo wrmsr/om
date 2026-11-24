@@ -37,7 +37,8 @@ backends/        torch (torch.py; Triton GEMV, DeltaNet step and attention kerne
                  (mlx.py; the fused DeltaNet step as a Metal kernel in mlx_metal.py; packed experts in
                  mlx_microscaled.py), tinygrad (tinygrad.py), and backend selection (backends.py)
 load/            the loader pipeline: sources (weights.py: Ollama manifests, GGUF blobs, Ollama tensor blobs, HF
-                 checkpoints -> canonical params; inkling2.py: Inkling 2's checkpoint, inkling2gguf.py: its GGUFs;
+                 checkpoints -> canonical params; inkling2.py: Inkling 2's checkpoint, inkling2gguf.py: its GGUFs,
+                 inkling2draft.py: its draft model's file, for either;
                  families.py: which reader an HF directory or a GGUF gets), recipes and precision policies, the
                  plan, materialization, the on-disk parameter cache (paramcache.py); the vendored gguf reader
                  (gguf/), an opened file of it (gguffiles.py), its NVFP4 as ours (ggufmicroscaled.py)
@@ -146,6 +147,11 @@ replacing the `triton` / `tl` proxies in the module globals with the real module
 torch.compile traces Triton's launcher as Python instead of lowering the launch as a user-defined kernel). Annotations are fine: they are lazy
 on 3.14, which this package targets (no `from __future__ import annotations`). The vendored `gguf/` package still
 imports numpy eagerly and is itself imported lazily, inside the functions that read a GGUF.
+
+The tests keep to the same where it matters: Triton has no macOS build and CI's image has none, so the suite has to
+pass without it. A test that runs a Triton kernel is decorated with `tests/tritonmodes.py`'s `triton_modes`, which
+runs its body in a child process per Triton mode and skips it where torch or triton cannot be found; a test outside
+that decorator must not call a kernel.
 
 ## The Ops seam
 
