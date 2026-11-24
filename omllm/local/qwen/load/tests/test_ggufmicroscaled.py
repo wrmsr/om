@@ -6,11 +6,11 @@ GGML's NVFP4 layout against ours: bytes regrouped one way come back the other, a
 import numpy as np
 import pytest
 
+from ...models.inkling.load.tests.ggufwriters import ggml_nvfp4_blocks
 from ...ops.microscaled import MicroscaledWeight
 from ..gguf.constants import GGMLQuantizationType
 from ..gguf.quants import dequantize
 from ..ggufmicroscaled import microscaled_from_ggml_nvfp4
-from .inkling2ggufs import ggml_nvfp4_blocks
 
 
 ##

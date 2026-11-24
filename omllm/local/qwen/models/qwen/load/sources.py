@@ -1,0 +1,662 @@
+# ruff: noqa: N803 N806 N812
+"""
+Weight loading for Qwen3.5-family text models (model_type `qwen3_5`, GGUF arch `qwen35`).
+
+Two on-disk formats are supported, both produced by Ollama:
+
+  1. GGUF                 -- manifest layer `application/vnd.ollama.image.model` (or any *.gguf path you pass directly)
+  2. Ollama tensor blobs  -- manifest layers `application/vnd.ollama.image.tensor` (one packed-safetensors blob per
+                             tensor, HF names, optionally MLX affine-quantized) plus `application/vnd.ollama.image.json`
+                             blobs holding config.json / tokenizer.json.
+
+Whatever the source, `TensorSource.get(name)` returns a float32 numpy array under a single canonical naming/layout
+scheme so that `model.py` never has to know where the weights came from. The canonical scheme is HuggingFace's
+text-model layout with *effective* values:
+
+    embed_tokens.weight                                  [vocab, hidden]
+    norm.weight                                          [hidden]     (already includes the +1)
+    lm_head.weight                                       [vocab, hidden]   (absent => tied)
+    layers.{i}.input_layernorm.weight                    (already includes the +1)
+    layers.{i}.post_attention_layernorm.weight           (already includes the +1)
+    layers.{i}.self_attn.q_proj.weight                   [n_head*2*head_dim, hidden]  per head: [q | gate]
+    layers.{i}.self_attn.k_proj.weight                   [n_kv*head_dim, hidden]
+    layers.{i}.self_attn.v_proj.weight                   [n_kv*head_dim, hidden]
+    layers.{i}.self_attn.o_proj.weight                   [hidden, n_head*head_dim]
+    layers.{i}.self_attn.q_norm.weight / k_norm.weight   [head_dim]  (already includes the +1)
+    layers.{i}.linear_attn.in_proj_qkv.weight            [2*key_dim + value_dim, hidden]   [q | k | v]
+    layers.{i}.linear_attn.in_proj_z.weight              [value_dim, hidden]
+    layers.{i}.linear_attn.in_proj_b.weight              [n_v_heads, hidden]
+    layers.{i}.linear_attn.in_proj_a.weight              [n_v_heads, hidden]
+    layers.{i}.linear_attn.conv1d.weight                 [conv_dim, kernel]
+    layers.{i}.linear_attn.A                             [n_v_heads]   == -exp(A_log)
+    layers.{i}.linear_attn.dt_bias                       [n_v_heads]
+    layers.{i}.linear_attn.norm.weight                   [head_v_dim]  (NO +1; gated norm)
+    layers.{i}.linear_attn.out_proj.weight               [hidden, value_dim]
+    layers.{i}.mlp.gate_proj.weight / up_proj.weight     [inter, hidden]
+    layers.{i}.mlp.down_proj.weight                      [hidden, inter]
+
+V-head order for the linear-attention tensors is HF *grouped* order ([G0v0..G0v{r-1}, G1v0..] where G = key head), so
+q/k broadcast to V heads with repeat_interleave. The GGUF converter stores them *tiled*; the GGUF source undoes that.
+"""
+import json
+import pathlib
+import typing as ta
+
+from omcore import check
+from omcore import dataclasses as dc
+from omcore import lang
+from omcore.logs import all as logs
+
+from ....load.gguffiles import GgufFile
+from ....load.weights import MT_JSON
+from ....load.weights import MT_TENSOR
+from ....load.weights import NativeQuant
+from ....load.weights import OllamaModel
+from ....load.weights import SafetensorsFile
+from ....load.weights import TensorSource
+from ..core.config import Qwen4ExpConfig
+from ..core.config import Qwen35Config
+
+
+if ta.TYPE_CHECKING:
+    import numpy as np
+else:
+    np = lang.proxy_import('numpy')
+
+
+##
+
+
+log = logs.get_module_logger(globals())
+
+
+##
+
+
+def mlx_affine_dequant(
+    w_packed: np.ndarray,
+    scales: np.ndarray,
+    biases: np.ndarray | None,
+    bits: int,
+    group_size: int,
+) -> np.ndarray:
+    """
+    MLX `mx.quantize` affine layout: uint32 words, `32//bits` values each, first value in the low bits, groups of
+    `group_size` along the last axis with one scale (+bias) each.
+    """
+
+    check.state(w_packed.dtype == np.uint32)
+    per_word = 32 // bits
+    mask = (1 << bits) - 1
+    shifts = (np.arange(per_word, dtype=np.uint32) * bits)[None, :]
+    flat = w_packed.reshape(-1, 1)
+    vals = (
+        ((flat >> shifts) & mask)
+        .astype(np.float32)
+        .reshape(*w_packed.shape[:-1], w_packed.shape[-1] * per_word)
+    )
+    cols = vals.shape[-1]
+    check.state(cols % group_size == 0, f'{(cols, group_size)=}')
+    vals = vals.reshape(*vals.shape[:-1], cols // group_size, group_size)
+    s = scales.astype(np.float32)[..., None]
+    out = vals * s
+    if biases is not None:
+        out = out + biases.astype(np.float32)[..., None]
+    return out.reshape(*w_packed.shape[:-1], cols)
+
+
+def _untile_v_heads(
+        x: np.ndarray,
+        axis: int,
+        num_k: int,
+        r: int,
+        d: int,
+) -> np.ndarray:
+    """Inverse of llama.cpp's `_reorder_v_heads`: tiled [r, num_k, d] -> grouped [num_k, r, d]."""
+
+    if r == 1:
+        return x
+    shape = list(x.shape)
+    axis = axis % x.ndim
+    new = [*shape[:axis], r, num_k, d, *shape[axis + 1:]]
+    x = x.reshape(new)
+    perm = list(range(x.ndim))
+    perm[axis], perm[axis + 1] = perm[axis + 1], perm[axis]
+    return np.ascontiguousarray(x.transpose(perm)).reshape(shape)
+
+
+class GGUFSource(TensorSource):
+    """GGUF produced by llama.cpp's converter (arch `qwen35`)."""
+
+    config: Qwen35Config
+
+    def __init__(self, path: str | pathlib.Path | GgufFile) -> None:
+        self.file = file = path if isinstance(path, GgufFile) else GgufFile(str(path))
+        self.path = pathlib.Path(file.path)
+        self.reader = file.reader
+        self._tensors = file.tensors
+        arch = file.architecture
+        if arch != 'qwen35':
+            raise ValueError(f'unsupported GGUF architecture {arch!r} (want qwen35)')
+        self.arch = arch
+        # llama.cpp's converter always tiles the DeltaNet V heads; Ollama's records whether it did
+        self.v_heads_tiled = bool(self.akv('ssm.v_head_reordered', True))
+        self.config = self._build_config()
+        self.tokenizer_spec = self._build_tokenizer_spec()
+        self._canon = self._build_name_map()
+
+    # metadata helpers
+
+    def kv(self, key: str, default=None):
+        return self.file.kv(key, default)
+
+    def akv(self, key: str, default=None):
+        return self.kv(f'{self.arch}.{key}', default)
+
+    def _build_config(self) -> Qwen35Config:
+        a = self.akv
+        n_layer_all = int(a('block_count'))
+        n_nextn = int(a('nextn_predict_layers', 0) or 0)
+        n_layer = n_layer_all - n_nextn
+        head_dim = int(a('attention.key_length'))
+        n_head = a('attention.head_count')
+        n_head = max(n_head) if isinstance(n_head, list) else int(n_head)
+        n_kv = a('attention.head_count_kv')
+        kv_per_layer = list(n_kv) if isinstance(n_kv, list) else None
+        n_kv = max(n_kv) if isinstance(n_kv, list) else int(n_kv)
+        layer_types = self._layer_types(n_layer, kv_per_layer)
+        state = int(a('ssm.state_size'))
+        n_v = int(a('ssm.time_step_rank'))
+        n_k = int(a('ssm.group_count'))
+        inner = int(a('ssm.inner_size'))
+        check.state(inner == n_v * state, f'{(inner, n_v, state)=}')
+        tokens = self.kv('tokenizer.ggml.tokens')
+        vocab = int(a('vocab_size', len(tokens)) or len(tokens))
+        emb = self._tensors['token_embd.weight']
+        if vocab != int(emb.shape[1]):
+            vocab = int(emb.shape[1])
+        scaling_type = a('rope.scaling.type')
+        rope_scaling = None
+        if scaling_type and scaling_type != 'none':
+            rope_scaling = {
+                k.split('rope.scaling.')[-1]: a(k)
+                for k in [
+                    'rope.scaling.type',
+                    'rope.scaling.factor',
+                    'rope.scaling.original_context_length',
+                    'rope.scaling.attn_factor',
+                ]
+                if a(k) is not None
+            }
+        return Qwen35Config(
+            vocab_size=vocab,
+            hidden_size=int(a('embedding_length')),
+            num_layers=n_layer,
+            intermediate_size=int(a('feed_forward_length')),
+            rms_eps=float(a('attention.layer_norm_rms_epsilon')),
+            num_heads=n_head,
+            num_kv_heads=n_kv,
+            head_dim=head_dim,
+            rope_theta=float(a('rope.freq_base', 10000.0)),
+            rope_dim=int(a('rope.dimension_count', head_dim // 4)),
+            num_k_heads=n_k,
+            num_v_heads=n_v,
+            head_k_dim=state,
+            head_v_dim=state,
+            conv_kernel=int(a('ssm.conv_kernel')),
+            layer_types=layer_types,
+            context_length=int(a('context_length', 262144) or 262144),
+            rope_scaling=rope_scaling,
+            tied_embeddings='output.weight' not in self._tensors,
+            num_mtp_layers=n_nextn,
+            extra={
+                'gguf_path': str(self.path),
+                'n_nextn': n_nextn,
+                'file_type': self.kv('general.file_type'),
+            },
+        )
+
+    def _layer_types(self, n_layer: int, kv_per_layer: list[int] | None) -> list[str]:
+        """
+        Which blocks are Gated DeltaNet and which are full attention. The tensors themselves are the ground truth
+        (`ssm_a` only exists in linear blocks); the metadata -- `attention.recurrent_layers` (llama.cpp), a per-layer
+        `attention.head_count_kv` with zeros for recurrent blocks (llama.cpp and Ollama), or `full_attention_interval`
+        -- is used to cross-check and as a fallback for files with no block tensors.
+        """
+
+        from_tensors: list[str] | None = None
+        if f'blk.{n_layer - 1}.attn_norm.weight' in self._tensors:
+            from_tensors = ['linear' if f'blk.{i}.ssm_a' in self._tensors else 'full' for i in range(n_layer)]
+        recr = self.akv('attention.recurrent_layers')
+        if recr is not None:
+            from_meta = ['linear' if bool(r) else 'full' for r in list(recr)[:n_layer]]
+        elif kv_per_layer is not None and len(kv_per_layer) >= n_layer:
+            from_meta = ['linear' if int(k) == 0 else 'full' for k in kv_per_layer[:n_layer]]
+        else:
+            interval = int(self.akv('full_attention_interval', 4) or 4)
+            from_meta = ['linear' if (i + 1) % interval else 'full' for i in range(n_layer)]
+        if from_tensors is None:
+            return from_meta
+        if from_tensors != from_meta:
+            log.warning('layer kinds from tensors disagree with metadata; trusting tensors')
+        return from_tensors
+
+    def _build_tokenizer_spec(self) -> dict:
+        spec = self.file.tokenizer_spec()
+        return {**spec, 'pre': spec['pre'] if spec['pre'] is not None else 'qwen2'}
+
+    # name mapping GGUF -> canonical
+
+    def _build_name_map(self) -> dict[str, tuple]:
+        """
+        canonical name -> (gguf name, post-processing tag).
+
+        Two GGUF flavours exist for this arch: llama.cpp's converter and Ollama's own (convert_qwen3next.go). They agree
+        on everything except the DeltaNet dt bias, which llama.cpp writes as `ssm_dt.bias` and Ollama as bare `ssm_dt`;
+        where names differ the first present alternative wins. Ollama also records whether the V heads were tiled
+        (`ssm.v_head_reordered`); llama.cpp always tiles, so the default is True.
+        """
+
+        c = self.config
+        ts = self._tensors
+
+        def first(*cands: str) -> str:
+            for cand in cands:
+                if cand in ts:
+                    return cand
+            return cands[0]
+
+        m: dict[str, tuple] = {
+            'embed_tokens.weight': ('token_embd.weight', None),
+            'norm.weight': ('output_norm.weight', None),
+        }
+        if 'output.weight' in ts:
+            m['lm_head.weight'] = ('output.weight', None)
+        for i, lt in enumerate(c.layer_types):
+            p = f'blk.{i}.'
+            q = f'layers.{i}.'
+            m[q + 'input_layernorm.weight'] = (p + 'attn_norm.weight', None)
+            m[q + 'post_attention_layernorm.weight'] = (
+                first(p + 'post_attention_norm.weight', p + 'attn_post_norm.weight'),
+                None,
+            )
+            m[q + 'mlp.gate_proj.weight'] = (p + 'ffn_gate.weight', None)
+            m[q + 'mlp.up_proj.weight'] = (p + 'ffn_up.weight', None)
+            m[q + 'mlp.down_proj.weight'] = (p + 'ffn_down.weight', None)
+            if lt == 'full':
+                fused = (
+                    p + 'attn_qkv.weight' in self._tensors and
+                    p + 'attn_q.weight' not in self._tensors
+                )
+                if fused:
+                    m[q + 'self_attn.q_proj.weight'] = (p + 'attn_qkv.weight', 'fused_q')
+                    m[q + 'self_attn.k_proj.weight'] = (p + 'attn_qkv.weight', 'fused_k')
+                    m[q + 'self_attn.v_proj.weight'] = (p + 'attn_qkv.weight', 'fused_v')
+                else:
+                    m[q + 'self_attn.q_proj.weight'] = (p + 'attn_q.weight', None)
+                    m[q + 'self_attn.k_proj.weight'] = (p + 'attn_k.weight', None)
+                    m[q + 'self_attn.v_proj.weight'] = (p + 'attn_v.weight', None)
+                m[q + 'self_attn.o_proj.weight'] = (p + 'attn_output.weight', None)
+                m[q + 'self_attn.q_norm.weight'] = (p + 'attn_q_norm.weight', None)
+                m[q + 'self_attn.k_norm.weight'] = (p + 'attn_k_norm.weight', None)
+            else:
+                m[q + 'linear_attn.in_proj_qkv.weight'] = (p + 'attn_qkv.weight', 'untile_qkv_rows')
+                m[q + 'linear_attn.in_proj_z.weight'] = (p + 'attn_gate.weight', 'untile_rows_dv')
+                m[q + 'linear_attn.in_proj_b.weight'] = (p + 'ssm_beta.weight', 'untile_rows_1')
+                m[q + 'linear_attn.in_proj_a.weight'] = (p + 'ssm_alpha.weight', 'untile_rows_1')
+                m[q + 'linear_attn.conv1d.weight'] = (p + 'ssm_conv1d.weight', 'untile_conv')
+                m[q + 'linear_attn.A'] = (p + 'ssm_a', 'untile_rows_1')
+                m[q + 'linear_attn.dt_bias'] = (
+                    first(p + 'ssm_dt.bias', p + 'ssm_dt', p + 'ssm_dt.weight'),
+                    'untile_rows_1',
+                )
+                m[q + 'linear_attn.norm.weight'] = (p + 'ssm_norm.weight', None)
+                m[q + 'linear_attn.out_proj.weight'] = (p + 'ssm_out.weight', 'untile_cols_dv')
+        if c.num_mtp_layers:
+            # the draft head is the block after the text stack: a full-attention block plus the `nextn` stem
+            p = f'blk.{c.num_layers}.'
+            q = 'mtp.layers.0.'
+            m['mtp.fc.weight'] = (p + 'nextn.eh_proj.weight', None)
+            m['mtp.pre_fc_norm_embedding.weight'] = (p + 'nextn.enorm.weight', None)
+            m['mtp.pre_fc_norm_hidden.weight'] = (p + 'nextn.hnorm.weight', None)
+            m['mtp.norm.weight'] = (
+                first(p + 'nextn.shared_head_norm.weight', p + 'nextn.shared_head.norm.weight'),
+                None,
+            )
+            m[q + 'input_layernorm.weight'] = (p + 'attn_norm.weight', None)
+            m[q + 'post_attention_layernorm.weight'] = (
+                first(p + 'post_attention_norm.weight', p + 'attn_post_norm.weight'),
+                None,
+            )
+            m[q + 'mlp.gate_proj.weight'] = (p + 'ffn_gate.weight', None)
+            m[q + 'mlp.up_proj.weight'] = (p + 'ffn_up.weight', None)
+            m[q + 'mlp.down_proj.weight'] = (p + 'ffn_down.weight', None)
+            m[q + 'self_attn.q_proj.weight'] = (p + 'attn_q.weight', None)
+            m[q + 'self_attn.k_proj.weight'] = (p + 'attn_k.weight', None)
+            m[q + 'self_attn.v_proj.weight'] = (p + 'attn_v.weight', None)
+            m[q + 'self_attn.o_proj.weight'] = (p + 'attn_output.weight', None)
+            m[q + 'self_attn.q_norm.weight'] = (p + 'attn_q_norm.weight', None)
+            m[q + 'self_attn.k_norm.weight'] = (p + 'attn_k_norm.weight', None)
+        missing = [(k, g) for k, (g, _) in m.items() if g not in ts]
+        if missing:
+            blocks = sorted({g.split('.')[1] for _, g in missing if g.startswith('blk.')}, key=int)[:2]
+            have = [n for n in ts if any(n.startswith(f'blk.{b}.') for b in blocks)]
+            raise KeyError(
+                f'GGUF is missing {len(missing)} expected tensors, e.g. {missing[:4]}; '
+                f'tensors present in the first affected blocks: {have}',
+            )
+        return m
+
+    def names(self) -> list[str]:
+        return list(self._canon.keys())
+
+    def has(self, name: str) -> bool:
+        return name in self._canon
+
+    def raw(self, gguf_name: str) -> np.ndarray:
+        # gguf-py hands back numpy arrays in row-major (reversed ggml ne) order, i.e. HF [out, in].
+        return self.file.dense(gguf_name)
+
+    def get(self, name: str) -> np.ndarray:
+        gname, tag = self._canon[name]
+        x = self.raw(gname)
+        c = self.config
+        r = c.num_v_heads // c.num_k_heads
+        if tag is None or (tag.startswith('untile_') and not self.v_heads_tiled):
+            return x
+        if tag.startswith('fused_'):
+            nq = c.num_heads * c.head_dim * 2
+            nk = c.num_kv_heads * c.head_dim
+            if tag == 'fused_q':
+                return x[:nq]
+            if tag == 'fused_k':
+                return x[nq:nq + nk]
+            return x[nq + nk:nq + 2 * nk]
+        if tag == 'untile_qkv_rows':
+            qk = 2 * c.key_dim
+            v = _untile_v_heads(x[qk:], 0, c.num_k_heads, r, c.head_v_dim)
+            return np.concatenate([x[:qk], v], axis=0)
+        if tag == 'untile_rows_dv':
+            return _untile_v_heads(x, 0, c.num_k_heads, r, c.head_v_dim)
+        if tag == 'untile_rows_1':
+            return _untile_v_heads(x, 0, c.num_k_heads, r, 1)
+        if tag == 'untile_cols_dv':
+            return _untile_v_heads(x, 1, c.num_k_heads, r, c.head_v_dim)
+        if tag == 'untile_conv':
+            qk = 2 * c.key_dim
+            v = _untile_v_heads(x[qk:], 0, c.num_k_heads, r, c.head_v_dim)
+            return np.concatenate([x[:qk], v], axis=0)
+        raise ValueError(tag)
+
+
+class OllamaTensorSource(TensorSource):
+    """Ollama's newer blob format: per-tensor packed safetensors with HF names."""
+
+    config: Qwen35Config
+
+    _PREFIXES = ('model.language_model.', 'model.')
+
+    def __init__(self, om: OllamaModel) -> None:
+        self.om = om
+        self._layers: dict[str, dict] = {}
+        for l in om.layers(MT_TENSOR):
+            self._layers[self._canon_name(l['name'])] = l
+        cfg_layer = next(
+            (l for l in om.layers(MT_JSON) if l.get('name') == 'config.json'), None,
+        )
+        if cfg_layer is None:
+            raise FileNotFoundError('config.json layer not found in manifest')
+        cfg = json.loads(om.blob(cfg_layer['digest']).read_text())
+        self.hf_config = cfg
+        self.config = self._build_config(cfg)
+        tok_layer = next(
+            (l for l in om.layers(MT_JSON) if l.get('name') == 'tokenizer.json'), None,
+        )
+        tcfg_layer = next(
+            (l for l in om.layers(MT_JSON) if l.get('name') == 'tokenizer_config.json'),
+            None,
+        )
+        self.tokenizer_spec = {
+            'kind': 'hf',
+            'tokenizer_json': (
+                json.loads(om.blob(tok_layer['digest']).read_text())
+                if tok_layer
+                else None
+            ),
+            'tokenizer_config': (
+                json.loads(om.blob(tcfg_layer['digest']).read_text())
+                if tcfg_layer
+                else None
+            ),
+            'eos_id': cfg.get('eos_token_id'),
+        }
+        self._files: dict[str, SafetensorsFile] = {}
+
+    @classmethod
+    def _canon_name(cls, name: str) -> str:
+        for p in cls._PREFIXES:
+            if name.startswith(p):
+                name = name[len(p):]
+                break
+        return name
+
+    @classmethod
+    def config_from_hf(cls, cfg: dict) -> Qwen35Config:
+        """Our config from a Hugging Face config.json's contents."""
+
+        return cls._build_config(cfg)
+
+    @classmethod
+    def _build_config(cls, cfg: dict) -> Qwen35Config:
+        t = cfg.get('text_config', cfg)
+        if str(t.get('model_type', cfg.get('model_type', ''))).startswith('qwen4_exp'):
+            return cls._build_qwen4exp_config(cfg, t)
+        rp = t.get('rope_parameters') or t.get('rope_scaling') or {}
+        head_dim = t.get('head_dim') or t['hidden_size'] // t['num_attention_heads']
+        prf = rp.get('partial_rotary_factor', t.get('partial_rotary_factor', 0.25))
+        n_layer = t['num_hidden_layers']
+        lts = t.get('layer_types')
+        if lts is None:
+            interval = t.get('full_attention_interval', 4)
+            lts = [
+                'full_attention' if (i + 1) % interval == 0 else 'linear_attention'
+                for i in range(n_layer)
+            ]
+        layer_types = ['linear' if x == 'linear_attention' else 'full' for x in lts]
+        rope_type = rp.get('rope_type', rp.get('type', 'default'))
+        rope_scaling = None if rope_type in (None, 'default') else rp
+        return Qwen35Config(
+            vocab_size=t['vocab_size'],
+            hidden_size=t['hidden_size'],
+            num_layers=n_layer,
+            intermediate_size=t['intermediate_size'],
+            rms_eps=t.get('rms_norm_eps', 1e-6),
+            num_heads=t['num_attention_heads'],
+            num_kv_heads=t['num_key_value_heads'],
+            head_dim=head_dim,
+            rope_theta=float(rp.get('rope_theta', t.get('rope_theta', 10000.0))),
+            rope_dim=int(head_dim * prf),
+            num_k_heads=t['linear_num_key_heads'],
+            num_v_heads=t['linear_num_value_heads'],
+            head_k_dim=t['linear_key_head_dim'],
+            head_v_dim=t['linear_value_head_dim'],
+            conv_kernel=t['linear_conv_kernel_dim'],
+            layer_types=layer_types,
+            context_length=t.get('max_position_embeddings', 262144),
+            rope_scaling=rope_scaling,
+            tied_embeddings=bool(t.get('tie_word_embeddings', cfg.get('tie_word_embeddings', False))),
+            num_mtp_layers=int(t.get('mtp_num_hidden_layers', cfg.get('mtp_num_hidden_layers', 0)) or 0),
+            extra={'format': 'ollama-tensor'},
+        )
+
+    @classmethod
+    def _build_qwen4exp_config(cls, cfg: dict, t: dict) -> Qwen4ExpConfig:
+        """Qwen3.8-Flash-Next (`qwen4_exp`): the geometry it shares with Qwen3.5, then its own parts (FLASHNEXT.md)."""
+
+        base = cls._build_config({**t, 'model_type': 'qwen3_5_text', 'intermediate_size': 0})
+        layer_types = ['linear' if x == 'linear_attention' else 'indexed' for x in t['layer_types']]
+        eos = t.get('eos_token_id', cfg.get('eos_token_id'))
+        return Qwen4ExpConfig(
+            **{f.name: getattr(base, f.name) for f in dc.fields(base) if f.name not in ('layer_types', 'output_gate')},
+            layer_types=layer_types,
+            num_experts=t['num_experts'],
+            num_experts_per_tok=t['num_experts_per_tok'],
+            moe_intermediate_size=t['moe_intermediate_size'],
+            shared_expert_intermediate_size=t['shared_expert_intermediate_size'],
+            norm_topk_prob=t.get('norm_topk_prob', True),
+            hc_count=t.get('hc_count', 4),
+            hc_lowrank=t.get('hc_lowrank', 320),
+            output_gate=t.get('output_gate_type') or t.get('hidden_act', 'silu'),
+            indexer_heads=t.get('indexer_n_heads') or 0,
+            indexer_head_dim=t.get('indexer_head_dim') or 0,
+            indexer_budget=t.get('indexer_budget') or 0,
+            indexer_compress_ratio=t.get('indexer_compress_ratio') or 0,
+            ple_layers=sorted(i - 1 for i in (t.get('ple_layer_ids') or [])),
+            ple_embed_dim=t.get('ple_embed_dim') or t['hidden_size'],
+            ple_conv_kernel=t.get('ple_conv_kernel_size', 4),
+            ngram_size=t.get('ngram_size', 3),
+            heads_per_ngram=t.get('heads_per_ngram', 8),
+            ngram_vocab_size_base=t.get('ngram_vocab_size_base', 20_000_000),
+            ngram_vocab_divisor=t.get('make_ngram_vocab_size_divisible_by', 128),
+            ngram_seed=t.get('seed', 1234),
+            eos_id=(eos[0] if isinstance(eos, list) else eos) or 0,
+        )
+
+    # the n-gram table is stored in shards (`...ngram_embedding.shard_{i}.weight`); it is one tensor to the model
+    _NGRAM_SHARD = '.ngram_embedding.shard_'
+
+    def _ngram_shards(self, name: str) -> list[str]:
+        prefix = name[: -len('weight')] + 'shard_'
+        shards = [n for n in self._layers if n.startswith(prefix)]
+        return sorted(shards, key=lambda n: int(n[len(prefix):].split('.')[0]))
+
+    def names(self) -> list[str]:
+        out = []
+        for n in self._layers:
+            if n.endswith('.A_log'):
+                out.append(n[: -len('A_log')] + 'A')
+            elif self._NGRAM_SHARD in n:
+                whole = n[:n.index(self._NGRAM_SHARD)] + '.ngram_embedding.weight'
+                if whole not in out:
+                    out.append(whole)
+            else:
+                out.append(n)
+        return out
+
+    def _file(self, canon: str) -> SafetensorsFile:
+        l = self._layers[canon]
+        d = l['digest']
+        if d not in self._files:
+            self._files[d] = SafetensorsFile(self.om.blob(d))
+        return self._files[d]
+
+    def _raw(self, canon: str):
+        f = self._file(canon)
+        raw_name = self._layers[canon]['name']
+        names = f.names()
+        base = (
+            raw_name
+            if raw_name in names else
+            next(n for n in names if not n.endswith(('.scale', '.bias')))
+        )
+        w = f.get(base)
+        if w.dtype != np.uint32:
+            return w, None
+        md = f.metadata
+        qt = md.get(base + '.quant_type') or md.get('quant_type') or 'int4'
+        gs = int(md.get(base + '.group_size') or md.get('group_size') or 64)
+        bits = {'int4': 4, 'int8': 8}.get(qt.lower())
+        if bits is None:
+            raise NotImplementedError(f'MLX quant mode {qt!r} not supported (only affine int4/int8)')
+        scales = f.get(base + '.scale')
+        biases = f.get(base + '.bias') if (base + '.bias') in names else None
+        return w, (scales, biases, bits, gs)
+
+    def _load_hf(self, canon: str) -> np.ndarray:
+        w, q = self._raw(canon)
+        if q is not None:
+            scales, biases, bits, gs = q
+            w = mlx_affine_dequant(w, scales, biases, bits, gs)
+        return np.ascontiguousarray(w, dtype=np.float32)
+
+    def get_quant(self, name: str) -> NativeQuant | None:
+        if name not in self._layers or name.endswith('.linear_attn.A'):
+            return None
+        w, q = self._raw(name)
+        if q is None or w.ndim != 2:
+            return None
+        scales, biases, bits, gs = q
+        # MLX packs `32 // bits` values per little-endian uint32, first value in the low bits: viewing the words as
+        # bytes gives the values in order (int8), or two per byte with the first in the low nibble (int4).
+        per_word = 32 // bits
+        vals = np.ascontiguousarray(w).view(np.uint8)
+        if bits == 4:
+            vals = np.stack([vals & 0xF, vals >> 4], axis=-1).reshape(w.shape[0], w.shape[1] * per_word)
+        if biases is None:
+            biases = np.zeros_like(scales)
+        return NativeQuant(np.ascontiguousarray(vals), scales, biases, bits, gs)
+
+    def get(self, name: str) -> np.ndarray:
+        if name.endswith('.linear_attn.A'):
+            return -np.exp(self._load_hf(name[:-1] + 'A_log'))
+        if name.endswith('.ngram_embedding.weight') and name not in self._layers:
+            return np.concatenate([self._load_hf(s) for s in self._ngram_shards(name)], 0)
+        x = self._load_hf(name)
+        # HF stores zero-centred norm weights (1 + w) for every RMSNorm except the gated one (the draft head's
+        # pre_fc_norm_* are norms too, just not named *norm.weight; so are Flash-Next's n-gram layer's norm_*)
+        if (
+                (name.endswith('norm.weight') and not name.endswith('linear_attn.norm.weight')) or
+                'pre_fc_norm' in name or
+                '.ple.norm_' in name
+        ):
+            x = x + 1.0
+        if name.endswith('conv1d.weight') and x.ndim == 3:  # the Gated DeltaNet's, and the n-gram layer's
+            x = x[:, 0, :]
+        return x
+
+
+class HFSource(OllamaTensorSource):
+    """
+    A Hugging Face checkpoint directory (config.json, tokenizer.json, model*.safetensors, optionally
+    model.safetensors.index.json) -- the original bf16 weights, for quantizing ourselves instead of requantizing
+    someone else's k-quants. Same names, config and transforms as the Ollama tensor-blob format, which is these
+    files split per tensor.
+    """
+
+    def __init__(self, path: str | pathlib.Path) -> None:
+        self.path = pathlib.Path(path).expanduser()
+        if not (self.path / 'config.json').exists():
+            raise FileNotFoundError(f'{self.path}: no config.json')
+        cfg = json.loads((self.path / 'config.json').read_text())
+        self.hf_config = cfg
+        self.config = self._build_config(cfg)
+        self.config.extra['format'] = 'hf'
+        tj = self.path / 'tokenizer.json'
+        tc = self.path / 'tokenizer_config.json'
+        self.tokenizer_spec = {
+            'kind': 'hf',
+            'tokenizer_json': json.loads(tj.read_text()) if tj.exists() else None,
+            'tokenizer_config': json.loads(tc.read_text()) if tc.exists() else None,
+            'eos_id': cfg.get('eos_token_id'),
+        }
+        # canonical name -> (file, raw name)
+        self._where: dict[str, tuple[pathlib.Path, str]] = {}
+        index = self.path / 'model.safetensors.index.json'
+        if index.exists():
+            wm = json.loads(index.read_text())['weight_map']
+            files = {self.path / fn for fn in wm.values()}
+        else:
+            files = set(self.path.glob('*.safetensors'))
+        self._st: dict[pathlib.Path, SafetensorsFile] = {}
+        for fp in sorted(files):
+            st = SafetensorsFile(fp)
+            self._st[fp] = st
+            for raw in st.names():
+                self._where[self._canon_name(raw)] = (fp, raw)
+        if not self._where:
+            raise FileNotFoundError(f'{self.path}: no *.safetensors')
+        self._layers = {n: {'name': raw} for n, (fp, raw) in self._where.items()}  # what names()/get_quant() read
+
+    def _raw(self, canon: str):
+        fp, raw = self._where[canon]
+        return self._st[fp].get(raw), None  # never natively quantized

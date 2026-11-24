@@ -5,7 +5,8 @@ arch `qwen35`), written once against a small backend seam (`Ops`) and run on tor
 loads weights straight out of Ollama's blob store, plus a validation harness that uses `llama-server` as the oracle.
 
 Two more architectures run on the same engine, each assembled from its own parts behind the same interfaces:
-Qwen3.8-Flash-Next (`qwen4_exp`; FLASHNEXT.md) and Inkling 2 Mini (`inkling2_loop`; INKLING.md), which is not a Qwen
+Qwen3.8-Flash-Next (`qwen4_exp`; models/qwen/FLASHNEXT.md) and Inkling 2 Mini (`inkling2_loop`;
+models/inkling/INKLING.md), which is not a Qwen
 model at all -- its attention, residual stream, tokenizer pattern and chat protocol are its own, and it loads from its
 lab's Hugging Face checkpoint, or a GGUF of it, with its experts in the packed float formats they are released in.
 
@@ -14,58 +15,70 @@ mlx-lm / mlx.nn, no `safetensors` package (there is a 30-line reader in `load/we
 relevant parts are vendored).
 
 ```
-core/            the model, backend-free: the decoder (model.py) assembled from blocks (block.py), each a mixer +
-                 feed-forward and their connections to the residual stream (mixing.py's interfaces); gated GQA
-                 attention w/ partial RoPE (attention.py) and Gated DeltaNet (deltanet.py) as mixers owning their
-                 decode-state layouts; SwiGLU (mlp.py); the MTP draft head (mtp.py); config, functional cache,
-                 parameter names. Qwen3.8-Flash-Next's parts beside them: the four-branch gated residual
-                 (gated_residual.py), mixture of experts (moe.py), sparse attention (qsa.py), the n-gram layer (ple.py).
-                 Inkling 2's in inkling2/ (its residual stream of block sums, the loop, its attention and experts),
-                 over parts any architecture may use: short convolutions over time as mixers (shortconv.py), a
-                 layer of stateful sublayers (sublayers.py), what an attention layer sees and keeps (kvspans.py),
-                 the output head (heads.py), a static step's position tables (positions.py), what a model hands a
-                 draft head of a position (readouts.py); and Inkling 2's draft model, a block drafter (dspark/)
-arch/            architectures: what blocks a checkpoint's layers are and how its parameters become them
-                 (base.py: the interface; qwen35.py: Qwen35Architecture, load_qwen35; qwen4exp.py: Flash-Next;
-                 inkling2.py: Inkling 2, dspark.py: its drafter; registry.py: which one, by the config's type)
-ops/             the backend seam: `Ops` ABC (abstract primitives + composed reference implementations of the
-                 fusable ones, base.py), `NumpyOps` the float64 golden (reference.py), weight-only int8/int4 affine
-                 quantization (quant.py), microscaled float weights as checkpoints store them (microscaled.py: NVFP4,
-                 MXFP8)
-backends/        torch (torch.py; Triton GEMV, DeltaNet step and attention kernels in torch_triton.py; a step's
-                 small regular pieces as a kernel each in torch_fused.py), MLX core
-                 (mlx.py; the fused DeltaNet step as a Metal kernel in mlx_metal.py; packed experts in
-                 mlx_microscaled.py), tinygrad (tinygrad.py), and backend selection (backends.py)
-load/            the loader pipeline: sources (weights.py: Ollama manifests, GGUF blobs, Ollama tensor blobs, HF
-                 checkpoints -> canonical params; inkling2.py: Inkling 2's checkpoint, inkling2gguf.py: its GGUFs,
-                 inkling2draft.py: its draft model's file, for either;
-                 families.py: which reader an HF directory or a GGUF gets), recipes and precision policies, the
-                 plan, materialization, the on-disk parameter cache (paramcache.py); the vendored gguf reader
-                 (gguf/), an opened file of it (gguffiles.py), its NVFP4 as ours (ggufmicroscaled.py)
+core/            a model, backend-free, as any architecture has it: the decoder (model.py) over layers that are a
+                 mixer and a feed-forward with their connections to the residual stream (block.py, mixing.py's
+                 interfaces) or a list of stateful sublayers (sublayers.py); what an attention layer's keys and
+                 values are as decode state (kvstates.py) and what a layer sees and keeps of them (kvspans.py);
+                 short convolutions over time as mixers (shortconv.py); the output head (heads.py), a static step's
+                 position tables (positions.py), what a model hands a draft head of a position (readouts.py); the
+                 base config, the functional cache, the decode slab
+arch/            architectures: what blocks a checkpoint's layers are and how its parameters become them (base.py:
+                 the interface; loading.py: `load_qwen35`, a model from a source whatever its architecture;
+                 registry.py: which architecture, by the config's type)
+ops/             the backend seam: `Ops` (abstract primitives + composed reference implementations of the
+                 compound operations architectures share) and `OpsExtension`, a family's own operations
+                 (base.py); `NumpyOps` the float64 golden (reference.py); weight-only int8/int4 affine quantization
+                 (quant.py); microscaled float weights as checkpoints store them (microscaled.py: NVFP4, MXFP8)
+backends/        torch (torch.py; the quantized and packed GEMVs, dequantizers and attention kernels in
+                 torch_triton.py; kernels for small regular pieces any architecture may have in torch_fused.py),
+                 MLX core (mlx.py; packed experts in mlx_microscaled.py), tinygrad (tinygrad.py), and backend
+                 selection (backends.py). No backend names a model.
+load/            the loader pipeline: what a source is, the safetensors reader, Ollama's store and how a model
+                 named on a command line is found (weights.py); families.py: which source an HF directory, a GGUF
+                 or an Ollama manifest gets; recipes and precision policies, the plan, materialization, the on-disk
+                 parameter cache (paramcache.py); the vendored gguf reader (gguf/), an opened file of it
+                 (gguffiles.py), its NVFP4 as ours (ggufmicroscaled.py)
 decode/          the generation loop (loop.py) and its extension points: the one token source (tokens.py: verify
                  [pending, drafts] in one step), draft sources (drafts.py), logit processors (processors.py:
                  penalties), the sampler and rejection step (sampling.py), terminators, observers, state stores;
                  the static and functional decoders (decoder.py); GenerationRunner (runners.py)
-spec/            draft sources: the MTP head (mtp.py), the block drafter (dspark.py), which of them a model's
-                 draft head takes (registry.py), prompt lookup (lookup.py), test oracles (oracle.py)
+spec/            draft sources that are no one model's: prompt lookup (lookup.py), test oracles (oracle.py), the
+                 draws a head's source makes (draws.py); registry.py: which source a model's draft head takes
 constrain/       tool-call / JSON-mode grammars -> per-step token masks (grammar.py: both call syntaxes), as a
                  logit processor; what the function syntax asks of a parameter's schema (schemas.py)
 prefix/          prefix snapshots: exact-prefix reuse of decode state across requests, device + pinned-host tiers
                  (cache.py), as a state store (store.py)
-serve/           chat protocols (protocols.py: how a checkpoint's conversations are written and read): Qwen's
-                 ChatML formats -- the checkpoints' own and the legacy one -- rendered and parsed (chat.py, as a
-                 protocol in chatml.py), Inkling 2's framed messages (inkling2.py), which one a tokenizer speaks
-                 (registry.py); the Engine and the OpenAI chat-completions HTTP server (serving.py)
+serve/           chat protocols (protocols.py: how a checkpoint's conversations are written and read, and what a
+                 parsed answer is), which one a tokenizer speaks and with what options (registry.py); the Engine
+                 and the OpenAI chat-completions HTTP server (serving.py)
+models/          what is one family's, laid out as the engine is (see "Model families" below):
+  qwen/            the Qwen3.5 / 3.6 / 3.8 dense models and Qwen3.8-Flash-Next (FLASHNEXT.md): arch/ (qwen35.py,
+                   qwen4exp.py), core/ (gated GQA attention with partial RoPE, Gated DeltaNet, SwiGLU, the MTP draft
+                   head, the configs and parameter names; Flash-Next's four-branch gated residual, mixture of
+                   experts, sparse attention and n-gram layer), load/ (layouts.py: which of their parameters stay
+                   float32, are never quantized, load fused; sources.py: their GGUF, Ollama tensor-blob
+                   and Hugging Face sources), serve/ (chat.py: their ChatML formats, the checkpoints' own and the
+                   legacy one, rendered and parsed; chatml.py: as a chat protocol; templates.py: the
+                   reasoning-effort switch and the plain rendering the command-line tools use), spec/ (mtp.py: the
+                   MTP head as a draft source), ops/ (the gated delta rule's operations; the fused step as a
+                   Triton kernel and as a Metal kernel)
+  inkling/         Inkling 2 (INKLING.md): arch/ (inkling2.py, and dspark.py, its draft model's), core/ (its
+                   residual stream of block sums, the loop, its attention and experts; dspark/, the block
+                   drafter), load/ (checkpoints.py, ggufs.py, drafts.py: its checkpoint, its GGUFs, its draft
+                   model's file), serve/ (protocols.py: its framed messages), constrain/ (framed.py: the grammar
+                   controllers they need), spec/ (dspark.py: the drafter as a draft source), ops/ (its layers'
+                   own operations and their Triton kernels)
 inject/          assembly by omcore.inject: the composition root over each package's inject.py (role binders, one
                  config dataclass each); everything also assembles by hand
 api.py           `generate` (the loop assembled by hand) and ManualGenerationRunner
-tokenizer.py     byte-level BPE (qwen2 / qwen35 pre-tokenizer regexes), special tokens, streaming decode; what
-                 the checkpoint's chat template is seen to take (reasoning effort)
+tokenizer.py     byte-level BPE (the families' pre-tokenizer patterns by name), special tokens, streaming decode;
+                 it carries the checkpoint's chat template and reads nothing of it
 entrypoints/     generate, serve, agent, tune (GEMV launch tables), kl (quality), validate (vs llama-server)
 tests/           golden parity across backends, synthetic models, quantization, kernels, tracing, sampling,
                  prefix reuse, grammars, the chat formats, the server; and tools that need a real checkpoint:
-                 bench.py (performance and transcripts), chat_oracle.py and inkling2oracle.py (our chat rendering
-                 against the checkpoint's own template), agent_eval.py (file tasks through the agent loop)
+                 bench.py (performance and transcripts), chat_oracle.py (our chat rendering against the
+                 checkpoint's own template), agent_eval.py (file tasks through the agent loop). A family's tests
+                 and tools are with it (models/*/*/tests/)
 ```
 
 On the radar, not started: a `ggml` backend (ctypes to libggml; a lazy `Ops` whose calls emit graph nodes). It
@@ -75,10 +88,10 @@ fits the same seam.
 
 ```bash
 pip install numpy regex torch               # and/or: pip install mlx
-python -m omllm.local.qwen.tests.test_parity          # no model needed; runs every backend that imports
-python -m omllm.local.qwen.generate --model qwen3.5:0.8b -p "Why is the sky blue?"
-python -m omllm.local.qwen.generate --model qwen3.5:0.8b --backend mlx --raw -p "The capital of France is"
-python -m omllm.local.qwen.generate --model qwen3.5:0.8b --backend torch --device cuda --dtype bf16 -p "..."
+python -m pytest omllm/local/qwen/tests/test_parity.py    # no model needed; runs every backend that imports
+python -m omllm.local.qwen.entrypoints.generate --model qwen3.5:0.8b -p "Why is the sky blue?"
+python -m omllm.local.qwen.entrypoints.generate --model qwen3.5:0.8b --backend mlx --raw -p "The capital of France is"
+python -m omllm.local.qwen.entrypoints.generate --model qwen3.5:0.8b --backend torch --device cuda --dtype bf16 -p "..."
 ```
 
 `--model` accepts an Ollama name (`qwen3.5:0.8b`, `qwen3.8:27b`), a `.gguf` path, a blob path, or a Hugging Face
@@ -144,14 +157,46 @@ third-party may be evaluated at import time -- no module-level dtype tables (the
 `torch_triton.ensure_kernels` jits into module globals -- `TorchOps` calls it when constructed with Triton on --
 replacing the `triton` / `tl` proxies in the module globals with the real modules then, because Triton resolves
 `tl` through the kernel's globals; and they must be plain module globals, not a factory's return value, or
-torch.compile traces Triton's launcher as Python instead of lowering the launch as a user-defined kernel). Annotations are fine: they are lazy
-on 3.14, which this package targets (no `from __future__ import annotations`). The vendored `gguf/` package still
-imports numpy eagerly and is itself imported lazily, inside the functions that read a GGUF.
+torch.compile traces Triton's launcher as Python instead of lowering the launch as a user-defined kernel). Annotations
+are fine: they are lazy on 3.14, which this package targets (no `from __future__ import annotations`). The vendored
+`gguf/` package still imports numpy eagerly and is itself imported lazily, inside the functions that read a GGUF.
 
 The tests keep to the same where it matters: Triton has no macOS build and CI's image has none, so the suite has to
 pass without it. A test that runs a Triton kernel is decorated with `tests/tritonmodes.py`'s `triton_modes`, which
 runs its body in a child process per Triton mode and skips it where torch or triton cannot be found; a test outside
 that decorator must not call a kernel.
+
+## Model families
+
+What is one family's lives under `models/<family>/`, in subpackages named as the engine's are (`arch`, `core`,
+`load`, `serve`, `constrain`, `spec`, `ops`), with its tests beside it and its document at its root. The engine is
+everything else, and knows no family: it holds the interfaces (an `Architecture`, a `TensorSource`, a `ChatProtocol`,
+a `DraftSource`, the layer and state-layout interfaces of core/mixing.py) and whatever more than one architecture can
+use. The rule for where a thing goes is whether removing the family would remove it.
+
+- **Dependencies point inward.** A family imports the engine; the engine never imports a family, except in the four
+  tables whose whole job is to say which implementation a thing gets: arch/registry.py (by a config's type),
+  load/families.py (by a checkpoint's `model_type`, a GGUF's architecture, an Ollama manifest), serve/registry.py (by
+  what a tokenizer speaks), spec/registry.py (by a draft head's type). The entrypoints and the injector's composition
+  root sit outside both and may name anything. One family never imports another. (A rule, not a check: see
+  UNTANGLING.md 3.4.)
+- **Kernels go with the family that needs them.** `Ops` holds what any model may use; an operation only one family's
+  layers compute is that family's, as an `OpsExtension` (ops/base.py): a class of composed definitions over an
+  `Ops` -- the reference, which every backend can run -- and, for a backend with a kernel, a subclass that overrides
+  the operation. `Ops.extension` hands a layer the one for the backend it is run on (`inkling2_ops(ops).depth_mix(...)`,
+  `qwen_ops(ops).gdn_step(...)`). The seam's rule is the same on both sides of the line: composed reference, optional
+  override, a parity test. So Inkling 2's ten operations and their Triton kernels are in models/inkling/ops/, the
+  gated delta rule with its Triton and Metal kernels in models/qwen/ops/, and backends/ keeps the kernels that serve
+  any model: quantized and packed GEMVs, dequantizers, the attention kernels, short convolutions, windowed attention.
+- **Adding a family** is a package under models/ and one line in each registry it has something for.
+
+Still in the engine, and Qwen's: its tool-call syntaxes in the grammar (constrain/grammar.py: one acceptor holds
+them with JSON, so taking them out is a refactor of the acceptor rather than a move), the `km` precision policy's
+names (load/policies.py), and the engine's own tests, which use a small synthetic Qwen as their subject. Both
+families' pre-tokenizer patterns are a table by name in tokenizer.py, as a checkpoint names them. A few
+operations on the seam are used only by Qwen's layers today (`rope`, `sdpa_masked`, `head_rows`, the `sdpa_state`
+forms) and stay there: they are attention and rotary operations any architecture may want, not that family's own.
+The names `Qwen35` (the model class, any family's) and `load_qwen35` are the package's first model's.
 
 ## The Ops seam
 
@@ -159,15 +204,18 @@ that decorator must not call a kernel.
 broadcasting) is done directly on backend arrays -- numpy, torch and MLX spell those the same -- and everything
 else goes through `Ops` methods. `Ops` is an ABC with two tiers: abstract primitives every backend must supply
 (`array`/`numpy`, `cast`, `exp`, `sum`, `concat`, `linear`, ...) and concrete, overridable model primitives
-(`rms_norm`, `rope`, `sdpa`, `conv1d_causal`, `gated_delta`, `quantize`) whose default implementation is composed
-from the primitives. A new backend works as soon as the abstract tier exists and gets faster as it overrides the
-second tier; `test_parity.py` checks every backend against the numpy float64 golden at every tap.
+(`rms_norm`, `rope`, `sdpa`, `conv1d_causal`, `quantize`) whose default implementation is composed
+from the primitives. (A family's own compound operations -- Qwen's gated delta rule, Inkling 2's stream reads -- are
+extensions of the seam under the same two-tier rule: "Model families", above.) A new backend works as soon as the
+abstract tier exists and gets faster as it overrides the second tier; `test_parity.py` checks every backend against the
+numpy float64 golden at every tap.
 
 Rules the shared code follows (and any new shared code must): no item assignment, no in-place ops, functional
 state (`mixer(x, state) -> (y, state)`), explicit `ops.f32()` where accumulation must be f32, control flow on
 shapes only. Those are exactly the constraints the captured decode step relies on (below).
 
-The gated delta rule has two composed forms behind `Ops.gated_delta`: the per-token recurrence (used for decode,
+The gated delta rule (models/qwen/ops/base.py) has two composed forms behind `QwenOps.gated_delta`: the per-token
+recurrence (used for decode,
 T == 1) and a chunked WY form (used for prefill) that does everything inside a 64-token chunk as batched matmuls
 and carries the state across chunks, so a prompt costs O(T/64) sequential steps instead of O(T). The per-chunk
 unit-triangular inverse is forward substitution, row by row (the Neumann product is the same matrix in exact
@@ -188,7 +236,9 @@ and `ops.capture` makes it fast:
 - torch on CUDA: `CudaGraphStep` -- two warm-up runs on a side stream, capture against the argument tensors, then
   replay with `copy_` into the static inputs (skipped for the KV buffers, which `kv_write` mutates in place); a
   27B step becomes one graph launch instead of ~700 kernel launches. `capture_mode='static'` runs the same
-  protocol without a graph, which is how it is tested on CPU. A step whose state goes round as it is -- plain
+  protocol without a graph, which is how it is tested on CPU. The garbage collector is held off for the length
+  of a capture: a dropped model's graphs are destroyed when it gets to them, and a graph destroyed on a capturing
+  stream invalidates the capture. A step whose state goes round as it is -- plain
   decode: the DeltaNet layers' 96 arrays, 150 MiB on the 27B -- is captured with that copy inside the graph
   (`Ops.capture_carrying`: the graph ends by writing the new state into its own inputs and hands those back, so
   the next call finds its arguments already in place). Copied in by the host they were 0.6 ms of launches before
@@ -241,9 +291,9 @@ Without `--quant` every weight is expanded to the compute dtype at load: ~55 GB 
 expand them per matmul, which is what makes 3.6-27B / 3.8-27B fit on ordinary hardware:
 
 ```bash
-python -m omllm.local.qwen.generate --model qwen3.6:27b --quant int4 -p "..."      # ~15 GB of weights
-python -m omllm.local.qwen.generate --model qwen3.6:27b --quant int8 -p "..."      # ~28 GB, essentially bf16 quality
-python -m omllm.local.qwen.validate --model qwen3.5:0.8b --quant int8 -n 32        # quantized path vs llama-server
+python -m omllm.local.qwen.entrypoints.generate --model qwen3.6:27b --quant int4 -p "..."      # ~15 GB of weights
+python -m omllm.local.qwen.entrypoints.generate --model qwen3.6:27b --quant int8 -p "..."      # ~28 GB, essentially bf16 quality
+python -m omllm.local.qwen.entrypoints.validate --model qwen3.5:0.8b --quant int8 -n 32        # quantized path vs llama-server
 ```
 
 The scheme is asymmetric affine, one `(scale, bias)` per 64 inputs — MLX's `mx.quantize` layout — so Ollama tensor
@@ -262,7 +312,7 @@ On torch with CUDA, small-M matmuls against a `TorchQWeight` (decode and specula
 tokens or fewer) go through `torch_triton.qlinear`: the packed codes are read once, dequantized in registers and
 fed to `tl.dot`, so per-step traffic is the packed weight rather than a bf16 expansion of it. Prefill (large M)
 is compute-bound and keeps dequant + cuBLAS. The kernel is verified against the dequant path under Triton's CPU
-interpreter (`tests/test_triton.py`) and drops into CUDA graphs like any other kernel. `TorchOps(triton=False)`
+interpreter (`tests/test_torch_triton.py`) and drops into CUDA graphs like any other kernel. `TorchOps(triton=False)`
 turns it off. Narrow projections (o_proj, down_proj, out_proj at N=5120, k/v_proj at N=1024) are split over K
 across several programs with a float32 partial-sum reduction, so they fill the GPU; the launch configuration
 per (N, K) comes from a tuned table when one is loaded (`entrypoints/tune` sweeps block sizes, warps, stages and
@@ -276,10 +326,11 @@ tensor-core `_qlinear_kernel` (`tl.dot`, weight tile staged through shared memor
 (`GemvConfig.fma`: plain FMAs reduced in registers, M <= 8, the way llama.cpp / exllama GEMVs work); the tuner keeps
 whichever streams faster on the GPU at hand. Default tuning M is 4 (spec-3 verify).
 
-The DeltaNet token step is one op on the seam, `Ops.gdn_step` (l2-norm, head broadcast, gate, recurrence, from
-the raw projections in their natural layout), which the model calls for T <= `Ops.gdn_fused_max_t` tokens: decode
-and speculative verify (8) everywhere, and on torch with Triton any T, prefill chunks included. There it is a
-single fused kernel per layer (`torch_triton.gdn_step`): each program keeps a `[dk, block_dv]` slice of one head's
+The DeltaNet token step is one operation of the Qwen families' extension of the seam, `QwenOps.gdn_step` (l2-norm,
+head broadcast, gate, recurrence, from the raw projections in their natural layout), which the model calls for T <=
+`gdn_fused_max_t` tokens: decode and speculative verify (8) everywhere, and on torch with Triton any T, prefill
+chunks included. There it is a single fused kernel per layer (models/qwen/ops/torchkernels.py, `gdn_step`): each
+program keeps a `[dk, block_dv]` slice of one head's
 state in registers for all T tokens and writes the outputs plus the final or per-token states. For decode that
 replaces ~25 small kernels per layer (and the state's ~24 MB of round-trip traffic) with one, which matters because
 the decode graph is otherwise ~2,500 nodes of a few microseconds each. For prefill it replaces the chunked form's
@@ -288,15 +339,16 @@ ms a layer against 33, a 32k-token prompt prefills in 15 s instead of 26 (2,100 
 is the quantized linears), and a 20-token prompt's prefill is 70 ms instead of 410. It is the recurrence in
 float32, exactly what decoding the same tokens one at a time computes; swapping it for the chunked form moves the
 27B's outputs no more than re-chunking the same prefill does (bf16 through 64 layers is the noise floor: KL ~2e-3
-nats either way). `test_torch_triton.py::test_gdn_step_kernel` checks it against the composed reference and the
-float64 recurrence, under the interpreter and compiled.
+nats either way). models/qwen/ops/tests/test_torch.py checks it against the composed reference and the float64
+recurrence, under the interpreter and compiled.
 
-On MLX the same step is a custom Metal kernel (`backends/mlx_metal.py`, `MlxOps.gdn_step`): one launch per layer,
+On MLX the same step is a custom Metal kernel (models/qwen/ops/mlxmetal.py, behind `MlxQwenOps.gdn_step`): one
+launch per layer,
 a threadgroup per head and slice of 32 value columns with the `[dk, 32]` state tile in threadgroup memory for
 all T tokens. `MlxOps.sdpa_static` uses `mx.fast.scaled_dot_product_attention` over the static buffer (GQA and
 the boolean position mask native). Both are on when Metal is present (`MlxOps(metal=False)` forces the
-references); `tests/test_mlx_metal.py` checks them against the references on Apple silicon and is skipped
-elsewhere.
+references); models/qwen/ops/tests/test_mlxmetal.py and tests/test_mlx_metal.py check them against the references
+on Apple silicon and are skipped elsewhere.
 
 Inkling 2 on MLX is written and has not been run (INKLING.md, sections 7 and 9): every operation it adds is the
 composed one over MLX's primitives, and its experts stay packed (`backends/mlx_microscaled.py`: the checkpoint's
@@ -306,15 +358,16 @@ take MLX in wherever it is installed.
 
 What remains in the graph after the two kernels is glue -- norms, casts, gates, the attention prologue -- and
 `--compile` (`TorchOps(compile=True)`) hands each step function to `torch.compile` (`Ops.compile_fn`) before it
-is graph-captured, so inductor fuses that glue into a few generated kernels. The compiled step runs once eagerly first (`_DeferredCompile`), which is when the Triton wrappers resolve their launch configurations, so dynamo then traces straight-line code. Step functions take everything as
-arguments (tables, buffers), are built once per shape and cached on the model, so every Decoder -- warm-up, each
-`generate`, the draft head's -- reuses the same compiled function instead of re-tracing 64 layers (that
-re-trace was ~20 s a pop). Compiled and captured steps are specific to the buffer capacity, so `--capacity`
-pins it (rounded up to a power of two) and the warm-up, every prompt and a server all share the same steps;
-without it a warm-up sized for 8 tokens and a run sized for 512 compile twice. The first process pays the full
-compile; with `--cache-dir`, `--warmup` then saves
-`torch.compiler` artifacts to `<cache_dir>/torch-compile.bin` and later processes load them (checked on CPU:
-21 s -> 4.6 s cold start on the synthetic model; compiled speculative decode reproduces plain greedy exactly).
+is graph-captured, so inductor fuses that glue into a few generated kernels. The compiled step runs once eagerly first
+(`_DeferredCompile`), which is when the Triton wrappers resolve their launch configurations, so dynamo then traces
+straight-line code. Step functions take everything as arguments (tables, buffers), are built once per shape and cached
+on the model, so every Decoder -- warm-up, each `generate`, the draft head's -- reuses the same compiled function
+instead of re-tracing 64 layers (that re-trace was ~20 s a pop). Compiled and captured steps are specific to the buffer
+capacity, so `--capacity` pins it (rounded up to a power of two) and the warm-up, every prompt and a server all share
+the same steps; without it a warm-up sized for 8 tokens and a run sized for 512 compile twice. The first process pays
+the full compile; with `--cache-dir`, `--warmup` then saves `torch.compiler` artifacts to
+`<cache_dir>/torch-compile.bin` and later processes load them (checked on CPU: 21 s -> 4.6 s cold start on the synthetic
+model; compiled speculative decode reproduces plain greedy exactly).
 
 ```bash
 python -m omllm.local.qwen.entrypoints.tune --model qwen3.8:27b --quant int4 --out ./.cache/qwen/gemv-int4.json
@@ -533,9 +586,9 @@ target's final-normed hidden at p) concatenated -- embedding first -- through `f
 the text geometry and its own KV, a final norm, the target's `lm_head`. It predicts the token at p+2 and
 recurses on its own normed output.
 
-A round (`decode/tokens.py`, with the head as `spec/mtp.py`'s draft source) is: draft k tokens (the first from the
-head's last refreshed entry, the rest by recursion), each *sampled* from the draft head's warped distribution q;
-verify `[pending, d_1..d_k]` in a single captured T = k + 1 target step; rejection-sample (`speculative_accept`):
+A round (`decode/tokens.py`, with the head as `models/qwen/spec/mtp.py`'s draft source) is: draft k tokens (the first
+from the head's last refreshed entry, the rest by recursion), each *sampled* from the draft head's warped distribution
+q; verify `[pending, d_1..d_k]` in a single captured T = k + 1 target step; rejection-sample (`speculative_accept`):
 draft i is accepted with probability min(1, p_i(d_i) / q_i(d_i)) where p is the target's equally-warped
 distribution, the first rejected position emits a draw from the residual max(0, p - q), and if every draft survives
 the last row is drawn plainly. Then the terminators decide where the round ends, and the commit keeps exactly that
@@ -545,8 +598,8 @@ T = k + 1 draft step). The output distribution is exactly the target's (the spec
 p(argmax q) -- the same thing for greedy, where every distribution is one-hot, and typically 10-20 points more when
 sampling. (Greedy does not run that step at all: with one-hot rows it is "keep a draft iff it is its row's first
 maximum, and correct with that maximum", three operations on k + 1 numbers where the general step is thirty on
-k + 1 vocabulary-wide rows.) All of it runs on the device; the round still has one host sync (accept flags, corrections, drafts) --
-and, with several draft lengths, the head's confidence in its drafts (below).
+k + 1 vocabulary-wide rows.) All of it runs on the device; the round still has one host sync (accept flags, corrections,
+drafts) -- and, with several draft lengths, the head's confidence in its drafts (below).
 Rollback costs nothing: the KV buffers are masked by position and the verify step returns the DeltaNet state after
 every token, so the state after the accepted prefix is a slice.
 
@@ -607,8 +660,9 @@ in the context, the K tokens that followed them there are the draft (point masse
 applies), else the head drafts. On a file rewrite it is 5x plain decode on qwen3.5:4b (no MTP head, K = 7); on the
 27B, over the head, 612 tok/s at K = 15 (19.6 ms a round) against the head's own 223 at three drafts, 348 at seven
 and 465 at `--spec 5,9,15` (at the head's K it loses; NEXT.md 1.1 has the table by K, read before the rounds were
-this fast: 523 at K = 15 then). K + 1 rows go through one verify step, compiled once per K. Away from a pure copy, with N = 6
-and K = 15: +47% on a rewrite that comments every method, +14% on tests written for the file, -3% on prose about it
+this fast: 523 at K = 15 then). K + 1 rows go through one verify step, compiled once per K. Away from a pure copy, with
+N = 6 and K = 15: +47% on a rewrite that comments every method, +14% on tests written for the file, -3% on prose about
+it
 -- the cost there being ~0.1 s at a generation's first lookup round (its decoder's first use of the wider step), not
 the missed drafts.
 
@@ -726,7 +780,8 @@ answers to it strongly. A request sets it as OpenAI clients do (`"reasoning_effo
 `chat_template_kwargs`); `--reasoning-effort` sets what a request that names none gets, and without the flag that is
 the template's own default, `xhigh`. OpenAI's other names map to the nearest level (`minimal` -> `low`, `high` and
 `max` -> `xhigh`), `none` turns thinking off, and anything else is a 400. A checkpoint whose template has no such
-switch (qwen3.5) is rendered as before whatever is asked (`Tokenizer.reasoning_efforts` says which it is).
+switch (qwen3.5) is rendered as before whatever is asked (`takes_reasoning_effort`, models/qwen/serve/templates.py,
+says which it is).
 `generate --think --reasoning-effort LEVEL` and `agent --reasoning-effort LEVEL` reach the same thing. Before this
 existed the 27B was in effect always served at `medium`: no instruction was rendered.
 
@@ -734,8 +789,8 @@ existed the 27B was in effect always served at `medium`: no instruction was rend
 (`serve/protocols.py`), which the engine is written against and picks by what the checkpoint's tokenizer has
 (`serve/registry.py`): Inkling 2's framed messages for a tokenizer with its markers (INKLING.md), ChatML for the
 rest. For ChatML, a checkpoint carries a chat template, and the format it describes is
-the one the model was trained on; `serve/chat.py` knows three (`ChatFormat`) and the engine takes the checkpoint's
-(`chat_format_for`, by what the template is seen to contain; `--chat-format` overrides):
+the one the model was trained on; `models/qwen/serve/chat.py` knows three (`ChatFormat`) and the engine takes the
+checkpoint's (`chat_format_for`, by what the template is seen to contain; `--chat-format` overrides):
 
 - `qwen3.5` and `qwen3.8`: tools described under "You have access to the following functions", the system message
   after them; a tool call written as `<function=name>` with one `<parameter=key>` block per argument inside
@@ -751,8 +806,8 @@ All of it follows the format: `render_chat`, the tool grammar (`constrain/gramma
 functions, declared parameters, required ones present and values of their schemas in either syntax),
 `parse_output` and `StreamParser` (a parameter's text becomes a value by its schema; streamed arguments are still
 JSON pieces that concatenate to what the unstreamed call carries), and the memoised ids of assistant turns.
-`tests/chat_oracle.py` is the check: it renders the checkpoint's own template with Jinja, as a black box, beside
-`render_chat` over a dozen conversation shapes (tools, calls of every argument type, results, reasoning in the
+`models/qwen/serve/tests/oracle.py` is the check: it renders the checkpoint's own template with Jinja, as a black box,
+beside `render_chat` over a dozen conversation shapes (tools, calls of every argument type, results, reasoning in the
 history, thinking on and off, every reasoning effort) and exits non-zero on any difference -- qwen3.8:27b and
 qwen3.5:4b both agree character for character. Where this code departs on purpose: `preserve_thinking` (below), a
 system message after the first turn (rendered; the templates refuse it), and reasoning found inside a message's
@@ -771,8 +826,8 @@ Two choices keep the prefix cache hitting across an agent's turns. Reasoning is 
 turn), and the ids of every answer the server produced are memoised under the exact assistant-turn string it renders
 to and substituted when that turn comes back in a later request, so a follow-up's ids are an exact extension of
 the earlier request's ids plus its answer's -- BPE re-tokenisation of generated text would not guarantee that.
-`tests/test_chat.py` covers rendering and parsing; `tests/test_serve.py` runs the server end to end on the
-synthetic model (non-streaming, streaming, a follow-up reusing the prefix, tools, stop sequences, cancellation, the
+`models/qwen/serve/tests/test_chat.py` covers rendering and parsing; `tests/test_serve.py` runs the server end to end on
+the synthetic model (non-streaming, streaming, a follow-up reusing the prefix, tools, stop sequences, cancellation, the
 queue limit).
 
 ## Where to go next (in order)

@@ -4,8 +4,8 @@ MLX backend for `Ops`, talking to `mlx.core` directly (no mlx-lm / mlx.nn).
 
 Overrides: rms_norm (mx.fast.rms_norm), rope (mx.fast.rope), sdpa (mx.fast.scaled_dot_product_attention, GQA native),
 quantized linear (mx.quantized_matmul -- our QWeight *is* MLX's affine layout, so the packed words go in untouched),
-on-device quantize (mx.quantize). `gated_delta` uses the composed reference; the per-token step is a Metal kernel
-(mlx_metal.py) and the decode step is under `mx.compile` (`capture`).
+on-device quantize (mx.quantize), and the decode step is under `mx.compile` (`capture`). A family's own operations
+and kernels are with the family (the Qwen DeltaNet step's Metal kernel: models/qwen/ops/).
 
 Experts stored in a microscaled float format stay packed (mlx_microscaled.py) and are decoded as a matmul reads them.
 Everything else Inkling 2 is built from runs composed (ops/base.py), on nothing but the primitives here.
@@ -99,9 +99,6 @@ class MlxOps(Ops):
 
         # custom Metal kernels (the fused DeltaNet step) and the fast SDPA for decode: on when Metal is present
         self.metal = mx.metal.is_available() if metal is None else metal
-        self.gdn_variant = 'simd'  # 'simd' (registers + shuffles) | 'tg' (threadgroup-memory tile, the fallback)
-        self.gdn_tgv = 16
-        self.gdn_ks = 8
 
         self.name = f'mlx:{mx.default_device()}'
 
@@ -345,50 +342,6 @@ class MlxOps(Ops):
             return out
 
         return run
-
-    def gdn_step(
-            self,
-            q,
-            k,
-            v,
-            a,
-            b,
-            A,
-            dt_bias,
-            state,
-            all_states,
-            eps=1e-6,
-    ):
-        if self.metal:
-            from .mlx_metal import gdn_step_metal
-
-            return gdn_step_metal(
-                q,
-                k,
-                v,
-                a,
-                b,
-                A,
-                dt_bias,
-                state,
-                all_states,
-                eps,
-                self.gdn_tgv,
-                self.gdn_variant,
-                self.gdn_ks,
-            )
-        return super().gdn_step(
-            q,
-            k,
-            v,
-            a,
-            b,
-            A,
-            dt_bias,
-            state,
-            all_states,
-            eps,
-        )
 
     def sdpa_static(
             self,

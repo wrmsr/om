@@ -2,10 +2,12 @@
 """
 torch backend for `Ops`.
 
-Overrides: rms_norm (F.rms_norm), sdpa (flash/SDPA), conv1d_causal (F.conv1d), on-device quantize. `gated_delta` and
-`rope` use the composed reference implementations (a Triton kernel / CUDA graphs are the next steps and slot in here
-without touching model.py).
+Overrides: rms_norm (F.rms_norm), sdpa (flash/SDPA), conv1d_causal (F.conv1d), on-device quantize; the quantized and
+packed GEMVs, the dequantizers and the attention kernels of torch_triton.py; the small regular pieces of torch_fused.py;
+steps as CUDA graphs. What only one family of models computes is not here: its operations and their kernels are with
+the family (models/*/ops/), as extensions of the seam.
 """
+import gc
 import pathlib
 import typing as ta
 
@@ -24,24 +26,14 @@ from ..ops.quant import SEARCH_SHRINKS
 from ..ops.quant import QWeight
 from ..ops.quant import quantize as quantize_np
 from .torch_fused import DENSE_ROWS_MAX_K
-from .torch_fused import DEPTH_MIX_MAX_SOURCES
-from .torch_fused import bottleneck_blend
-from .torch_fused import capped_gate
 from .torch_fused import dense_gemv
 from .torch_fused import dense_rows
 from .torch_fused import dense_rows_pays
-from .torch_fused import depth_mix
 from .torch_fused import ensure_fused_kernels
 from .torch_fused import is_pow2
 from .torch_fused import kv_append
-from .torch_fused import l2_clip
-from .torch_fused import rms_norm_to
 from .torch_fused import sdpa_window_rel
 from .torch_fused import short_conv
-from .torch_fused import sigmoid_gated
-from .torch_fused import sigmoid_route
-from .torch_fused import sum_to
-from .torch_fused import weighted_rows
 from .torch_triton import HAVE_TRITON
 from .torch_triton import GemvTable
 from .torch_triton import attn_decode
@@ -49,7 +41,6 @@ from .torch_triton import attn_decode_partials
 from .torch_triton import attn_prefill
 from .torch_triton import dequantize
 from .torch_triton import ensure_kernels
-from .torch_triton import gdn_step
 from .torch_triton import mdequantize
 from .torch_triton import mgemv_experts
 from .torch_triton import qgemv_experts
@@ -230,18 +221,28 @@ class CudaGraphStep:
                     self.fn(*self.static_in)
             torch.cuda.current_stream().wait_stream(s)
             self.graph = torch.cuda.CUDAGraph()
-            with torch.cuda.graph(self.graph):
-                out = tuple(self.fn(*self.static_in))
-                if self.carry is not None:
-                    outputs_from, inputs_from = self.carry
-                    state = self.static_in[inputs_from:]
-                    if len(out) - outputs_from != len(state):
-                        raise ValueError('carried outputs and inputs differ in number')
-                    for dst, src in zip(state, out[outputs_from:]):
-                        if src is not dst:
-                            dst.copy_(src)
-                    out = (*out[:outputs_from], *state)
-                self.static_out = out
+            # The collector does not run inside a capture. A graph that is garbage -- an earlier model's steps, kept
+            # by a reference cycle until the collector gets to them -- is reset when it is collected, and resetting a
+            # graph on a stream that is capturing invalidates the capture ("operation failed due to a previous error
+            # during capture": seen in a test run, a dropped model's steps collected inside the next one's capture).
+            collecting = gc.isenabled()
+            gc.disable()
+            try:
+                with torch.cuda.graph(self.graph):
+                    out = tuple(self.fn(*self.static_in))
+                    if self.carry is not None:
+                        outputs_from, inputs_from = self.carry
+                        state = self.static_in[inputs_from:]
+                        if len(out) - outputs_from != len(state):
+                            raise ValueError('carried outputs and inputs differ in number')
+                        for dst, src in zip(state, out[outputs_from:]):
+                            if src is not dst:
+                                dst.copy_(src)
+                        out = (*out[:outputs_from], *state)
+                    self.static_out = out
+            finally:
+                if collecting:
+                    gc.enable()
             self.graph.replay()  # capture only records; run it once so this call's outputs are real
             return self.static_out
         for dst, src in zip(self.static_in, args):
@@ -377,12 +378,7 @@ class TorchOps(Ops):
         self.dense_gemv_max_rows = 8192
         self.triton_block_n = triton_block_n
         self.gemv_tuned: GemvTable = dict(gemv_tuned or {})  # per-shape GEMV configs (entrypoints/tune, load_tuned)
-        self.gdn_block_dv = 16  # fused DeltaNet step: value-dim slice per program (state tile [dk, block_dv] f32)
         self.quant_native = False  # on-device quantizer search (faster, not byte-identical across machines)
-        self.gdn_num_warps = 1
-        # the Triton kernel runs the recurrence for any number of tokens, so the model's fused path (Ops.gdn_step)
-        # serves prefill chunks too; without it, only the few tokens of a decode / verify step (the composed step)
-        self.gdn_fused_max_t = (1 << 30) if self.triton else 8
 
     def dtype(self, name):
         return dtypes()[name]
@@ -527,11 +523,6 @@ class TorchOps(Ops):
 
     # the fused small pieces (torch_fused.py): one launch each where the composed forms are a dozen or more
 
-    def bottleneck_blend(self, x, m, down, forget, gain, *, eps, dtype):
-        if not (self.fused and x.is_cuda and isinstance(down, torch.Tensor) and is_pow2(down.shape[0])):
-            return super().bottleneck_blend(x, m, down, forget, gain, eps=eps, dtype=dtype)
-        return bottleneck_blend(x, m, down, forget, gain, eps)
-
     def short_conv(self, x, hist, weight, *, scale, all_states=False):
         if not (self.fused and x.is_cuda and x.shape[0] == 1):
             return super().short_conv(x, hist, weight, scale=scale, all_states=all_states)
@@ -541,28 +532,6 @@ class TorchOps(Ops):
         if not (self.fused and x.is_cuda and x.shape[0] == 1 and dyn.is_contiguous()):
             return super().short_conv_dynamic(x, hist, weight, dyn, scale=scale, all_states=all_states)
         return short_conv(x, hist, weight, scale, all_states, dyn=dyn)
-
-    def unit_rms(self, x, eps):
-        xf = x.float()
-        return F.rms_norm(xf, (xf.shape[-1],), eps=eps)
-
-    def rms_norm_to(self, x, w, eps, dtype):
-        if not (self.fused and x.is_cuda and w.dim() == 1 and x.shape[0] == 1 and x.dim() == 3):
-            return super().rms_norm_to(x, w, eps, dtype)
-        return rms_norm_to(x, w, eps, dtype)
-
-    def l2_clip(self, x, threshold, *, scale=None, after=None):
-        if not (
-                self.fused and
-                x.is_cuda and
-                x.dim() == 4 and
-                x.shape[0] == 1 and
-                is_pow2(x.shape[-1]) and
-                x.is_contiguous() and
-                (scale is None or (scale.dtype == x.dtype and tuple(scale.shape) == tuple(x.shape[2:])))
-        ):
-            return super().l2_clip(x, threshold, scale=scale, after=after)
-        return l2_clip(x, threshold, scale, after)
 
     def sdpa_window_rel_at(self, q, state, base, slots, pos, *, scale, rel, rel_proj, sink, window):
         if not (
@@ -651,41 +620,6 @@ class TorchOps(Ops):
                 [(m[:, :, a:b], ls[:, :, a:b], o[:, :, a:b]) for m, ls, o in more],
             ))
         return torch.cat(outs, 2)
-
-    def sigmoid_gated(self, x, g, dtype):
-        if not (self.fused and x.is_cuda and x.shape == g.shape and x.is_contiguous() and g.is_contiguous()):
-            return super().sigmoid_gated(x, g, dtype)
-        return sigmoid_gated(x, g, dtype)
-
-    def sum_to(self, a, b, dtype):
-        if not (self.fused and a.is_cuda and a.shape == b.shape and a.is_contiguous() and b.is_contiguous()):
-            return super().sum_to(a, b, dtype)
-        return sum_to(a, b, dtype)
-
-    def sigmoid_route(self, logits, bias, k, *, total):
-        if not (self.fused and logits.is_cuda and logits.dim() == 2 and logits.is_contiguous()):
-            return super().sigmoid_route(logits, bias, k, total=total)
-        return sigmoid_route(logits, bias, k, total)
-
-    def capped_gate(self, h, *, gate_cap, up_cap):
-        if not (self.fused and h.is_cuda and h.dim() == 2 and h.is_contiguous()):
-            return super().capped_gate(h, gate_cap=gate_cap, up_cap=up_cap)
-        return capped_gate(h, gate_cap, up_cap)
-
-    def weighted_rows(self, y, w, dtype):
-        if not (self.fused and y.is_cuda and y.is_contiguous()):
-            return super().weighted_rows(y, w, dtype)
-        return weighted_rows(y, w, dtype)
-
-    def depth_mix(self, queries, sources, *, raw=0, eps=0.):
-        if not (
-                self.fused and
-                queries.is_cuda and
-                len(sources) <= DEPTH_MIX_MAX_SOURCES and
-                all(s.shape[0] == 1 and s.is_contiguous() for s in sources)
-        ):
-            return super().depth_mix(queries, sources, raw=raw, eps=eps)
-        return depth_mix(queries, sources, raw, eps)
 
     def sqrt(self, x):
         return torch.sqrt(x)
@@ -848,48 +782,6 @@ class TorchOps(Ops):
             w.bits,
             w.group,
             w.shape,
-        )
-
-    def gdn_step(
-            self,
-            q,
-            k,
-            v,
-            a,
-            b,
-            A,
-            dt_bias,
-            state,
-            all_states,
-            eps=1e-6,
-    ):
-        if self.triton:
-            return gdn_step(
-                q,
-                k,
-                v,
-                a,
-                b,
-                A,
-                dt_bias,
-                state,
-                all_states,
-                eps,
-                self.gdn_block_dv,
-                self.gdn_num_warps,
-            )
-
-        return super().gdn_step(
-            q,
-            k,
-            v,
-            a,
-            b,
-            A,
-            dt_bias,
-            state,
-            all_states,
-            eps,
         )
 
     def linear(self, x, w):

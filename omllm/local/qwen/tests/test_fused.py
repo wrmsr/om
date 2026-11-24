@@ -28,37 +28,6 @@ def _close(got, want, tol: float) -> float:
 
 
 @triton_modes('interpret', 'compiled')
-def test_bottleneck_blend():
-    torch, ops, device, dtypes = _env()
-
-    from ..backends import torch_fused
-    from ..ops.base import Ops
-
-    rng = np.random.default_rng(0)
-
-    def t(a, dtype=torch.float32):
-        return torch.from_numpy(np.asarray(a, dtype=np.float32)).to(device).to(dtype)
-
-    for dtype in dtypes:
-        cases = ((96, 16, 1), (300, 32, 3), (2304, 64, 1), (2304, 64, 5))
-        for H, R, T in cases[:(4 if device == 'cuda' else 2)]:
-            x = t(rng.standard_normal((1, T, H)) * 3)
-            m4 = t(rng.standard_normal((1, T, 3, H)))
-            m = m4[:, :, 1]  # (a view with a stride between its rows, as a message read hands one over)
-            down = t(rng.standard_normal((R, 2 * H)) / np.sqrt(H), dtype)
-            forget = t(rng.standard_normal((H, R)) / np.sqrt(R))
-            gain = t(rng.standard_normal((H, R)) / np.sqrt(R))
-
-            want = Ops.bottleneck_blend(ops, x, m, down, forget, gain, eps=1e-6, dtype=dtype)
-            got = torch_fused.bottleneck_blend(x, m, down, forget, gain, 1e-6)
-            assert got.shape == want.shape and got.dtype == torch.float32
-            _close(got, want, 2e-5 if dtype == torch.float32 else 2e-2)
-
-            if device == 'cuda':
-                assert torch.equal(ops.bottleneck_blend(x, m, down, forget, gain, eps=1e-6, dtype=dtype), got)
-
-
-@triton_modes('interpret', 'compiled')
 def test_short_conv():
     torch, ops, device, dtypes = _env()
 
@@ -87,62 +56,6 @@ def test_short_conv():
                     _close(got_y, want_y, 2e-5 if dtype == torch.float32 else 1e-2)
                     assert torch.equal(got_h, want_h), (C, K, T, step, all_states)  # (the inputs themselves)
                 hist = want_h[-1] if step == 0 else got_h[-1]  # (the last token's, as a commit of all T keeps)
-
-
-@triton_modes('interpret', 'compiled')
-def test_l2_clip():
-    torch, ops, device, dtypes = _env()
-
-    from ..backends import torch_fused
-    from ..ops.base import Ops
-
-    rng = np.random.default_rng(2)
-
-    def t(a, dtype=torch.float32):
-        return torch.from_numpy(np.asarray(a, dtype=np.float32)).to(device).to(dtype)
-
-    for dtype in dtypes:
-        for T, G, D in ((1, 24, 128), (3, 24, 16), (2, 8, 128), (5, 5, 32)):
-            # (norms on both sides of the threshold)
-            x = t(rng.standard_normal((1, T, G, D)) * rng.uniform(0.2, 4.0, (1, T, G, 1)), dtype)
-            scale = t(rng.standard_normal((G, D)) * 0.5 + 1.0, dtype)
-            after = t(rng.uniform(1.0, 1.4, (T,)))
-            for sc, af in ((None, None), (scale, None), (scale, after), (None, after)):
-                want = Ops.l2_clip(ops, x, 9.0, scale=sc, after=af)
-                got = torch_fused.l2_clip(x, 9.0, sc, af)
-                assert got.shape == want.shape and got.dtype == x.dtype
-                _close(got, want, 2e-5 if dtype == torch.float32 else 1e-2)
-                if device == 'cuda':
-                    assert torch.equal(ops.l2_clip(x, 9.0, scale=sc, after=af), got)
-            assert float(torch.linalg.vector_norm(got.float(), dim=-1).max()) <= 9.0 * 1.4 * 1.01
-
-
-@triton_modes('interpret', 'compiled')
-def test_depth_mix():
-    torch, ops, device, dtypes = _env()
-
-    from ..backends import torch_fused
-    from ..ops.base import Ops
-
-    rng = np.random.default_rng(3)
-
-    def t(a, dtype=torch.float32):
-        return torch.from_numpy(np.asarray(a, dtype=np.float32)).to(device).to(dtype)
-
-    for dtype in dtypes:
-        cases = ((96, 1, 1, 1, 1), (96, 2, 3, 2, 0), (300, 3, 1, 5, 1), (2304, 1, 3, 5, 1), (2304, 4, 1, 6, 2))
-        for H, T, Q, S, raw in cases:
-            queries = t(rng.standard_normal((Q, H)))
-            sources = [t(rng.standard_normal((1, T, H))) for _ in range(S - raw)]
-            # (the raw ones as a stream's running sum is: any scale, the model's dtype)
-            sources += [t(rng.standard_normal((1, T, H)) * 7.0, dtype) for _ in range(raw)]
-
-            want = Ops.depth_mix(ops, queries, sources, raw=raw, eps=1e-6)
-            got = torch_fused.depth_mix(queries, sources, raw, 1e-6)
-            assert got.shape == want.shape == (1, T, Q, H) and got.dtype == torch.float32
-            _close(got, want, 5e-5)
-            if device == 'cuda':
-                assert torch.equal(ops.depth_mix(queries, sources, raw=raw, eps=1e-6), got)
 
 
 @triton_modes('interpret', 'compiled')
@@ -223,33 +136,6 @@ def test_sdpa_window_rel():
 
 
 @triton_modes('interpret', 'compiled')
-def test_sum_to():
-    torch, ops, device, dtypes = _env()
-
-    from ..backends import torch_fused
-    from ..ops.base import Ops
-
-    rng = np.random.default_rng(12)
-    for dtype in dtypes:
-        for shape in ((1, 1, 64), (1, 3, 300), (1, 5, 2304)):
-            a = torch.from_numpy(rng.standard_normal(shape).astype(np.float32)).to(device)
-            b = torch.from_numpy(rng.standard_normal(shape).astype(np.float32)).to(device).to(dtype)
-            for out in (torch.float32, dtype):
-                want = Ops.sum_to(ops, a, b, out)
-                got = torch_fused.sum_to(a, b, out)
-                assert got.dtype == out and torch.equal(got, want), (dtype, shape, out)
-                if device == 'cuda':
-                    assert torch.equal(ops.sum_to(a, b, out), want)
-
-                want = Ops.sigmoid_gated(ops, a, b, out)
-                got = torch_fused.sigmoid_gated(a, b, out)
-                assert got.dtype == out, (dtype, shape, out)
-                _close(got, want, 2e-6 if out == torch.float32 else 2e-2)
-                if device == 'cuda':
-                    assert torch.equal(ops.sigmoid_gated(a, b, out), got)
-
-
-@triton_modes('interpret', 'compiled')
 def test_kv_append():
     """A step's keys and values into their buffers at a position on the device, as the indexed write puts them."""
 
@@ -284,52 +170,7 @@ def test_kv_append():
 
 
 @triton_modes('interpret', 'compiled')
-def test_expert_small_work():
-    """The router's pick, the capped gate, the weighted sum of the experts' outputs."""
-
-    torch, ops, device, dtypes = _env()
-
-    from ..backends import torch_fused
-    from ..ops.base import Ops
-
-    rng = np.random.default_rng(5)
-
-    def t(a, dtype=torch.float32):
-        return torch.from_numpy(np.asarray(a, dtype=np.float32)).to(device).to(dtype)
-
-    for N, E, k in ((1, 128, 8), (5, 128, 8), (3, 40, 3), (2, 16, 16)):
-        logits = t(rng.standard_normal((N, E)) * 2)
-        bias = t(rng.standard_normal((E,)) * 0.3)
-        want_i, want_w = Ops.sigmoid_route(ops, logits, bias, k, total=8.0)
-        got_i, got_w = torch_fused.sigmoid_route(logits, bias, k, 8.0)
-        assert got_i.shape == (N, k) and torch.equal(got_i.long(), want_i.long()), (N, E, k)
-        _close(got_w, want_w, 1e-5)
-        assert float((got_w.sum(-1) - 8.0).abs().max()) < 1e-4
-
-    # equal scores: the first of them, and each expert once
-    flat = torch.zeros((1, 16), device=device)
-    got_i, got_w = torch_fused.sigmoid_route(flat, flat[0], 4, 1.0)
-    assert got_i.tolist() == [[0, 1, 2, 3]] and float((got_w - 0.25).abs().max()) < 1e-6
-
-    for dtype in dtypes:
-        for R, I in ((1, 96), (8, 1152), (24, 40)):  # noqa: E741
-            h = t(rng.standard_normal((R, 2 * I)) * 20, dtype)  # (past both caps)
-            want = Ops.capped_gate(ops, h, gate_cap=4.0, up_cap=25.0)
-            got = torch_fused.capped_gate(h, 4.0, 25.0)
-            assert got.shape == (R, I) and got.dtype == h.dtype
-            _close(got, want, 2e-5 if dtype == torch.float32 else 1e-2)
-
-        for N, K, H in ((1, 8, 2304), (3, 8, 300), (2, 1, 64)):
-            y = t(rng.standard_normal((N, K, H)), dtype)
-            w = t(rng.uniform(0.0, 2.0, (N, K)))
-            want = Ops.weighted_rows(ops, y, w, dtype)
-            got = torch_fused.weighted_rows(y, w, dtype)
-            assert got.shape == (N, H) and got.dtype == dtype
-            _close(got, want, 2e-5 if dtype == torch.float32 else 1e-2)
-
-
-@triton_modes('interpret', 'compiled')
-def test_short_conv_dynamic_and_rms_norm_to():
+def test_short_conv_dynamic():
     torch, ops, device, dtypes = _env()
 
     from ..backends import torch_fused
@@ -354,15 +195,6 @@ def test_short_conv_dynamic_and_rms_norm_to():
                     assert got_h.shape == want_h.shape and torch.equal(got_h, want_h), (C, K, G, T, step, all_states)
                     _close(got_y, want_y, 2e-5 if dtype == torch.float32 else 1e-2)
                 hist = got_h[-1]
-
-        for H, T in ((96, 1), (2304, 1), (2304, 5), (300, 2)):
-            mix = t(rng.standard_normal((1, T, 3, H)) * 5)
-            x = mix[:, :, 2]  # (a read's: one query's rows of a mix)
-            w = t(rng.standard_normal((H,)) * 0.2 + 1.0)
-            want = Ops.rms_norm_to(ops, x, w, 1e-6, dtype)
-            got = torch_fused.rms_norm_to(x, w, 1e-6, dtype)
-            assert got.shape == want.shape == (1, T, H) and got.dtype == dtype
-            _close(got, want, 2e-5 if dtype == torch.float32 else 1e-2)
 
 
 @triton_modes('interpret', 'compiled')

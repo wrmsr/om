@@ -10,10 +10,10 @@ so a tool call that comes out is always well-formed, names a real tool, and carr
 every required key present. `tool_choice` builds on the same machinery: "none" forbids opening a call, "required" (or a
 named function) forces one as soon as the model is out of its reasoning block.
 
-That is the legacy call syntax. The checkpoints' own chat formats (serve/chat.py) write a call as a `<function=name>`
-block holding one `<parameter=key>` block per argument, and the same acceptor holds a call in that syntax to the same
-guarantees (`Acceptor`'s `syntax`): the frames that differ are the ones for parameter names and for values written as
-raw text, which end at their closing tag rather than at a quote.
+That is the legacy call syntax. The checkpoints' own chat formats (models/qwen/serve/chat.py) write a call as a
+`<function=name>` block holding one `<parameter=key>` block per argument, and the same acceptor holds a call in that
+syntax to the same guarantees (`Acceptor`'s `syntax`): the frames that differ are the ones for parameter names and for
+values written as raw text, which end at their closing tag rather than at a quote.
 
 How: `Acceptor` is a prefix acceptor over bytes for that language, compiled from the tools' JSON schemas -- a small NFA
 whose states are tuples of frames (literals, string / number / object / array parsers, each knowing its schema),
@@ -35,8 +35,9 @@ Supported schema features: object (properties, required, additionalProperties), 
 ignored), integer, number, boolean, null, array (items), anyOf / oneOf, const, and `{}` / no type for any JSON value.
 Whitespace is allowed where JSON allows it.
 
-The controllers here are ChatML's (its `<tool_call>` and `<think>` tags). constrain/framed.py has the same pair for a
-protocol of framed messages, over the same acceptor; `Constraint` is what a generation loop is handed of either.
+The controllers here are ChatML's (its `<tool_call>` and `<think>` tags). models/inkling/constrain/framed.py has the
+same pair for a protocol of framed messages, over the same acceptor; `Constraint` is what a generation loop is handed of
+either.
 """
 import abc
 import json
@@ -98,7 +99,7 @@ class Acceptor:
     Prefix acceptor for one tool-call body (after `<tool_call>`), compiled from the tools' schemas.
 
     Two call syntaxes (`syntax`). 'json' is the one the module docstring describes. 'function' is the checkpoints' own
-    (serve/chat.py's `ChatFormat`):
+    (models/qwen/serve/chat.py's `ChatFormat`):
 
         \\n<function=NAME>\\n ( <parameter=KEY>\\nVALUE\\n</parameter>\\n )* </function>\\n</tool_call>
 

@@ -1,7 +1,7 @@
 import numpy as np
 
 from ...api import generate
-from ...arch.qwen35 import load_qwen35
+from ...arch.loading import load_qwen35
 from ...backends.torch import TorchOps
 from ...core.cache import Cache
 from ...prefix.cache import PrefixCache
@@ -240,6 +240,51 @@ def test_short_prefills_through_the_captured_step():
             assert again.reused == len(long) + len(first.tokens) and again.tokens == want, (kv_dtype, spec)
             assert not eager_forwards, (kv_dtype, spec, eager_forwards)
             assert model._slab is not None and model._slab.fns  # noqa
+
+
+def test_the_collector_stays_out_of_a_capture():
+    """
+    A graph destroyed while another is being captured invalidates the capture, and a dropped model's graphs are
+    destroyed whenever the collector gets to them: so it does not run inside a capture (`CudaGraphStep`), and is as it
+    was after.
+    """
+
+    try:
+        import torch
+    except ImportError:
+        return
+    if not torch.cuda.is_available():
+        print('no CUDA device; skipping')
+        return
+
+    import gc
+
+    from ...backends.torch import CudaGraphStep
+
+    x = torch.ones(8, device='cuda')
+    seen = []
+
+    def fn(a):
+        seen.append(gc.isenabled())
+        return (a * 2,)
+
+    assert gc.isenabled()
+    step = CudaGraphStep(fn)
+    (out,) = step(x)
+    assert seen == [True, True, False]  # (two runs on a side stream, then the capture)
+    assert gc.isenabled()
+    assert out.tolist() == [2.0] * 8
+
+    step(x)
+    assert seen == [True, True, False]  # (a replay runs nothing of it)
+
+    # ... and where it was off already, it stays off
+    gc.disable()
+    try:
+        CudaGraphStep(fn)(x)
+        assert not gc.isenabled()
+    finally:
+        gc.enable()
 
 
 def test_cuda_graph_steps_carry_the_state():

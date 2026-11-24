@@ -1,11 +1,11 @@
 # ruff: noqa: N803 N806
 """
 Which earlier positions an attention layer's queries see, and how their keys and values are kept between steps: the
-whole sequence in append-only buffers (what core/attention.py's layers keep), or a sliding window of the last few
-positions in a fixed-size state. For a prefill a span hands the attention the keys and values its queries can reach,
-plain, with their positions; a static step's attention it runs itself, over what it keeps, since how much of that a
-step has to read is the span's to know. The attention here is the kind with a relative term and a sink
-(`Ops.sdpa_sink`, `Ops.rel_bias`: core/inkling2/attention.py).
+whole sequence in append-only buffers (what models/qwen/core/attention.py's layers keep), or a sliding window of the
+last few positions in a fixed-size state. For a prefill a span hands the attention the keys and values its queries can
+reach, plain, with their positions; a static step's attention it runs itself, over what it keeps, since how much of that
+a step has to read is the span's to know. The attention here is the kind with a relative term and a sink
+(`Ops.sdpa_sink`, `Ops.rel_bias`: models/inkling/core/attention.py).
 
 The KV itself stays in whatever format the backend keeps it (`Ops.kv_*`): a span moves states around and never looks
 inside one.
@@ -18,8 +18,8 @@ from omcore import lang
 from ..ops.base import Array
 from ..ops.base import Ops
 from ..ops.base import Weight
-from .attention import KvStateLayout
-from .attention import extend_kv
+from .kvstates import KvStateLayout
+from .kvstates import extend_kv
 from .mixing import StateLayout
 from .mixing import StepContext
 

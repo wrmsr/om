@@ -6,15 +6,15 @@ import tempfile
 
 import pytest
 
-from ...core.params import mtp_param_names
-from ...core.params import required_param_names
+from ...models.qwen.core.params import mtp_param_names
+from ...models.qwen.core.params import required_param_names
+from ...models.qwen.load.layouts import QWEN35_LAYOUT
 from ...ops.reference import NumpyOps
 from ...tests.test_parity import synthetic_source
 from ..pipeline import ParamLoader
 from ..pipeline import open_param_cache
 from ..plan import LayoutRules
 from ..plan import plan_params
-from ..policies import QWEN35_LAYOUT
 from ..recipe import LoadRecipe
 
 

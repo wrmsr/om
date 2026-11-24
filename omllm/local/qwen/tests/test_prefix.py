@@ -7,7 +7,7 @@ prompt-end and generation-end snapshots, the host tier, eviction. numpy golden +
 import numpy as np
 
 from ..api import generate
-from ..arch.qwen35 import load_qwen35
+from ..arch.loading import load_qwen35
 from ..prefix.cache import PrefixCache
 from .test_parity import backends
 from .test_parity import synthetic_source

@@ -23,11 +23,11 @@ from ..load.weights import OllamaModel
 from ..load.weights import describe_gguf
 from ..load.weights import open_source
 from ..load.weights import resolve_weights
+from ..models.qwen.serve.templates import DEFAULT_REASONING_EFFORT
+from ..models.qwen.serve.templates import REASONING_EFFORT_INSTRUCTIONS
 from ..prefix.cache import PrefixCache
 from ..serve.registry import ChatOptions
 from ..serve.registry import chat_protocol_for
-from ..tokenizer import DEFAULT_REASONING_EFFORT
-from ..tokenizer import REASONING_EFFORT_INSTRUCTIONS
 from ..tokenizer import Tokenizer
 from .common import GenerationSetup
 from .common import SpecLengthsAction

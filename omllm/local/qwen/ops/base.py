@@ -7,9 +7,12 @@ broadcasting) is done directly on backend arrays, which numpy, torch, MLX and ti
 handful of places where backends differ, or have fused fast paths, go through `Ops` methods:
 
   * abstract:  the irreducible primitives every backend must provide (array in/out, cast, exp, sum, concat, ...)
-  * concrete:  the fused-able model primitives (rms_norm, rope, sdpa, conv1d_causal, gated_delta, ...) with a
-               *reference implementation composed from the abstract ones*. A new backend works as soon as the
-               abstract set exists; it gets faster as it overrides these.
+  * concrete:  the fused-able model primitives (rms_norm, rope, sdpa, conv1d_causal, ...) with a *reference
+               implementation composed from the abstract ones*. A new backend works as soon as the abstract set
+               exists; it gets faster as it overrides these.
+
+What only one family of models computes is not here but in an `OpsExtension` of that family's (at the end of this
+module; models/*/ops/), under the same rule.
 
 Rules for code that runs on any backend (i.e. all of model.py):
   * no item assignment, no in-place ops, no `.view` -- build lists and `ops.stack` / `ops.concat`
@@ -38,6 +41,8 @@ else:
 Array: ta.TypeAlias = ta.Any  # a backend array (np.ndarray, torch.Tensor, mx.array, ...)
 Weight: ta.TypeAlias = ta.Any  # a backend dense array or a backend-adopted QWeight
 
+OpsExtensionT = ta.TypeVar('OpsExtensionT', bound='OpsExtension')
+
 
 ##
 
@@ -58,6 +63,22 @@ class Ops(lang.Abstract):
         super().__init__()
 
         self.taps: dict[str, np.ndarray] | None = None  # set to {} to record `tap()`ed activations
+
+        self._extensions: dict[type, ta.Any] = {}
+
+    # a family's own operations
+
+    def extension(self, base: type[OpsExtensionT], impls: ta.Sequence[type[OpsExtensionT]] = ()) -> OpsExtensionT:
+        """
+        The operations of the extension `base` (an `OpsExtension`, below) for this backend: the first of `impls` that
+        serves it, or `base` itself -- the composed definitions. Made once and kept.
+        """
+
+        ext = self._extensions.get(base)
+        if ext is None:
+            cls = next((impl for impl in impls if impl.serves(self)), base)
+            ext = self._extensions[base] = cls(self)
+        return ext
 
     # dtypes
 
@@ -240,120 +261,6 @@ class Ops(lang.Abstract):
 
     def sqrt(self, x: Array) -> Array:
         return 1.0 / self.rsqrt(x)  # (0 -> 1 / inf -> 0, where x * rsqrt(x) would be a NaN)
-
-    def unit_rms(self, x: Array, eps: float) -> Array:
-        """x / sqrt(mean(x^2) + eps) over the last axis, float32: an RMS norm with no weight."""
-
-        xf = self.f32(x)
-        return xf * self.rsqrt(self.mean(xf * xf, -1, keepdims=True) + eps)
-
-    def l2_clip(
-            self,
-            x: Array,
-            threshold: float,
-            *,
-            scale: Array | None = None,
-            after: Array | None = None,
-    ) -> Array:
-        """
-        The vectors along x's last axis held to an l2 norm: v min(1, threshold / (|v| + 1e-6)), in x's dtype, where v
-        is x -- or with `scale` (broadcast against x) x * scale, in x's dtype. With `after`, a float32 factor for each
-        row of x [B, T, ...] ([T]), the clipped vectors -- rounded to x's dtype first -- times their row's.
-        """
-
-        if scale is not None:
-            x = x * scale
-
-        xf = self.f32(x)
-        norm = self.sqrt(self.sum(xf * xf, -1, keepdims=True))
-        y = self.cast(xf * self.minimum(threshold / (norm + 1e-6), 1.0), x.dtype)
-
-        if after is not None:
-            y = self.cast(self.f32(y) * self.reshape(after, (1, -1, *([1] * (len(x.shape) - 2)))), x.dtype)
-
-        return y
-
-    def depth_mix(
-            self,
-            queries: Array,
-            sources: ta.Sequence[Array],
-            *,
-            raw: int = 0,
-            eps: float = 0.,
-    ) -> Array:
-        """
-        `queries` [Q, H] float32 over `sources`, each [B, T, H]: for each query, the sources' softmax(q . source /
-        sqrt(H))-weighted sum, [B, T, Q, H] float32. The sources are taken at unit RMS: the last `raw` of them are
-        given as they are and brought to it here (an RMS norm with no weight, `eps` under its root); the rest are at
-        it already. Nothing here sees another position.
-        """
-
-        n = len(sources)
-        srcs = [self.unit_rms(s, eps) if i >= n - raw else self.f32(s) for i, s in enumerate(sources)]
-
-        z = self.stack(srcs, 2)  # [B, T, N, H]
-        w = self.softmax(self.linear(z, queries) * (int(z.shape[-1]) ** -0.5), 2)  # [B, T, N, Q]
-        return self.transpose(w, (0, 1, 3, 2)) @ z
-
-    def sigmoid_route(self, logits: Array, bias: Array, k: int, *, total: float) -> tuple[Array, Array]:
-        """
-        A sigmoid router's pick: for `logits` [N, E] float32, each row's scores are their sigmoids; its k experts
-        are the largest by score + `bias` [E], largest first; and their weights are their own scores -- not the
-        biased ones the pick was made on -- scaled to sum to `total`. (indices [N, k] int, weights [N, k] float32).
-        """
-
-        f32 = self.dtype('f32')
-
-        scores = self.sigmoid(self.f32(logits))
-        _, idx = self.topk(scores + bias, k)
-
-        # the picked experts' own scores: a one-hot sum, exact
-        picked = self.cast(idx[..., None] == self.arange(int(scores.shape[-1])), f32)  # [N, k, E]
-        sel = self.sum(scores[:, None, :] * picked, -1)
-
-        return idx, sel * (total / (self.sum(sel, -1, keepdims=True) + 1e-20))
-
-    def capped_gate(self, h: Array, *, gate_cap: float, up_cap: float) -> Array:
-        """
-        A gated activation with soft caps: for h [R, 2 I], its halves g | u, (gate_cap tanh(g / gate_cap))
-        sigmoid(g) (up_cap tanh(u / up_cap)) -- the sigmoid reads the gate as it is, not its capped value. [R, I] in
-        h's dtype, computed in float32.
-        """
-
-        n = int(h.shape[-1]) // 2
-        g, u = self.split(self.f32(h), [n, n], -1)
-        a = (self.tanh(g / gate_cap) * gate_cap) * self.sigmoid(g) * (self.tanh(u / up_cap) * up_cap)
-        return self.cast(a, h.dtype)
-
-    def weighted_rows(self, y: Array, w: Array, dtype: ta.Any) -> Array:
-        """y [N, K, H] summed over K with weights w [N, K] float32, in float32; [N, H] in `dtype`."""
-
-        return self.cast(self.sum(self.f32(y) * w[..., None], 1), dtype)
-
-    def bottleneck_blend(
-            self,
-            x: Array,
-            m: Array,
-            down: Weight,
-            forget: Array,
-            gain: Array,
-            *,
-            eps: float,
-            dtype: ta.Any,
-    ) -> Array:
-        """
-        Two inputs [..., H] float32 blended by gates computed through a narrow bottleneck from both: with u =
-        [unit_rms(x) | unit_rms(m)] and z = down u (down [R, 2 H], applied in `dtype`), the blend is (1 - tanh(forget
-        z)) x + tanh(gain z) m (forget, gain [H, R] float32). float32. Nothing here sees another position.
-        """
-
-        u = self.concat([self.unit_rms(x, eps), self.unit_rms(m, eps)], -1)
-        z = self.f32(self.linear(self.cast(u, dtype), down))
-
-        f = self.tanh(self.linear(z, forget))
-        g = self.tanh(self.linear(z, gain))
-
-        return (1 - f) * x + g * m
 
     def short_conv(
             self,
@@ -621,25 +528,6 @@ class Ops(lang.Abstract):
         y = xf * self.rsqrt(self.mean(xf * xf, -1, keepdims=True) + eps)
         return self.cast(y * self.f32(w), x.dtype)
 
-    def sigmoid_gated(self, x: Array, g: Array, dtype: ta.Any) -> Array:
-        """x * sigmoid(g), two arrays of one shape and any dtypes, in float32 and handed over in `dtype`."""
-
-        return self.cast(self.f32(x) * self.sigmoid(self.f32(g)), dtype)
-
-    def sum_to(self, a: Array, b: Array, dtype: ta.Any) -> Array:
-        """a + b, two arrays of one shape and any dtypes, added in float32 and handed over in `dtype`."""
-
-        return self.cast(self.f32(a) + self.f32(b), dtype)
-
-    def rms_norm_to(self, x: Array, w: Array, eps: float, dtype: ta.Any) -> Array:
-        """`rms_norm` with one weight [D], handed over in `dtype` (a float32 stream's read, in the model's)."""
-
-        return self.cast(self.rms_norm(x, w, eps), dtype)
-
-    def l2_norm(self, x: Array, eps: float = 1e-6) -> Array:
-        # FLA-style: x / sqrt(sum(x^2) + eps)   (llama.cpp: rms_norm(x, eps/n) / sqrt(n) -- identical)
-        return x * self.rsqrt(self.sum(x * x, -1, keepdims=True) + eps)
-
     def rope_tables(self, offset: int, n: int, dims: int, theta: float) -> tuple[np.ndarray, np.ndarray]:
         """Host-side cos/sin [n, dims] for positions offset .. offset+n (NeoX layout: [f0..f_{d/2}, f0..f_{d/2}])."""
 
@@ -707,199 +595,6 @@ class Ops(lang.Abstract):
     #
     # All float32. `gated_delta` is the entry point the model calls; it dispatches between the per-token form (decode, T
     # == 1) and the chunked form (prefill). Backends override whichever they have a kernel for.
-
-    gdn_chunk: int = 64
-
-    def gated_delta(
-            self,
-            q: Array,
-            k: Array,
-            v: Array,
-            g: Array,
-            beta: Array,
-            state: Array,
-    ) -> tuple[Array, Array]:
-        if q.shape[2] == 1:
-            return self.gated_delta_recurrent(
-                q,
-                k,
-                v,
-                g,
-                beta,
-                state,
-            )
-
-        return self.gated_delta_chunked(
-            q,
-            k,
-            v,
-            g,
-            beta,
-            state,
-            self.gdn_chunk,
-        )
-
-    def gated_delta_recurrent(
-            self,
-            q: Array,
-            k: Array,
-            v: Array,
-            g: Array,
-            beta: Array,
-            state: Array,
-    ) -> tuple[Array, Array]:
-        """Per-token form: O(T) sequential steps, each a handful of small ops. The reference."""
-
-        out, states = self.gated_delta_states(q, k, v, g, beta, state)
-        return out, states[-1]
-
-    def gated_delta_states(
-            self,
-            q: Array,
-            k: Array,
-            v: Array,
-            g: Array,
-            beta: Array,
-            state: Array,
-    ) -> tuple[Array, Array]:
-        """
-        The recurrence, also returning the state after every token: [T, B, H, dk, dv]. Speculative verify runs T = k + 1
-        tokens and then keeps the state after however many were accepted.
-        """
-
-        T = q.shape[2]
-        S = state
-        outs = []
-        states = []
-        for t in range(T):
-            # [B,H,dk] / [B,H,dv]
-            q_t = q[:, :, t]
-            k_t = k[:, :, t]
-            v_t = v[:, :, t]
-            S = S * self.exp(g[:, :, t])[..., None, None]  # decay
-            mem = self.sum(S * k_t[..., None], -2)  # k^T S -> [B,H,dv]
-            delta = (v_t - mem) * beta[:, :, t][..., None]
-            S = S + k_t[..., None] * delta[..., None, :]  # rank-1 update
-            outs.append(self.sum(S * q_t[..., None], -2))  # q^T S
-            states.append(S)
-        return self.stack(outs, 2), self.stack(states, 0)
-
-    # up to this many tokens the model calls `gdn_step` (fusable); beyond, the chunked path. A backend whose fused
-    # kernel takes any T (torch's Triton one) raises it, and its prefill goes through `gdn_step` too
-    gdn_fused_max_t: int = 8
-
-    def gdn_step(
-            self,
-            q: Array,
-            k: Array,
-            v: Array,
-            a: Array,
-            b: Array,
-            A: Array,
-            dt_bias: Array,
-            state: Array,
-            all_states: bool,
-            eps: float = 1e-6,
-    ) -> tuple[Array, Array]:
-        """
-        The whole DeltaNet token step from the projections' outputs, for T <= gdn_fused_max_t: l2-normalise q, k (and
-        scale q by 1/sqrt(dk)), broadcast the Hk key heads over the Hv value heads, beta = sigmoid(b), g = A *
-        softplus(a + dt_bias), then the recurrence. Layouts are the projections' natural ones -- q, k: [B, T, Hk, dk];
-        v: [B, T, Hv, dv]; a, b: [B, T, Hv]; A, dt_bias: [Hv]; state: [B, Hv, dk, dv] -- and the output is [B, T, Hv,
-        dv], so no transposes or head repeats are needed around it. Returns (out, state) or, with all_states, (out,
-        states [T, B, Hv, dk, dv]). One op so a backend can replace the ~25 small kernels of this composition with a
-        single fused one (see torch_triton.gdn_step).
-        """
-
-        B, T, Hk, dk = q.shape
-        Hv = v.shape[2]
-        dv = v.shape[3]  # noqa
-        qn = self.transpose(self.l2_norm(q, eps), (0, 2, 1, 3)) * (dk**-0.5)  # [B,Hk,T,dk]
-        kn = self.transpose(self.l2_norm(k, eps), (0, 2, 1, 3))
-        vt = self.transpose(v, (0, 2, 1, 3))  # [B,Hv,T,dv]
-        if Hv != Hk:
-            qn = self.repeat(qn, Hv // Hk, 1)
-            kn = self.repeat(kn, Hv // Hk, 1)
-        beta = self.transpose(self.sigmoid(b), (0, 2, 1))  # [B,Hv,T]
-        g = self.transpose(A[None, None, :] * self.softplus(a + dt_bias), (0, 2, 1))
-        if all_states:
-            out, st = self.gated_delta_states(qn, kn, vt, g, beta, state)
-        else:
-            out, st = self.gated_delta(qn, kn, vt, g, beta, state)
-        return self.transpose(out, (0, 2, 1, 3)), st
-
-    def gated_delta_chunked(
-            self,
-            q: Array,
-            k: Array,
-            v: Array,
-            g: Array,
-            beta: Array,
-            state: Array,
-            chunk: int = 64,
-    ) -> tuple[Array, Array]:
-        """
-        Chunkwise (WY-representation) form, Yang et al. 2024 -- the algorithm behind FLA's `chunk_gated_delta_rule` and
-        HF's `torch_chunk_gated_delta_rule`, composed from the primitives so it runs (and is graph-friendly) on every
-        backend. Within a chunk everything is a batched matmul; across chunks the state is carried sequentially, so cost
-        is O(T/chunk) sequential steps instead of O(T).
-
-        The per-chunk triangular inverse (I + A)^-1, A strictly lower, is computed as a Neumann product (I + N)(I +
-        N^2)(I + N^4)... with N = -A, which is exact because N is nilpotent -- log2(chunk) matmuls and no item
-        assignment, versus a forward-substitution loop.
-        """
-
-        B, H, T, dk = q.shape
-        dv = v.shape[-1]
-        C = chunk
-        f32 = q.dtype
-        pad = (C - T % C) % C
-        if pad:
-            q, k, v = [self.concat([x, self.zeros((B, H, pad, x.shape[-1]), f32)], 2) for x in (q, k, v)]
-            g, beta = [self.concat([x, self.zeros((B, H, pad), f32)], 2) for x in (g, beta)]
-        L = T + pad
-        n = L // C
-        q, k, v = [self.reshape(x, (B, H, n, C, x.shape[-1])) for x in (q, k, v)]
-        g, beta = [self.reshape(x, (B, H, n, C)) for x in (g, beta)]
-
-        tril = self.array(np.tril(np.ones((C, C))), f32)  # i >= j
-        strict = self.array(np.tril(np.ones((C, C)), -1), f32)  # i > j
-        eye = self.array(np.eye(C), f32)
-
-        gcum = self.cumsum(g, -1)  # [B,H,n,C], decreasing
-        # exp(gcum_i - gcum_j) for i >= j (<= 1), 0 above the diagonal; the exponent is masked *before* exp so the
-        # positive upper-triangle exponents never overflow
-        decay = self.exp((gcum[..., :, None] - gcum[..., None, :]) * tril) * tril  # [B,H,n,C,C]
-        kb = k * beta[..., None]
-        vb = v * beta[..., None]
-        A = (kb @ self.transpose(k, (0, 1, 2, 4, 3))) * decay * strict  # strictly lower
-        # (I + A)^-1 by forward substitution, row by row: T_i = e_i - A_i,<i @ T_<i. The Neumann product
-        # (I+N)(I+N^2)(I+N^4)... is the same matrix in exact arithmetic but squares the intermediate powers, and
-        # with correlated keys and beta near 1 (a repeated token) those powers are huge with cancelling signs:
-        # unusable even in float64. Substitution reuses computed rows and is as stable as the recurrence itself.
-        Tm = eye[0:1] + A[..., 0:1, :] * 0  # T_0 = e_0, broadcast to [B,H,n,1,C]
-        for i in range(1, C):
-            Tm = self.concat([Tm, eye[i:i + 1] - A[..., i:i + 1, :i] @ Tm], -2)  # append T_i; Tm has i rows
-        W = Tm @ (kb * self.exp(gcum)[..., None])  # [B,H,n,C,dk]
-        U = Tm @ vb  # [B,H,n,C,dv]
-
-        S = state
-        outs = []
-        for i in range(n):
-            # [B,H,C,dk]
-            q_i = q[:, :, i]
-            k_i = k[:, :, i]
-            gc = gcum[:, :, i]  # [B,H,C]
-            u = U[:, :, i] - W[:, :, i] @ S  # [B,H,C,dv]   v - (decayed) k S
-            intra = (q_i @ self.transpose(k_i, (0, 1, 3, 2))) * decay[:, :, i]
-            outs.append((q_i * self.exp(gc)[..., None]) @ S + intra @ u)
-            g_last = gc[..., -1]  # [B,H]
-            k_dec = k_i * self.exp(g_last[..., None] - gc)[..., None]  # [B,H,C,dk]
-            S = S * self.exp(g_last)[..., None, None] + self.transpose(k_dec, (0, 1, 3, 2)) @ u
-        out = self.reshape(self.stack(outs, 2), (B, H, L, dv))
-        if pad:
-            out = out[:, :, :T]
-        return out, S
 
     # A backend whose eager path is costly (tinygrad schedules each graph in milliseconds of Python, a prefill in
     # tens of seconds) asks the engine to prefill through the captured static step instead of `forward`: see
@@ -1046,8 +741,8 @@ class Ops(lang.Abstract):
     def sdpa_masked(self, q: Array, k: Array, v: Array, scale: float, keep: Array) -> Array:
         """
         Attention of q [B, H, T, D] over k, v [B, KV, L, D] where `keep` [B, T, L] (1 / 0) says which keys each query
-        sees: QSA's selection (core/qsa.py). The composed reference -- every key scored, the rest masked -- which a
-        sparse kernel replaces.
+        sees: QSA's selection (models/qwen/core/qsa.py). The composed reference -- every key scored, the rest masked --
+        which a sparse kernel replaces.
         """
 
         H = q.shape[1]
@@ -1170,9 +865,9 @@ class Ops(lang.Abstract):
         """
         `sdpa_partials` of T queries that all see the same stretch of a fixed-capacity KV buffer: q [B, H, T, D];
         kbuf, vbuf [B, KV, L, D]; the keys at lo <= index < hi (0-d int arrays) seen and no others, ar = arange(L).
-        No order among the queries -- a block drafter's (core/dspark/) -- and every shape independent of the stretch,
-        so a backend can capture the step around it. An empty stretch gives m = -1e30, which weighs nothing against
-        any finite score in `sdpa_merge`.
+        No order among the queries -- a block drafter's (models/inkling/core/dspark/) -- and every shape independent of
+        the stretch, so a backend can capture the step around it. An empty stretch gives m = -1e30, which weighs nothing
+        against any finite score in `sdpa_merge`.
         """
 
         B, H, T, D = q.shape
@@ -1412,7 +1107,7 @@ class Ops(lang.Abstract):
 
     # Whether `capture` takes a function that draws tokens (`Sampler.probs` / `draw` on noise passed in) between
     # model steps as well as it takes one step: the draft head then drafts a run of tokens in one captured call
-    # (spec/mtp.py) rather than a step and a dozen sampling launches a token.
+    # (models/qwen/spec/mtp.py) rather than a step and a dozen sampling launches a token.
     capture_sampling: bool = False
 
     def capture(self, fn: ta.Callable[..., tuple[Array, ...]]) -> ta.Callable[..., tuple[Array, ...]]:
@@ -1429,3 +1124,29 @@ class Ops(lang.Abstract):
     def tap(self, name: str, x: Array) -> None:
         if self.taps is not None:
             self.taps[name] = self.numpy(x)
+
+
+##
+
+
+class OpsExtension(lang.Abstract):
+    """
+    Operations one family of models adds to the seam. `Ops` holds what any model may use: the array primitives and
+    the compound operations architectures share. What only one family computes -- the pieces of its layers that are
+    worth a kernel of their own -- is an extension of that family's, kept with the family (models/): a class of
+    composed definitions over an `Ops`, which are the reference, and for a backend with kernels for them a subclass
+    overriding what it has. The seam's rule holds for it as it is: composed reference, optional override, pinned by a
+    test. Nothing in the engine names an extension; a family's layers ask the backend they are run on for theirs
+    (`Ops.extension`).
+    """
+
+    def __init__(self, ops: Ops) -> None:
+        super().__init__()
+
+        self.ops = ops
+
+    @classmethod
+    def serves(cls, ops: Ops) -> bool:  # noqa: ARG003
+        """Whether this implementation is for `ops`: its backend's. The composed definitions are for any."""
+
+        return True

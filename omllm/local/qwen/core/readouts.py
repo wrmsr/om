@@ -2,7 +2,8 @@
 What a draft head reads of the target at each position: the model's "hidden" output, which the decode loop hands to a
 draft source over the prompt (`DraftSource.start`) and after every verified step (`Verified.hidden`). For most heads
 it is the stream's exit, the final normed state, and nothing else; a head that also reads states inside the stack
-(Inkling 2's drafter: core/dspark/) has an architecture supply a readout that keeps them as the layers run.
+(Inkling 2's drafter: models/inkling/core/dspark/) has an architecture supply a readout that keeps them as the layers
+run.
 """
 import abc
 import typing as ta

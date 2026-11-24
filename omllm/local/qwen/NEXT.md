@@ -35,15 +35,21 @@ their storage types cost -- with the checkpoint's draft model taken from beside 
 and 9: what a GGUF still costs over the checkpoint, and what would close it). Nothing below was written with it in
 mind; where an item says "the model" it means the 27B.
 
+On 2026-11-24 what is one family's moved under `models/<family>/` -- Qwen's and Inkling 2's architectures, layers,
+sources, chat protocols, draft models and their tests, and the operations and kernels only one of them computes, as
+extensions of the seam -- and the engine was left knowing no family outside four registries. README.md, "Model
+families", has the rule and what of Qwen's is still in the engine (its tool-call syntaxes in the grammar, a
+precision policy's names, three operations on the seam): each is the next thing to take out the same way.
+
 
 ## 0. Immediate: the checkpoints' own chat format
 
-**Found 2026-11-13, by rendering the checkpoints' chat templates as a black box (`tests/chat_oracle.py`) beside
-`serve/chat.py`: the format this code rendered, constrained and parsed was not the one these models were trained on.**
-It had been written from knowledge of the earlier Qwen format (JSON tool calls), and nothing checked it against the
-templates the checkpoints carry. **Closed 2026-11-14**: `serve/chat.py`'s `ChatFormat` (`QWEN35`, `QWEN38`, and
-`LEGACY` for what was there) is chosen from the checkpoint's template, and the renderer, the tool grammar, both
-parsers and the engine follow it. What differed, all now as the templates have it:
+**Found 2026-11-13, by rendering the checkpoints' chat templates as a black box (`models/qwen/serve/tests/oracle.py`)
+beside `models/qwen/serve/chat.py`: the format this code rendered, constrained and parsed was not the one these models
+were trained on.** It had been written from knowledge of the earlier Qwen format (JSON tool calls), and nothing checked
+it against the templates the checkpoints carry. **Closed 2026-11-14**: `models/qwen/serve/chat.py`'s `ChatFormat`
+(`QWEN35`, `QWEN38`, and `LEGACY` for what was there) is chosen from the checkpoint's template, and the renderer, the
+tool grammar, both parsers and the engine follow it. What differed, all now as the templates have it:
 
 - *The tools preamble.* "You have access to the following functions:", the schemas, a worked example of a call and
   an `<IMPORTANT>` list of reminders -- with the system message after the tools block, not before.
@@ -115,7 +121,8 @@ token the right continuation (`\"`) has a logit of 21.9 and the wrong one (a spa
 weights, and 19.6 against 30.0 with the same blob held at int8. The model is sure a space belongs between `\\s+`
 and a quote.
 
-Reasoning effort (2026-11-13): `Tokenizer.reasoning_efforts` / `reasoning_instruction`, a request's
+Reasoning effort (2026-11-13): `takes_reasoning_effort` / `reasoning_instruction` (models/qwen/serve/templates.py;
+then methods of `Tokenizer`), a request's
 `reasoning_effort`, `--reasoning-effort`; the default is the template's (`xhigh`), where until then the 27B was in
 effect served at `medium`. A first look at what the 27B does with it, and at what the generation prompt costs: three
 questions, greedy, thinking on, reasoning tokens / answer tokens -- with the generation prompt as it was, and with the

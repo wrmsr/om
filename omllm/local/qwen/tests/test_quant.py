@@ -7,13 +7,13 @@ import typing as ta
 import numpy as np
 
 from ..api import generate
-from ..arch.qwen35 import load_qwen35
+from ..arch.loading import load_qwen35
 from ..core.block import Block
-from ..core.config import Qwen35Config
-from ..core.mtp import MtpHead
-from ..load.weights import GGUFSource
-from ..load.weights import OllamaTensorSource
-from ..load.weights import mlx_affine_dequant
+from ..models.qwen.core.config import Qwen35Config
+from ..models.qwen.core.mtp import MtpHead
+from ..models.qwen.load.sources import GGUFSource
+from ..models.qwen.load.sources import OllamaTensorSource
+from ..models.qwen.load.sources import mlx_affine_dequant
 from ..ops.quant import from_native
 from ..ops.quant import quantize
 from .test_synthetic import CFG
@@ -159,7 +159,7 @@ def test_param_cache():
     c = load_qwen35(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir)  # hits
     root = ParamCache.open(cdir, src, 'int4', 64, 's').root  # (default: search on, uniform policy)
     n_meta = len(list(root.glob('*.json')))
-    from ..load.policies import fusion_of
+    from ..models.qwen.load.layouts import fusion_of
 
     def n_entries(names):  # fused projections are cached under their fused name
         return len({(f[0] if (f := fusion_of(n)) else n) for n in names})

@@ -22,13 +22,13 @@ from omcore import dataclasses as om_dc
 from omcore import lang
 
 from ..api import generate
-from ..arch.qwen35 import load_qwen35
+from ..arch.loading import load_qwen35
 from ..backends.torch import TorchOps
 from ..decode.drafts import DraftSource
 from ..decode.drafts import point_drafts
 from ..decode.processors import CompositeLogitProcessor
 from ..decode.sampling import Sampler
-from ..spec.mtp import MtpDraftSource
+from ..models.qwen.spec.mtp import MtpDraftSource
 from ..spec.oracle import OracleDraftSource
 from .test_parity import synthetic_source
 from .tritonmodes import triton_modes

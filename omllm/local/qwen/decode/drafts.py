@@ -22,9 +22,9 @@ else:
 
 class DraftSource(lang.Abstract):
     """
-    Proposes tokens for the target to verify. The MTP head is one (spec/mtp.py); prompt lookup and grammar-forced runs
-    would be others; `NullDraftSource` makes the token source plain decode. Sources combine by wrapping: a source that
-    has nothing to say this round may ask the one it wraps.
+    Proposes tokens for the target to verify. The MTP head is one (models/qwen/spec/mtp.py); prompt lookup and
+    grammar-forced runs would be others; `NullDraftSource` makes the token source plain decode. Sources combine by
+    wrapping: a source that has nothing to say this round may ask the one it wraps.
     """
 
     @property

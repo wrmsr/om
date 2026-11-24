@@ -413,9 +413,9 @@ class TinyJitStep:
     [capacity], an architecture's own [capacity, n] -- and the state everything from the first with more (a state
     array has a batch axis and at least two more).
 
-    A draft model's functions over its memory are captured the same way (spec/dspark.py): the write of a step's rows
-    is a step in every respect; a block's drafts take one token, have their sampler's arguments between the position
-    and `ar`, and hand no state back.
+    A draft model's functions over its memory are captured the same way (models/inkling/spec/dspark.py): the write of a
+    step's rows is a step in every respect; a block's drafts take one token, have their sampler's arguments between the
+    position and `ar`, and hand no state back.
     """
 
     DEFAULT_BEAM: ta.ClassVar[int] = 1  # depth 2 gains ~15% on the GEMV for several times the search
@@ -672,7 +672,7 @@ class TinyJitStep:
         What still pends on this step's last outputs is computed now, into storage of its own. A step's outputs are
         buffers its next run overwrites, and the engine reads what it wants of them before then -- which, where
         nothing runs until it is asked for, is no more than a graph: a draft's probability under the head, read a
-        few drafts later (spec/mtp.py), came out as the last draft's row's.
+        few drafts later (models/qwen/spec/mtp.py), came out as the last draft's row's.
         """
 
         bufs = self._out_bufs
@@ -1270,7 +1270,7 @@ class TinygradOps(Ops):
     def tanh(self, x):
         # tinygrad's own is 2 sigmoid(2x) - 1, a difference of nearly equal numbers for a small x -- which is what
         # Inkling 2's softcaps and message gates take: its first visits' outputs were three times as far from the
-        # float64 reference as torch's (3e-6 against 1e-6 of them). As the fused kernels' tanh (torch_fused.py): the
+        # float64 reference as torch's (3e-6 against 1e-6 of them). As Inkling 2's torch kernels' tanh (its ops/): the
         # series below 0.1, the quotient of exponentials above.
         ax = x.abs()
         x2 = x * x

@@ -6,7 +6,7 @@ between formats, and the quantization error is small.
 import numpy as np
 
 from ..api import generate
-from ..arch.qwen35 import load_qwen35
+from ..arch.loading import load_qwen35
 from ..core.cache import Cache
 from ..decode.decoder import Decoder
 from ..prefix.cache import PrefixCache

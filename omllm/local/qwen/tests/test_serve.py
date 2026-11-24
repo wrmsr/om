@@ -13,8 +13,9 @@ import urllib.request
 import pytest
 
 from ..api import ManualGenerationRunner
-from ..arch.qwen35 import load_qwen35
+from ..arch.loading import load_qwen35
 from ..prefix.cache import PrefixCache
+from ..serve.registry import ChatOptions
 from ..serve.serving import Engine
 from ..serve.serving import Request
 from ..serve.serving import SamplingDefaults
@@ -201,7 +202,7 @@ def test_open_think_engine():
         print('torch not installed; skipping')
         return
 
-    from ..serve.chat import THINK_OPEN
+    from ..models.qwen.serve.chat import THINK_OPEN
 
     cfg, hf, src = synthetic_source()
     ops = TorchOps('cpu', capture_mode='static')
@@ -214,7 +215,7 @@ def test_open_think_engine():
         tok,
         prefix_cache=pc,
         defaults=defaults,
-        open_think=True,
+        chat_options=ChatOptions(open_think=True),
         log=None,
     ).start()
 

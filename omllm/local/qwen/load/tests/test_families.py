@@ -9,18 +9,18 @@ import tempfile
 import gguf
 import pytest
 
-from ...arch.tests.inkling2checkpoints import inkling2_test_config
-from ...arch.tests.inkling2checkpoints import write_inkling2_checkpoint
+from ...models.inkling.arch.tests.checkpoints import inkling2_test_config
+from ...models.inkling.arch.tests.checkpoints import write_inkling2_checkpoint
+from ...models.inkling.load.checkpoints import Inkling2HFSource
+from ...models.inkling.load.ggufs import Inkling2GgufSource
+from ...models.inkling.load.tests.ggufwriters import write_inkling2_gguf
+from ...models.qwen.load.sources import GGUFSource
 from ...tests.test_parity import synthetic_source
 from ..families import GGUF_SOURCES
 from ..families import UnreadGgufArchitectureError
 from ..families import open_gguf_source
 from ..gguffiles import GgufFile
-from ..inkling2 import Inkling2HFSource
-from ..inkling2gguf import Inkling2GgufSource
-from ..weights import GGUFSource
 from ..weights import open_source
-from .inkling2ggufs import write_inkling2_gguf
 
 
 ##

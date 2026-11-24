@@ -15,11 +15,12 @@ import typing as ta
 import numpy as np
 
 from ..api import generate
-from ..arch.qwen35 import load_qwen35
+from ..arch.loading import load_qwen35
 from ..core.cache import Cache
-from ..core.config import Qwen35Config
-from ..core.mtp import MtpHead
-from ..load.weights import GGUFSource
+from ..models.qwen.core.config import Qwen35Config
+from ..models.qwen.core.mtp import MtpHead
+from ..models.qwen.load.sources import GGUFSource
+from ..models.qwen.ops.backends import qwen_ops
 from ..ops.base import Ops
 from ..ops.quant import quantize as quantize_np
 from ..ops.reference import NumpyOps
@@ -163,8 +164,8 @@ def test_gated_delta_stability():
     g = np.zeros((B, H, T), np.float32)
     beta = np.ones((B, H, T), np.float32)
     s0 = np.zeros((B, H, dk, dv), np.float32)
-    o_rec, s_rec = ops.gated_delta_recurrent(q, k, v, g, beta, s0)
-    o_ch, s_ch = ops.gated_delta_chunked(q, k, v, g, beta, s0)
+    o_rec, s_rec = qwen_ops(ops).gated_delta_recurrent(q, k, v, g, beta, s0)
+    o_ch, s_ch = qwen_ops(ops).gated_delta_chunked(q, k, v, g, beta, s0)
     assert np.isfinite(o_ch).all() and np.isfinite(s_ch).all()
     e = np.abs(o_ch - o_rec).max() / np.abs(o_rec).max()
     assert e < 1e-4, e
@@ -193,19 +194,22 @@ def test_gated_delta_parity():
 
     gold_ops = NumpyOps()
     ins = [gold_ops.array(x) for x in (q, k, v, g, beta, s0)]
-    gold_out, gold_state = gold_ops.gated_delta_recurrent(*ins)
+    gold_out, gold_state = qwen_ops(gold_ops).gated_delta_recurrent(*ins)
     for chunk in (64, 16, 7):
-        out, state = gold_ops.gated_delta_chunked(*ins, chunk)  # type: ignore
+        out, state = qwen_ops(gold_ops).gated_delta_chunked(*ins, chunk)  # type: ignore
         assert rel_err(out, gold_out) < 1e-12 and rel_err(state, gold_state) < 1e-12, chunk
 
     for ops in backends():
         f32 = ops.dtype('f32')
         ins = [ops.array(x, f32) for x in (q, k, v, g, beta, s0)]
-        out, state = ops.gated_delta(*ins)
+        out, state = qwen_ops(ops).gated_delta(*ins)
         e_out, e_state = rel_err(ops.numpy(out), gold_out), rel_err(ops.numpy(state), gold_state)
         assert e_out < 2e-5 and e_state < 2e-5, (ops.name, e_out, e_state)
-        out1, state1 = ops.gated_delta(*[x[:, :, :1] if x.ndim in (3, 4) and x.shape[2] == T else x for x in ins])
-        g1 = gold_ops.gated_delta_recurrent(*[
+        out1, state1 = qwen_ops(ops).gated_delta(*[
+            x[:, :, :1] if x.ndim in (3, 4) and x.shape[2] == T else x
+            for x in ins
+        ])
+        g1 = qwen_ops(gold_ops).gated_delta_recurrent(*[
             x[:, :, :1] if x.ndim in (3, 4) and x.shape[2] == T else x
             for x in [gold_ops.array(y) for y in (q, k, v, g, beta, s0)]
         ])

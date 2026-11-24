@@ -54,7 +54,8 @@ What the code is, where the tangles are, and the one part that already got it ri
   implementations of the compound ones (the DeltaNet recurrence and its chunked form, attention over static
   buffers, the KV-state format methods, the fused DeltaNet step), plus `NumpyOps`, the float64 golden.
   `backends/`: `TorchOps` (with the Triton kernels in `torch_triton.py`), `MlxOps` (Metal kernels in
-  `mlx_metal.py`), `TinygradOps`.
+  `mlx_metal.py`), `TinygradOps`. (Since 2026-11-24 the kernels for one family's own operations are with the
+  family, under `models/`, behind an `OpsExtension`: README.md, "Model families".)
 - **The model.** `model.py`, 1,700 lines: the layers (`Attention`, `GatedDeltaNet`, `MLP`, `Block`), the
   functional `Cache`, `required_param_names` and the precision policies and fusion table, `Qwen35` with
   `from_source` (loading, fusion, quantization, caching), `prefill` / `forward`, the static `step_fn` builder,
@@ -291,6 +292,10 @@ Roughly one subpackage per role, so that each item in NEXT.md lands in one of th
 - `serve/` -- chat format, Engine, HTTP, client; `agent` with the entrypoints.
 - `quality/` -- the KL harness, calibration later.
 
+(2026-11-24: and `models/<family>/` -- one package per family of checkpoints, each laid out as the list above,
+holding what is that family's alone, its kernels included. The engine does not import it but for the registries that
+say which family a thing is: README.md, "Model families".)
+
 The names are not important; the direction of dependency is: core knows nothing of decode, decode knows nothing
 of spec / constrain / prefix, those know nothing of each other, serve knows all of them, and the boot-time
 assembly is the only place that names every piece. (An import-graph test to enforce this was considered and
@@ -339,9 +344,9 @@ step 0's number was a mismeasurement.) What is left:
 - Step 7: half done. The block as a composition and mixers owning their state layouts (the part Flash-Next needs
   first) landed; the KV format, the attention strategy and the capture / compile strategy are still `TorchOps` flags.
   Flash-Next's reference implementation (2026-11-12) did not need the rest: QSA's state composes the ops-level KV
-  format with a buffer of its own (`core/qsa.py`), and its keep-mask attention is one more Ops primitive. What it did
-  need was a change to the layer contract: sublayers meet the residual stream through per-sublayer connections that
-  own the pre-norm (`Connection` in core/mixing.py), the stream keeping only its two ends.
+  format with a buffer of its own (`models/qwen/core/qsa.py`), and its keep-mask attention is one more Ops primitive.
+  What it did need was a change to the layer contract: sublayers meet the residual stream through per-sublayer
+  connections that own the pre-norm (`Connection` in core/mixing.py), the stream keeping only its two ends.
 - Step 9: done. The library logs through module loggers (`omcore.logs`, warnings and info); the entrypoints configure
   logging and keep their own console output; `load_qwen35(verbose=)`'s progress line is the one print left, by design.
 - Older and smaller models: qwen3.5:4b (no MTP head, tied embeddings, 32 layers) runs through the same code, by hand

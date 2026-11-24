@@ -15,8 +15,8 @@ from .mixing import StepContext
 
 def _stream_arrays(r: ta.Any) -> list[Array]:
     """
-    The arrays a residual stream holds, whatever it is: one array, or tuples of them at any depth (core/inkling2/'s
-    block sums and what its loop keeps beside them).
+    The arrays a residual stream holds, whatever it is: one array, or tuples of them at any depth
+    (models/inkling/core/'s block sums and what its loop keeps beside them).
     """
 
     if r is None:
@@ -30,7 +30,7 @@ class SublayerBlock(Layer):
     """
     A layer as sublayers in order, each read from the residual stream and written back through its own connection,
     each with decode state of its own: what `Block` is for a mixer and a stateless feed-forward, for an architecture
-    whose every sublayer keeps state (core/inkling2/: its feed-forward's output is convolved over time) or whose
+    whose every sublayer keeps state (models/inkling/core/: its feed-forward's output is convolved over time) or whose
     stream is not one array. `index` names its taps -- `layers.{index}.{j}`, sublayer j's output -- and is its place
     in the model's execution order, so two entries built over the same sublayers stay apart.
     """

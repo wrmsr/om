@@ -2,21 +2,29 @@
 A chat protocol: how a checkpoint's conversations are written and read -- the prompt a list of messages renders to,
 where a turn ends, how the generated text divides into reasoning, content and tool calls, and what a grammar may hold
 a tool call or a JSON answer to. The serving engine (serving.py) is written against this; a family of checkpoints
-supplies one: Qwen's ChatML formats (chatml.py over chat.py), Inkling 2's framed messages (inkling2.py). Which one a
-checkpoint speaks is seen from its tokenizer (registry.py).
+supplies one, in its models/*/serve/: Qwen's ChatML formats, Inkling 2's framed messages. Which one a checkpoint
+speaks is seen from its tokenizer (registry.py).
 """
 import abc
 import typing as ta
 
+from omcore import dataclasses as dc
 from omcore import lang
-
-from .chat import Parsed
 
 
 ChatEvent: ta.TypeAlias = tuple[str, ta.Any]  # ('reasoning' | 'content', text) or ('tool_call', OpenAI delta)
 
 
 ##
+
+
+@dc.dataclass()
+class Parsed:
+    """A whole answer read: what `ChatProtocol.parse` makes of generated text."""
+
+    content: str
+    reasoning: str | None
+    tool_calls: list[dict]  # OpenAI shape: {id, type: 'function', function: {name, arguments (JSON string)}}
 
 
 class ChatReader(lang.Abstract):

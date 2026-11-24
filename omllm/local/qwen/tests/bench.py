@@ -30,14 +30,15 @@ import numpy as np
 from omcore import lang
 
 from ..api import generate
-from ..arch.qwen35 import load_qwen35
+from ..arch.loading import load_qwen35
 from ..core.block import Block
 from ..core.model import Qwen35
-from ..core.mtp import MtpHead
 from ..decode.generation import Generated
 from ..decode.sampling import Sampler
 from ..entrypoints.common import add_model_args
 from ..entrypoints.common import load_model
+from ..models.qwen.core.mtp import MtpHead
+from ..models.qwen.serve.templates import apply_chat
 from ..prefix.cache import PrefixCache
 from ..serve.registry import chat_protocol_for
 from ..tokenizer import Tokenizer
@@ -81,11 +82,11 @@ def chat_prompts(
 
     if how == 'legacy':
         def legacy(text: str) -> list[int]:
-            return tok.encode(tok.apply_chat([{'role': 'user', 'content': text}]))
+            return tok.encode(apply_chat(tok, [{'role': 'user', 'content': text}]))
 
         return (
             legacy,
-            tok.encode('<|im_end|>\n' + tok.apply_chat([{'role': 'user', 'content': FOLLOW_UP}])),
+            tok.encode('<|im_end|>\n' + apply_chat(tok, [{'role': 'user', 'content': FOLLOW_UP}])),
             lambda: None,
         )
 

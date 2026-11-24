@@ -3,7 +3,7 @@
 import numpy as np
 
 from ..api import generate
-from ..arch.qwen35 import load_qwen35
+from ..arch.loading import load_qwen35
 from ..decode.generation import Generation
 from ..decode.processors import PenaltyProcessor
 from ..decode.sampling import Sampler

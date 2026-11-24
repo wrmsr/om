@@ -260,8 +260,8 @@ class FeedForward(lang.Abstract):
 class LayerEmbedding(lang.Abstract):
     """
     What a block adds into the residual stream before its mixer reads it, computed from the token ids and the stream
-    itself: Flash-Next's n-gram layer (core/ple.py). It carries decode state of its own (the block's state is the
-    mixer's followed by this).
+    itself: Flash-Next's n-gram layer (models/qwen/core/ple.py). It carries decode state of its own (the block's state
+    is the mixer's followed by this).
     """
 
     @property
@@ -299,7 +299,7 @@ class Layer(lang.Abstract):
     One entry of a model's execution order: it takes the residual stream as the entry before it left it and hands it
     on, with a slot of decode state of its own. A `Block` (core/block.py) is the usual one -- a mixer and a
     feed-forward -- and a model's entries need not be distinct sets of weights: a layer run several times a token is
-    several entries built over the same parts, each with its own state (core/inkling2/).
+    several entries built over the same parts, each with its own state (models/inkling/core/).
     """
 
     @property

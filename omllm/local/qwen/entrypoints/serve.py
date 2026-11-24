@@ -19,13 +19,13 @@ from omcore.logs import all as logs
 
 from ..decode.inject import DecodeConfig
 from ..inject.inject import create_engine
-from ..serve.chat import CHAT_FORMATS
+from ..models.qwen.serve.templates import DEFAULT_REASONING_EFFORT
+from ..models.qwen.serve.templates import REASONING_EFFORT_INSTRUCTIONS
 from ..serve.inject import ServeConfig
+from ..serve.registry import CHAT_FORMAT_NAMES
 from ..serve.serving import SamplingDefaults
 from ..serve.serving import client
 from ..serve.serving import serve
-from ..tokenizer import DEFAULT_REASONING_EFFORT
-from ..tokenizer import REASONING_EFFORT_INSTRUCTIONS
 from .common import add_model_args
 from .common import reasoning_effort_arg
 from .common import warmup_tokens
@@ -98,10 +98,11 @@ def main() -> None:
     )
     ap.add_argument(
         '--chat-format',
-        choices=sorted(CHAT_FORMATS),
+        choices=CHAT_FORMAT_NAMES,
         default=None,
-        help="the chat format: how tools are described and called, where reasoning blocks go (serve/chat.py); "
-             "default: the checkpoint's own, by its chat template ('legacy', the JSON tool-call format, without one)",
+        help="a ChatML checkpoint's chat format: how tools are described and called, where reasoning blocks go "
+             "(models/qwen/serve/chat.py); default: the checkpoint's own, by its chat template ('legacy', the JSON "
+             "tool-call format, without one)",
     )
     ap.add_argument(
         '--open-think',

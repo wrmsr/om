@@ -33,12 +33,13 @@ from omcore import lang
 from omcore.logs import all as logs
 
 from ..api import generate
-from ..arch.qwen35 import load_qwen35
+from ..arch.loading import load_qwen35
 from ..backends import BACKENDS
 from ..backends import make_ops
 from ..load.weights import MT_GGUF
 from ..load.weights import open_source
 from ..load.weights import resolve_ollama
+from ..models.qwen.serve.templates import apply_chat
 from ..tokenizer import Tokenizer
 
 
@@ -143,7 +144,7 @@ def main() -> None:
     print(f'[model] {src.config.summary()}')
     tok = Tokenizer.from_spec(src.tokenizer_spec)
     text = (
-        tok.apply_chat([{'role': 'user', 'content': args.prompt}], think=False)
+        apply_chat(tok, [{'role': 'user', 'content': args.prompt}], think=False)
         if args.chat
         else args.prompt
     )

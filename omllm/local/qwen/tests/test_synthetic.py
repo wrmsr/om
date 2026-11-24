@@ -19,13 +19,14 @@ import gguf
 import numpy as np
 
 from ..api import generate
-from ..arch.qwen35 import load_qwen35
-from ..core.config import Qwen35Config
+from ..arch.loading import load_qwen35
 from ..load.weights import MT_JSON
 from ..load.weights import MT_TENSOR
-from ..load.weights import GGUFSource
 from ..load.weights import OllamaModel
-from ..load.weights import OllamaTensorSource
+from ..models.qwen.core.config import Qwen35Config
+from ..models.qwen.load.sources import GGUFSource
+from ..models.qwen.load.sources import OllamaTensorSource
+from ..models.qwen.ops.backends import qwen_ops
 from ..tokenizer import PRE_REGEX
 from ..tokenizer import Tokenizer
 from ..tokenizer import bytes_to_unicode
@@ -638,8 +639,8 @@ def test_hf_checkpoint(tmp_path):
 def _test_hf_checkpoint(tmp_path=None):
     """A bf16 HF directory through open_source: same names, config and (to bf16 precision) values as the GGUF."""
 
-    from ..load.weights import HFSource
     from ..load.weights import open_source
+    from ..models.qwen.load.sources import HFSource
 
     tmp_path = pathlib.Path(tmp_path or tempfile.mkdtemp())
     cfg = Qwen35Config(**CFG)  # type: ignore
@@ -684,7 +685,7 @@ def test_model():
     v = torch.randn(B, H, T, d)
     g = -torch.rand(B, H, T) * 2
     beta = torch.rand(B, H, T)
-    o_rec, _ = ops.gated_delta(q, k, v, g, beta, torch.zeros(B, H, d, d))
+    o_rec, _ = qwen_ops(ops).gated_delta(q, k, v, g, beta, torch.zeros(B, H, d, d))
     o_chk = chunk_gated_delta_rule_ref(q.double(), k.double(), v.double(), g.double(), beta.double())
     err = (o_rec.double() - o_chk).abs().max().item()
     assert err < 1e-4, err

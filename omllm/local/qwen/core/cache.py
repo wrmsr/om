@@ -1,9 +1,10 @@
 # ruff: noqa: N803 N806 N812
+import typing as ta
+
 from omcore import check
 
 from ..ops.base import Array
 from ..ops.base import Ops
-from .config import Qwen35Config
 
 
 FullState = tuple[Array, ...]  # the backend's KV state: (k, v) [B, n_kv, T, hd] by default; see Ops.kv_arity
@@ -19,11 +20,11 @@ class Cache:
     layers keep a fixed-size (conv window, recurrent state) pair -- so 'prefix caching' for 3/4 of the stack is just
     snapshotting a tensor.
 
-    `cfg` sizes it for a model whose execution order is its config's layers, one each; `num_slots` says the number
-    outright.
+    `cfg` (a config with `num_layers`) sizes it for a model whose execution order is its config's layers, one each;
+    `num_slots` says the number outright.
     """
 
-    def __init__(self, cfg: Qwen35Config | None = None, *, num_slots: int | None = None) -> None:
+    def __init__(self, cfg: ta.Any = None, *, num_slots: int | None = None) -> None:
         super().__init__()
 
         if num_slots is None:

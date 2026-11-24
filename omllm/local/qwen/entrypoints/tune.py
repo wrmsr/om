@@ -13,11 +13,11 @@ from omcore.logs import all as logs
 from ..backends.torch_triton import load_tuned
 from ..backends.torch_triton import save_tuned
 from ..backends.torch_triton import tune
-from ..core.config import Qwen35Config
-from ..core.params import mtp_param_names
-from ..core.params import required_param_names
-from ..load.policies import fusion_of
 from ..load.weights import open_source
+from ..models.qwen.core.config import Qwen35Config
+from ..models.qwen.core.params import mtp_param_names
+from ..models.qwen.core.params import required_param_names
+from ..models.qwen.load.layouts import fusion_of
 from ..ops.quant import QUANT_BITS
 
 
@@ -38,14 +38,14 @@ def model_shapes(
 ) -> dict[int, set[tuple[int, int]]]:
     """
     Distinct (N, K) of the model's quantized 2-D weights as the model actually runs them -- fused projections (gate_up,
-    qkv, qkvz, ab; see load.policies.FUSIONS) count once with their stacked N -- grouped by bit width (the a/b pair is
-    int8 whatever the model's width). `draft_vocab` adds the draft head's restricted output head, the first that many
+    qkv, qkvz, ab; see the Qwen layouts' FUSIONS) count once with their stacked N -- grouped by bit width (the a/b pair
+    is int8 whatever the model's width). `draft_vocab` adds the draft head's restricted output head, the first that many
     rows of the output head (`--draft-vocab`): a shape of its own that exists only at run time, launched three times
     a speculative round.
     """
 
     src = open_source(model)
-    cfg = check.isinstance(src.config, Qwen35Config)  # (the dense Qwen architecture's shapes: core/params.py)
+    cfg = check.isinstance(src.config, Qwen35Config)  # (the dense Qwen architecture's shapes: its params.py)
     names = required_param_names(cfg) + (mtp_param_names() if with_mtp and cfg.num_mtp_layers else [])
     if 'lm_head.weight' in set(src.names()):
         names.append('lm_head.weight')

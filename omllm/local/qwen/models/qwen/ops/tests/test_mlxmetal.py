@@ -1,0 +1,64 @@
+# ruff: noqa: N803 N806 N812
+"""
+The Metal kernel for the DeltaNet step (mlxmetal.py) against its composed definition (base.py). Runs only where Metal
+is available (Apple silicon); skipped elsewhere, where the composed definition is what MLX runs anyway.
+"""
+import numpy as np
+
+from ..backends import qwen_ops
+
+
+try:
+    import mlx.core as mx
+except ImportError:
+    mx = None  # type: ignore[assignment,unused-ignore]
+
+
+##
+
+
+def _skip() -> bool:
+    if mx is None:
+        print('mlx not installed; skipping')  # type: ignore[unreachable,unused-ignore]
+        return True
+    if not mx.metal.is_available():
+        print('Metal not available; skipping')
+        return True
+    return False
+
+
+def rel_err(a, b) -> float:
+    a, b = np.asarray(a, dtype=np.float64), np.asarray(b, dtype=np.float64)
+    return float(np.abs(a - b).max() / (np.abs(b).max() + 1e-12))
+
+
+def test_gdn_step_metal():
+    if _skip():
+        return
+
+    from .....backends.mlx import MlxOps
+    from ..mlxmetal import gdn_step_metal
+
+    ref = qwen_ops(MlxOps(metal=False))  # composed reference
+    rng = np.random.default_rng(0)
+    for (Hk, Hv, dk, dv) in ((2, 6, 16, 32), (16, 48, 128, 128)):
+        B = 2 if dk == 16 else 1
+        A = mx.array((-rng.random(Hv) * 4 - 0.1).astype(np.float32))
+        dt = mx.array(rng.standard_normal(Hv).astype(np.float32))
+        for T in (1, 4):
+            q = mx.array(rng.standard_normal((B, T, Hk, dk)).astype(np.float32))
+            k = mx.array(rng.standard_normal((B, T, Hk, dk)).astype(np.float32))
+            v = mx.array(rng.standard_normal((B, T, Hv, dv)).astype(np.float32))
+            a = mx.array(rng.standard_normal((B, T, Hv)).astype(np.float32))
+            b = mx.array(rng.standard_normal((B, T, Hv)).astype(np.float32))
+            s0 = mx.array((rng.standard_normal((B, Hv, dk, dv)) * 0.3).astype(np.float32))
+            for all_states in (False, True):
+                ro, rs = ref.gdn_step(q, k, v, a, b, A, dt, s0, all_states)
+                for variant, kw in (('tg', {}), ('simd', {'ks': 4}), ('simd', {'ks': 8, 'tgv': 16})):
+                    fo, fs = gdn_step_metal(q, k, v, a, b, A, dt, s0, all_states, variant=variant, **kw)
+                    mx.eval(ro, rs, fo, fs)
+                    eo, es = rel_err(fo, ro), rel_err(fs, rs)
+                    assert eo < 1e-4 and es < 1e-4, ((Hk, Hv, dk, dv), T, all_states, variant, kw, eo, es)
+                    assert fs.shape == rs.shape
+    print('Metal DeltaNet step (tg and simd variants) matches the composed reference (small and 27B-like '
+          'geometries, T=1/4, all states)')

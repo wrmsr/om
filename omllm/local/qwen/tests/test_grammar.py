@@ -13,14 +13,14 @@ import tempfile
 import typing as ta
 
 from ..api import ManualGenerationRunner
-from ..arch.qwen35 import load_qwen35
+from ..arch.loading import load_qwen35
 from ..constrain.grammar import WS
 from ..constrain.grammar import Acceptor
 from ..constrain.grammar import TokenMasks
 from ..constrain.grammar import ToolConstraint
 from ..constrain.grammar import Vocab
-from ..core.config import Qwen35Config
-from ..load.weights import GGUFSource
+from ..models.qwen.core.config import Qwen35Config
+from ..models.qwen.load.sources import GGUFSource
 from ..tokenizer import Tokenizer
 from .test_synthetic import CFG
 from .test_synthetic import make_hf_params
@@ -577,8 +577,8 @@ FUNCTION_TOOLS = [
 def _function_body(name: str, args: dict, fmt: ta.Any = None) -> str:
     """A call as the acceptor sees it: what follows `<tool_call>`, as the chat format renders it."""
 
-    from ..serve.chat import QWEN38
-    from ..serve.chat import render_function_call
+    from ..models.qwen.serve.chat import QWEN38
+    from ..models.qwen.serve.chat import render_function_call
 
     return render_function_call({'name': name, 'arguments': args}, fmt or QWEN38)[len('<tool_call>'):]
 
@@ -590,9 +590,9 @@ def test_function_syntax_acceptor():
     not declared, a required one missing, one twice, or a value not of its schema is not.
     """
 
-    from ..serve.chat import QWEN35
-    from ..serve.chat import QWEN38
-    from ..serve.chat import parse_output
+    from ..models.qwen.serve.chat import QWEN35
+    from ..models.qwen.serve.chat import QWEN38
+    from ..models.qwen.serve.chat import parse_output
 
     acc = Acceptor(FUNCTION_TOOLS, syntax='function')
     good: list[tuple[str, dict]] = [
@@ -655,8 +655,8 @@ def test_function_syntax_masks():
     the declared types, and the controller follows a call rendered by the chat format token by token.
     """
 
-    from ..serve.chat import QWEN38
-    from ..serve.chat import parse_output
+    from ..models.qwen.serve.chat import QWEN38
+    from ..models.qwen.serve.chat import parse_output
 
     tok = _tokenizer()
     vocab = Vocab.for_tokenizer(tok)
@@ -738,9 +738,10 @@ def test_engine_function_format():
         print('torch not installed; skipping')
         return
 
+    from ..models.qwen.serve.chat import QWEN35
+    from ..models.qwen.serve.chat import QWEN38
     from ..prefix.cache import PrefixCache
-    from ..serve.chat import QWEN35
-    from ..serve.chat import QWEN38
+    from ..serve.registry import ChatOptions
     from ..serve.serving import Engine
     from ..serve.serving import Request
     from ..serve.serving import SamplingDefaults
@@ -760,7 +761,7 @@ def test_engine_function_format():
             tok,
             prefix_cache=pc,
             defaults=defaults,
-            chat_format=fmt,
+            chat_options=ChatOptions(chat_format=fmt),
             log=None,
         ).start()
         assert engine.protocol.format is fmt and engine.protocol.open_think  # type: ignore[attr-defined]

@@ -5,7 +5,7 @@ import numpy as np
 from omcore import check
 
 from ...api import generate
-from ...arch.qwen35 import load_qwen35
+from ...arch.loading import load_qwen35
 from ...decode.drafts import DraftSource
 from ...decode.drafts import NullDraftSource
 from ...decode.drafts import point_drafts
@@ -17,13 +17,13 @@ from ...decode.rounds import Round
 from ...decode.rounds import Verified
 from ...decode.sampling import Sampler
 from ...decode.state import Snapshot
+from ...models.qwen.spec.mtp import MtpDraftSource
 from ...ops.base import Array
 from ...ops.base import Ops
 from ...ops.reference import NumpyOps
 from ...tests.test_parity import backends
 from ...tests.test_parity import synthetic_source
 from ..lookup import LookupDraftSource
-from ..mtp import MtpDraftSource
 
 
 ##
@@ -256,7 +256,7 @@ def test_draft_lengths():
     replay overwrites, which is what a probability read late would read.
     """
 
-    from ..mtp import MtpDraftSource
+    from ...models.qwen.spec.mtp import MtpDraftSource
 
     cfg, hf, src = synthetic_source()
     prompt = np.random.default_rng(21).integers(0, 256, 9).tolist()
@@ -384,7 +384,7 @@ def test_draft_runs_equal_drafts_one_by_one():
     and at several, over a draft vocabulary or all of it.
     """
 
-    from ..mtp import MtpDraftSource
+    from ...models.qwen.spec.mtp import MtpDraftSource
 
     class OneByOne(MtpDraftSource):
         def propose(self, gen: Generation) -> Drafts | None:

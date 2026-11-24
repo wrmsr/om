@@ -25,7 +25,7 @@ import numpy as np
 
 from omcore import dataclasses as dc
 
-from ...arch.qwen35 import load_qwen35
+from ...arch.loading import load_qwen35
 from ...arch.registry import architecture_for
 from ...tokenizer import Tokenizer
 from ..weights import TensorSource

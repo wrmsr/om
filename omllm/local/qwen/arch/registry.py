@@ -2,13 +2,13 @@
 import typing as ta
 
 from ..core.config import ModelConfig
-from ..core.config import Qwen4ExpConfig
-from ..core.config import Qwen35Config
-from ..core.inkling2.config import Inkling2Config
+from ..models.inkling.arch.inkling2 import Inkling2Architecture
+from ..models.inkling.core.config import Inkling2Config
+from ..models.qwen.arch.qwen4exp import Qwen4ExpArchitecture
+from ..models.qwen.arch.qwen35 import Qwen35Architecture
+from ..models.qwen.core.config import Qwen4ExpConfig
+from ..models.qwen.core.config import Qwen35Config
 from .base import Architecture
-from .inkling2 import Inkling2Architecture
-from .qwen4exp import Qwen4ExpArchitecture
-from .qwen35 import Qwen35Architecture
 
 
 ##

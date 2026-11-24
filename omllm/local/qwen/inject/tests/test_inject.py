@@ -9,7 +9,7 @@ import numpy as np
 from omcore import inject as inj
 
 from ...api import generate
-from ...arch.qwen35 import load_qwen35
+from ...arch.loading import load_qwen35
 from ...backends.inject import BackendConfig
 from ...backends.torch import TorchOps
 from ...decode.inject import DecodeConfig

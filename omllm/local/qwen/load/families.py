@@ -1,8 +1,8 @@
 """
 Which reader a source of weights gets, by the family it names.
 
-A Hugging Face checkpoint directory: by the model type of its config.json. The Qwen reader (weights.py's HFSource,
-which tells its own families apart) takes whatever is not listed, as it did when it was the only one.
+A Hugging Face checkpoint directory: by the model type of its config.json. The Qwen reader (`HFSource`, which tells
+its own families apart) takes whatever is not listed, as it did when it was the only one.
 
 A GGUF: by its `general.architecture`. Nothing takes one that is not listed; the ones known and not read say why.
 """
@@ -10,13 +10,15 @@ import json
 import os.path
 import typing as ta
 
+from ..models.inkling.load.checkpoints import INKLING2_HF_MODEL_TYPES
+from ..models.inkling.load.checkpoints import Inkling2HFSource
+from ..models.inkling.load.ggufs import INKLING2_GGUF_ARCHITECTURE
+from ..models.inkling.load.ggufs import Inkling2GgufSource
+from ..models.qwen.load.sources import GGUFSource
+from ..models.qwen.load.sources import HFSource
+from ..models.qwen.load.sources import OllamaTensorSource
 from .gguffiles import GgufFile
-from .inkling2 import INKLING2_HF_MODEL_TYPES
-from .inkling2 import Inkling2HFSource
-from .inkling2gguf import INKLING2_GGUF_ARCHITECTURE
-from .inkling2gguf import Inkling2GgufSource
-from .weights import GGUFSource
-from .weights import HFSource
+from .weights import OllamaModel
 from .weights import TensorSource
 
 
@@ -74,3 +76,12 @@ def open_gguf_source(path: str) -> TensorSource:
         raise UnreadGgufArchitectureError(f'{file.path}: unsupported GGUF architecture {arch!r}: {why}')
 
     return source(file)
+
+
+##
+
+
+def open_ollama_source(model: OllamaModel) -> TensorSource:
+    """The source for a model Ollama holds as tensor blobs (a manifest of them): the Qwen families' layout."""
+
+    return OllamaTensorSource(model)

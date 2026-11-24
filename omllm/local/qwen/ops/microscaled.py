@@ -37,8 +37,12 @@ MICROSCALED_BLOCKS: ta.Mapping[str, int] = {
 }
 
 
+# (The tables below are np.ndarray. They are annotated `ta.Any` because `lang.cached_function` reads a function's
+# annotations when it wraps it, which would import numpy with this module.)
+
+
 @lang.cached_function
-def e2m1_values() -> np.ndarray:
+def e2m1_values() -> ta.Any:
     """float32 [16]: the value of each 4-bit E2M1 code (sign, 2 exponent bits, 1 mantissa bit; no infinities)."""
 
     mag = np.array([0., .5, 1., 1.5, 2., 3., 4., 6.], dtype=np.float32)
@@ -46,7 +50,7 @@ def e2m1_values() -> np.ndarray:
 
 
 @lang.cached_function
-def e4m3_values() -> np.ndarray:
+def e4m3_values() -> ta.Any:
     """
     float32 [256]: the value of each 8-bit E4M3 code (sign, 4 exponent bits biased by 7, 3 mantissa bits; subnormals
     at exponent 0, no infinities, and the one NaN at S.1111.111, which no stored weight or scale is).
@@ -63,7 +67,7 @@ def e4m3_values() -> np.ndarray:
 
 
 @lang.cached_function
-def e2m1_pair_values() -> np.ndarray:
+def e2m1_pair_values() -> ta.Any:
     """float32 [256, 2]: the two values a byte of packed E2M1 codes holds, low nibble first."""
 
     code = np.arange(256, dtype=np.int64)
@@ -72,7 +76,7 @@ def e2m1_pair_values() -> np.ndarray:
 
 
 @lang.cached_function
-def pow2_scale_values() -> np.ndarray:
+def pow2_scale_values() -> ta.Any:
     """float32 [256]: 2 ** (byte - 127), MXFP8's block scales (exact in float32 down to its subnormals)."""
 
     with np.errstate(over='ignore'):  # (byte 255 is 2 ** 128: past float32, as past any scale a checkpoint stores)

@@ -1,7 +1,8 @@
 """
 An architecture: what a checkpoint's parameters are and how they become a model -- which blocks, from which parts.
-What the rest of the engine asks of one is to load a model from a source; an implementation (qwen35.py, qwen4exp.py,
-inkling2.py) says how, with its own parameter names and loader layout through the shared pipeline (load/pipeline.py).
+What the rest of the engine asks of one is to load a model from a source; an implementation -- a family's, in its
+models/*/arch/ -- says how, with its own parameter names and loader layout through the shared pipeline
+(load/pipeline.py).
 Which architecture a source's model is, is its config's type (registry.py).
 """
 import abc

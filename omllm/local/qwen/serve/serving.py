@@ -43,8 +43,6 @@ from ..decode.runners import GenerationRunner
 from ..decode.terminators import StopStringTerminator
 from ..prefix.cache import PrefixCache
 from ..tokenizer import Tokenizer
-from .chat import ChatFormat
-from .chatml import reasoning_effort_of
 from .protocols import ChatEvent
 from .protocols import ChatProtocol
 from .protocols import ChatReader
@@ -92,11 +90,11 @@ class Request:
             body: dict,
             defaults: SamplingDefaults,
             enable_thinking: bool,
-            effort_of: ta.Callable[[ta.Any], tuple[ta.Any, bool | None]] = reasoning_effort_of,
+            effort_of: ta.Callable[[ta.Any], tuple[ta.Any, bool | None]] | None = None,
     ) -> Request:
         """
-        `effort_of`: the chat protocol's reading of a request's `reasoning_effort` (`ChatProtocol.reasoning_effort`;
-        the default is the Qwen formats').
+        `effort_of`: the chat protocol's reading of a request's `reasoning_effort` (`ChatProtocol.reasoning_effort`):
+        the level as the protocol names it, and whether it settles thinking. None: the value as the request has it.
         """
 
         msgs = body.get('messages')
@@ -106,7 +104,10 @@ class Request:
         if isinstance(stop, str):
             stop = [stop]
         kw = body.get('chat_template_kwargs') or {}
-        effort, effort_thinks = effort_of(body.get('reasoning_effort', kw.get('reasoning_effort')))
+        effort = body.get('reasoning_effort', kw.get('reasoning_effort'))
+        effort_thinks: bool | None = None
+        if effort_of is not None:
+            effort, effort_thinks = effort_of(effort)
         if effort_thinks is not None:
             enable_thinking = effort_thinks  # (an explicit enable_thinking still has the last word)
         think = body.get('enable_thinking', kw.get('enable_thinking', enable_thinking))
@@ -286,10 +287,7 @@ class Engine:
             prefix_cache: PrefixCache | None = None,  # for its statistics only (/health, the log)
             defaults: SamplingDefaults | None = None,
             enable_thinking: bool = True,
-            preserve_thinking: bool = True,
-            reasoning_effort: str | None = None,
-            open_think: bool | None = None,
-            chat_format: ChatFormat | None = None,
+            chat_options: ChatOptions | None = None,
             protocol: ChatProtocol | None = None,
             max_queue: int = 4,
             model_name: str = 'qwen',
@@ -297,14 +295,8 @@ class Engine:
     ) -> None:
         """
         `protocol`: the chat protocol requests are rendered in and answers read from; None is the checkpoint's own, as
-        its tokenizer shows it (`chat_protocol_for`), made with the options here:
-
-        `reasoning_effort`: the effort a request that names none is rendered at, where the protocol takes one; None is
-        the protocol's own default.
-
-        `chat_format`, `open_think`, `preserve_thinking`: the Qwen formats' (chatml.py's `ChatmlProtocol`) -- the
-        format itself where the checkpoint's own is not wanted, whether the generation prompt opens the reasoning
-        block, and whether reasoning is kept in every rendered turn.
+        its tokenizer shows it (`chat_protocol_for`), made with `chat_options` (registry.py: the effort a request that
+        names none is rendered at, and what a family's protocol takes besides).
         """
 
         super().__init__()
@@ -314,12 +306,7 @@ class Engine:
         self.prefix_cache = prefix_cache
         self.defaults = defaults or SamplingDefaults()
         self.enable_thinking = enable_thinking
-        self.protocol = protocol if protocol is not None else chat_protocol_for(tok, ChatOptions(
-            reasoning_effort=reasoning_effort,
-            chat_format=chat_format,
-            open_think=open_think,
-            preserve_thinking=preserve_thinking,
-        ))
+        self.protocol = protocol if protocol is not None else chat_protocol_for(tok, chat_options)
         self.model_name = model_name
         self.log = log
         self.eos = set(self.protocol.eos_ids)
@@ -344,8 +331,8 @@ class Engine:
         (plain rounds, as nothing has occurred for a prompt lookup to match, or the draft head's), and one from a prompt
         counting in a cycle, which a model goes on with, so a prompt-lookup draft source drafts and its verify step is
         compiled too. Each greedy and with the server's default sampling: the draft head's runs are captured per
-        sampler shape (spec/mtp.py), and a first request sampled as the defaults say otherwise spent a third of a
-        second on that (the 27B, several draft lengths). And the tool grammar's vocabulary trie, which the first
+        sampler shape (models/qwen/spec/mtp.py), and a first request sampled as the defaults say otherwise spent a third
+        of a second on that (the 27B, several draft lengths). And the tool grammar's vocabulary trie, which the first
         request with tools would otherwise wait for.
         """
 

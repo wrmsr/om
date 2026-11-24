@@ -1,14 +1,14 @@
 """Which draft source drafts with a model's draft head: by the type of the head (core/draftheads.py)."""
 import typing as ta
 
-from ..core.dspark.drafter import DsparkDrafter
 from ..core.model import Qwen35
-from ..core.mtp import MtpHead
 from ..decode.drafts import DraftSource
 from ..decode.processors import LogitProcessor
 from ..decode.sampling import Sampler
-from .dspark import DsparkDraftSource
-from .mtp import MtpDraftSource
+from ..models.inkling.core.dspark.drafter import DsparkDrafter
+from ..models.inkling.spec.dspark import DsparkDraftSource
+from ..models.qwen.core.mtp import MtpHead
+from ..models.qwen.spec.mtp import MtpDraftSource
 
 
 ##
