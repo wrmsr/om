@@ -171,14 +171,14 @@ def test_mlx_container_on_numpy():
 
         eids = np.asarray([3, 0, 5, 3, 1, 1, 4], dtype=np.int32)
         assert np.array_equal(w.dequant(np.float32, slice(0, E)), want)
-        assert np.array_equal(w.dequant(np.float32, eids), want[eids])
+        assert np.array_equal(w.dequant(np.float32, eids), want[eids])  # type: ignore[arg-type,unused-ignore]
         assert np.array_equal(w.dequant(np.float32, slice(4, 5))[0], want[4])
 
         # every row against its own expert, in pieces of every size up to all the rows at once
         x = rng.standard_normal((len(eids), K)).astype(np.float32)
         ref = np.einsum('rnk,rk->rn', want[eids].astype(np.float64), x.astype(np.float64))
         for step in (1, 2, 3, len(eids), 16):
-            parts = w.products(x, eids, step)
+            parts = w.products(x, eids, step)  # type: ignore[arg-type,unused-ignore]
             assert len(parts) == -(-len(eids) // step) and all(p.dtype == np.float32 for p in parts), (fmt, step)
             assert np.abs(np.concatenate(parts, 0) - ref).max() < 1e-5 * np.abs(ref).max(), (fmt, step)
 

@@ -73,7 +73,7 @@ async def _a_main() -> None:
 
         # Start a separate thread for model generation to allow streaming output1.10
         thread = threading.Thread(
-            target=CancellableTextStreamer.ignoring_cancelled(model.generate),  # type: ignore
+            target=CancellableTextStreamer.ignoring_cancelled(model.generate),
             kwargs=generation_args,
         )
         thread.start()

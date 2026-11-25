@@ -8825,6 +8825,123 @@ def _process_dataclass__88f50b204403563ab40ddf8d903b83df7bcc3cea():
 
 
 @_register(
+    installer_sha1='7d895904a7e9e1ba8f8f91d3cd8561392674b2f4',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('firewall_arn', True, True, None, True, True, False, None), 'instance', '"
+            "value', None, False, False, False), (('status', True, True, None, True, True, False, None), 'instance', 'v"
+            "alue', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), "
+            "((),), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('ominfra.clouds.aws.models.services.ec2', 'IgwFirewall'),
+    ),
+)
+def _process_dataclass__7d895904a7e9e1ba8f8f91d3cd8561392674b2f4():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                firewall_arn=self.firewall_arn,
+                status=self.status,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.firewall_arn == other.firewall_arn and
+                self.status == other.status
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            '__shape__',
+            'firewall_arn',
+            'status',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.firewall_arn,
+                self.status,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            firewall_arn: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            status: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'firewall_arn', firewall_arn)
+            __dataclass__object_setattr(self, 'status', status)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"firewall_arn={self.firewall_arn!r}")
+            parts.append(f"status={self.status!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
     installer_sha1='87220d581c6604d52d7009a47e01ba03de0a4e14',
     spec_keys=(
         (
@@ -15990,6 +16107,133 @@ def _process_dataclass__73bc6beef4eb7a75bcc32803939d1c6584d64435():
 
 
 @_register(
+    installer_sha1='7f791a8b092ad43ab15464dcf9e4349a3bfdadcb',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('firewall_arn', True, True, None, True, True, False, None), 'instance', '"
+            "value', None, False, False, False), (('firewall_onboarding_status', True, True, None, True, True, False, N"
+            "one), 'instance', 'value', None, False, False, False), (('firewall_mode', True, True, None, True, True, Fa"
+            "lse, None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (Fal"
+            "se,), (False, False, ()), ((),), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('ominfra.clouds.aws.models.services.ec2', 'NetworkFirewallAssociation'),
+    ),
+)
+def _process_dataclass__7f791a8b092ad43ab15464dcf9e4349a3bfdadcb():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                firewall_arn=self.firewall_arn,
+                firewall_onboarding_status=self.firewall_onboarding_status,
+                firewall_mode=self.firewall_mode,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.firewall_arn == other.firewall_arn and
+                self.firewall_onboarding_status == other.firewall_onboarding_status and
+                self.firewall_mode == other.firewall_mode
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            '__shape__',
+            'firewall_arn',
+            'firewall_onboarding_status',
+            'firewall_mode',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.firewall_arn,
+                self.firewall_onboarding_status,
+                self.firewall_mode,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            firewall_arn: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            firewall_onboarding_status: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            firewall_mode: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'firewall_arn', firewall_arn)
+            __dataclass__object_setattr(self, 'firewall_onboarding_status', firewall_onboarding_status)
+            __dataclass__object_setattr(self, 'firewall_mode', firewall_mode)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"firewall_arn={self.firewall_arn!r}")
+            parts.append(f"firewall_onboarding_status={self.firewall_onboarding_status!r}")
+            parts.append(f"firewall_mode={self.firewall_mode!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
     installer_sha1='30919b4ca7ccb9c4488990698342b5b03e019fb5',
     spec_keys=(
         (
@@ -19330,7 +19574,7 @@ def _process_dataclass__9f61531713de9f1ceee46dc1ea2a8980cdc9217c():
 
 
 @_register(
-    installer_sha1='7b6f42208fb759ed66934a3e0efb45b05616657a',
+    installer_sha1='4b935ef619559a55075fccc275fee3ca453c5f1b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -19354,15 +19598,16 @@ def _process_dataclass__9f61531713de9f1ceee46dc1ea2a8980cdc9217c():
             "rue, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('core_network_arn'"
             ", True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('odb_netw"
             "ork_arn', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('"
-            "ip_address', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False)),"
-            " False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (False,)))"
+            "ip_address', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), "
+            "(('igw_firewall', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, Fal"
+            "se)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('ominfra.clouds.aws.models.services.ec2', 'Route'),
     ),
 )
-def _process_dataclass__7b6f42208fb759ed66934a3e0efb45b05616657a():
+def _process_dataclass__4b935ef619559a55075fccc275fee3ca453c5f1b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -19406,6 +19651,8 @@ def _process_dataclass__7b6f42208fb759ed66934a3e0efb45b05616657a():
         __dataclass__init__fields__17__default = __dataclass__spec.fields[17].default.must()
         __dataclass__init__fields__18__annotation = __dataclass__spec.fields[18].annotation
         __dataclass__init__fields__18__default = __dataclass__spec.fields[18].default.must()
+        __dataclass__init__fields__19__annotation = __dataclass__spec.fields[19].annotation
+        __dataclass__init__fields__19__default = __dataclass__spec.fields[19].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -19434,6 +19681,7 @@ def _process_dataclass__7b6f42208fb759ed66934a3e0efb45b05616657a():
                 core_network_arn=self.core_network_arn,
                 odb_network_arn=self.odb_network_arn,
                 ip_address=self.ip_address,
+                igw_firewall=self.igw_firewall,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -19461,7 +19709,8 @@ def _process_dataclass__7b6f42208fb759ed66934a3e0efb45b05616657a():
                 self.vpc_peering_connection_id == other.vpc_peering_connection_id and
                 self.core_network_arn == other.core_network_arn and
                 self.odb_network_arn == other.odb_network_arn and
-                self.ip_address == other.ip_address
+                self.ip_address == other.ip_address and
+                self.igw_firewall == other.igw_firewall
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -19486,6 +19735,7 @@ def _process_dataclass__7b6f42208fb759ed66934a3e0efb45b05616657a():
             'core_network_arn',
             'odb_network_arn',
             'ip_address',
+            'igw_firewall',
         }
 
         def __setattr__(self, name, value):
@@ -19528,6 +19778,7 @@ def _process_dataclass__7b6f42208fb759ed66934a3e0efb45b05616657a():
                 self.core_network_arn,
                 self.odb_network_arn,
                 self.ip_address,
+                self.igw_firewall,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -19553,6 +19804,7 @@ def _process_dataclass__7b6f42208fb759ed66934a3e0efb45b05616657a():
             core_network_arn: __dataclass__init__fields__16__annotation = __dataclass__init__fields__16__default,
             odb_network_arn: __dataclass__init__fields__17__annotation = __dataclass__init__fields__17__default,
             ip_address: __dataclass__init__fields__18__annotation = __dataclass__init__fields__18__default,
+            igw_firewall: __dataclass__init__fields__19__annotation = __dataclass__init__fields__19__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'destination_cidr_block', destination_cidr_block)
             __dataclass__object_setattr(self, 'destination_ipv6_cidr_block', destination_ipv6_cidr_block)
@@ -19572,6 +19824,7 @@ def _process_dataclass__7b6f42208fb759ed66934a3e0efb45b05616657a():
             __dataclass__object_setattr(self, 'core_network_arn', core_network_arn)
             __dataclass__object_setattr(self, 'odb_network_arn', odb_network_arn)
             __dataclass__object_setattr(self, 'ip_address', ip_address)
+            __dataclass__object_setattr(self, 'igw_firewall', igw_firewall)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -19596,6 +19849,7 @@ def _process_dataclass__7b6f42208fb759ed66934a3e0efb45b05616657a():
             parts.append(f"core_network_arn={self.core_network_arn!r}")
             parts.append(f"odb_network_arn={self.odb_network_arn!r}")
             parts.append(f"ip_address={self.ip_address!r}")
+            parts.append(f"igw_firewall={self.igw_firewall!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -21821,7 +22075,7 @@ def _process_dataclass__161120983d3ae1396dad7f76f931651c9dc59dc0():
 
 
 @_register(
-    installer_sha1='7e815eae122e3d2da5aafedebb5b03e8491e4e5e',
+    installer_sha1='0cbcb42364bce69bfc100022528ecf125a008354',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -21843,23 +22097,24 @@ def _process_dataclass__161120983d3ae1396dad7f76f931651c9dc59dc0():
             "True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('block_public_acc"
             "ess_states', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), "
             "(('type', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('"
-            "subnet_id', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), ("
-            "('state', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('"
-            "vpc_id', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('c"
-            "idr_block', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), ("
-            "('available_ip_address_count', True, True, None, True, True, False, None), 'instance', 'value', None, Fals"
-            "e, False, False), (('availability_zone', True, True, None, True, True, False, None), 'instance', 'value', "
-            "None, False, False, False), (('default_for_az', True, True, None, True, True, False, None), 'instance', 'v"
-            "alue', None, False, False, False), (('map_public_ip_on_launch', True, True, None, True, True, False, None)"
-            ", 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (Fal"
-            "se, False, ()), ((),), (), (False,)))"
+            "network_firewall_connectivity_type', True, True, None, True, True, False, None), 'instance', 'value', None"
+            ", False, False, False), (('subnet_id', True, True, None, True, True, False, None), 'instance', 'value', No"
+            "ne, False, False, False), (('state', True, True, None, True, True, False, None), 'instance', 'value', None"
+            ", False, False, False), (('vpc_id', True, True, None, True, True, False, None), 'instance', 'value', None,"
+            " False, False, False), (('cidr_block', True, True, None, True, True, False, None), 'instance', 'value', No"
+            "ne, False, False, False), (('available_ip_address_count', True, True, None, True, True, False, None), 'ins"
+            "tance', 'value', None, False, False, False), (('availability_zone', True, True, None, True, True, False, N"
+            "one), 'instance', 'value', None, False, False, False), (('default_for_az', True, True, None, True, True, F"
+            "alse, None), 'instance', 'value', None, False, False, False), (('map_public_ip_on_launch', True, True, Non"
+            "e, True, True, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), ("
+            "False,), (), (False,), (False, False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('ominfra.clouds.aws.models.services.ec2', 'Subnet'),
     ),
 )
-def _process_dataclass__7e815eae122e3d2da5aafedebb5b03e8491e4e5e():
+def _process_dataclass__0cbcb42364bce69bfc100022528ecf125a008354():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -21913,6 +22168,8 @@ def _process_dataclass__7e815eae122e3d2da5aafedebb5b03e8491e4e5e():
         __dataclass__init__fields__22__default = __dataclass__spec.fields[22].default.must()
         __dataclass__init__fields__23__annotation = __dataclass__spec.fields[23].annotation
         __dataclass__init__fields__23__default = __dataclass__spec.fields[23].default.must()
+        __dataclass__init__fields__24__annotation = __dataclass__spec.fields[24].annotation
+        __dataclass__init__fields__24__default = __dataclass__spec.fields[24].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -21938,6 +22195,7 @@ def _process_dataclass__7e815eae122e3d2da5aafedebb5b03e8491e4e5e():
                 private_dns_name_options_on_launch=self.private_dns_name_options_on_launch,
                 block_public_access_states=self.block_public_access_states,
                 type=self.type,
+                network_firewall_connectivity_type=self.network_firewall_connectivity_type,
                 subnet_id=self.subnet_id,
                 state=self.state,
                 vpc_id=self.vpc_id,
@@ -21971,6 +22229,7 @@ def _process_dataclass__7e815eae122e3d2da5aafedebb5b03e8491e4e5e():
                 self.private_dns_name_options_on_launch == other.private_dns_name_options_on_launch and
                 self.block_public_access_states == other.block_public_access_states and
                 self.type == other.type and
+                self.network_firewall_connectivity_type == other.network_firewall_connectivity_type and
                 self.subnet_id == other.subnet_id and
                 self.state == other.state and
                 self.vpc_id == other.vpc_id and
@@ -22000,6 +22259,7 @@ def _process_dataclass__7e815eae122e3d2da5aafedebb5b03e8491e4e5e():
             'private_dns_name_options_on_launch',
             'block_public_access_states',
             'type',
+            'network_firewall_connectivity_type',
             'subnet_id',
             'state',
             'vpc_id',
@@ -22047,6 +22307,7 @@ def _process_dataclass__7e815eae122e3d2da5aafedebb5b03e8491e4e5e():
                 self.private_dns_name_options_on_launch,
                 self.block_public_access_states,
                 self.type,
+                self.network_firewall_connectivity_type,
                 self.subnet_id,
                 self.state,
                 self.vpc_id,
@@ -22077,14 +22338,15 @@ def _process_dataclass__7e815eae122e3d2da5aafedebb5b03e8491e4e5e():
             private_dns_name_options_on_launch: __dataclass__init__fields__13__annotation = __dataclass__init__fields__13__default,
             block_public_access_states: __dataclass__init__fields__14__annotation = __dataclass__init__fields__14__default,
             type: __dataclass__init__fields__15__annotation = __dataclass__init__fields__15__default,
-            subnet_id: __dataclass__init__fields__16__annotation = __dataclass__init__fields__16__default,
-            state: __dataclass__init__fields__17__annotation = __dataclass__init__fields__17__default,
-            vpc_id: __dataclass__init__fields__18__annotation = __dataclass__init__fields__18__default,
-            cidr_block: __dataclass__init__fields__19__annotation = __dataclass__init__fields__19__default,
-            available_ip_address_count: __dataclass__init__fields__20__annotation = __dataclass__init__fields__20__default,
-            availability_zone: __dataclass__init__fields__21__annotation = __dataclass__init__fields__21__default,
-            default_for_az: __dataclass__init__fields__22__annotation = __dataclass__init__fields__22__default,
-            map_public_ip_on_launch: __dataclass__init__fields__23__annotation = __dataclass__init__fields__23__default,
+            network_firewall_connectivity_type: __dataclass__init__fields__16__annotation = __dataclass__init__fields__16__default,
+            subnet_id: __dataclass__init__fields__17__annotation = __dataclass__init__fields__17__default,
+            state: __dataclass__init__fields__18__annotation = __dataclass__init__fields__18__default,
+            vpc_id: __dataclass__init__fields__19__annotation = __dataclass__init__fields__19__default,
+            cidr_block: __dataclass__init__fields__20__annotation = __dataclass__init__fields__20__default,
+            available_ip_address_count: __dataclass__init__fields__21__annotation = __dataclass__init__fields__21__default,
+            availability_zone: __dataclass__init__fields__22__annotation = __dataclass__init__fields__22__default,
+            default_for_az: __dataclass__init__fields__23__annotation = __dataclass__init__fields__23__default,
+            map_public_ip_on_launch: __dataclass__init__fields__24__annotation = __dataclass__init__fields__24__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'availability_zone_id', availability_zone_id)
             __dataclass__object_setattr(self, 'enable_lni_at_device_index', enable_lni_at_device_index)
@@ -22101,6 +22363,7 @@ def _process_dataclass__7e815eae122e3d2da5aafedebb5b03e8491e4e5e():
             __dataclass__object_setattr(self, 'private_dns_name_options_on_launch', private_dns_name_options_on_launch)
             __dataclass__object_setattr(self, 'block_public_access_states', block_public_access_states)
             __dataclass__object_setattr(self, 'type', type)
+            __dataclass__object_setattr(self, 'network_firewall_connectivity_type', network_firewall_connectivity_type)
             __dataclass__object_setattr(self, 'subnet_id', subnet_id)
             __dataclass__object_setattr(self, 'state', state)
             __dataclass__object_setattr(self, 'vpc_id', vpc_id)
@@ -22130,6 +22393,7 @@ def _process_dataclass__7e815eae122e3d2da5aafedebb5b03e8491e4e5e():
             parts.append(f"private_dns_name_options_on_launch={self.private_dns_name_options_on_launch!r}")
             parts.append(f"block_public_access_states={self.block_public_access_states!r}")
             parts.append(f"type={self.type!r}")
+            parts.append(f"network_firewall_connectivity_type={self.network_firewall_connectivity_type!r}")
             parts.append(f"subnet_id={self.subnet_id!r}")
             parts.append(f"state={self.state!r}")
             parts.append(f"vpc_id={self.vpc_id!r}")
@@ -22971,7 +23235,7 @@ def _process_dataclass__12f789e93a7240283a5a319e893d47516aeb0897():
 
 
 @_register(
-    installer_sha1='baad00f926fa9e2385babd789d72cf38283fd54d',
+    installer_sha1='a1264ba00e9f4aef9c0b9935d95c20ba7a89cefb',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -22985,19 +23249,20 @@ def _process_dataclass__12f789e93a7240283a5a319e893d47516aeb0897():
             "ol', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('tags'"
             ", True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('block_pu"
             "blic_access_states', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, "
-            "False), (('vpc_id', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, F"
-            "alse), (('state', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, Fal"
-            "se), (('cidr_block', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, "
-            "False), (('dhcp_options_id', True, True, None, True, True, False, None), 'instance', 'value', None, False,"
-            " False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (False,)"
-            "))"
+            "False), (('network_firewall_associations', True, True, None, True, True, False, None), 'instance', 'value'"
+            ", None, False, False, False), (('vpc_id', True, True, None, True, True, False, None), 'instance', 'value',"
+            " None, False, False, False), (('state', True, True, None, True, True, False, None), 'instance', 'value', N"
+            "one, False, False, False), (('cidr_block', True, True, None, True, True, False, None), 'instance', 'value'"
+            ", None, False, False, False), (('dhcp_options_id', True, True, None, True, True, False, None), 'instance',"
+            " 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()"
+            "), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('ominfra.clouds.aws.models.services.ec2', 'Vpc'),
     ),
 )
-def _process_dataclass__baad00f926fa9e2385babd789d72cf38283fd54d():
+def _process_dataclass__a1264ba00e9f4aef9c0b9935d95c20ba7a89cefb():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -23029,6 +23294,8 @@ def _process_dataclass__baad00f926fa9e2385babd789d72cf38283fd54d():
         __dataclass__init__fields__11__default = __dataclass__spec.fields[11].default.must()
         __dataclass__init__fields__12__annotation = __dataclass__spec.fields[12].annotation
         __dataclass__init__fields__12__default = __dataclass__spec.fields[12].default.must()
+        __dataclass__init__fields__13__annotation = __dataclass__spec.fields[13].annotation
+        __dataclass__init__fields__13__default = __dataclass__spec.fields[13].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -23047,6 +23314,7 @@ def _process_dataclass__baad00f926fa9e2385babd789d72cf38283fd54d():
                 encryption_control=self.encryption_control,
                 tags=self.tags,
                 block_public_access_states=self.block_public_access_states,
+                network_firewall_associations=self.network_firewall_associations,
                 vpc_id=self.vpc_id,
                 state=self.state,
                 cidr_block=self.cidr_block,
@@ -23069,6 +23337,7 @@ def _process_dataclass__baad00f926fa9e2385babd789d72cf38283fd54d():
                 self.encryption_control == other.encryption_control and
                 self.tags == other.tags and
                 self.block_public_access_states == other.block_public_access_states and
+                self.network_firewall_associations == other.network_firewall_associations and
                 self.vpc_id == other.vpc_id and
                 self.state == other.state and
                 self.cidr_block == other.cidr_block and
@@ -23087,6 +23356,7 @@ def _process_dataclass__baad00f926fa9e2385babd789d72cf38283fd54d():
             'encryption_control',
             'tags',
             'block_public_access_states',
+            'network_firewall_associations',
             'vpc_id',
             'state',
             'cidr_block',
@@ -23123,6 +23393,7 @@ def _process_dataclass__baad00f926fa9e2385babd789d72cf38283fd54d():
                 self.encryption_control,
                 self.tags,
                 self.block_public_access_states,
+                self.network_firewall_associations,
                 self.vpc_id,
                 self.state,
                 self.cidr_block,
@@ -23142,10 +23413,11 @@ def _process_dataclass__baad00f926fa9e2385babd789d72cf38283fd54d():
             encryption_control: __dataclass__init__fields__06__annotation = __dataclass__init__fields__06__default,
             tags: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
             block_public_access_states: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
-            vpc_id: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
-            state: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
-            cidr_block: __dataclass__init__fields__11__annotation = __dataclass__init__fields__11__default,
-            dhcp_options_id: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
+            network_firewall_associations: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
+            vpc_id: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
+            state: __dataclass__init__fields__11__annotation = __dataclass__init__fields__11__default,
+            cidr_block: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
+            dhcp_options_id: __dataclass__init__fields__13__annotation = __dataclass__init__fields__13__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'owner_id', owner_id)
             __dataclass__object_setattr(self, 'instance_tenancy', instance_tenancy)
@@ -23155,6 +23427,7 @@ def _process_dataclass__baad00f926fa9e2385babd789d72cf38283fd54d():
             __dataclass__object_setattr(self, 'encryption_control', encryption_control)
             __dataclass__object_setattr(self, 'tags', tags)
             __dataclass__object_setattr(self, 'block_public_access_states', block_public_access_states)
+            __dataclass__object_setattr(self, 'network_firewall_associations', network_firewall_associations)
             __dataclass__object_setattr(self, 'vpc_id', vpc_id)
             __dataclass__object_setattr(self, 'state', state)
             __dataclass__object_setattr(self, 'cidr_block', cidr_block)
@@ -23173,6 +23446,7 @@ def _process_dataclass__baad00f926fa9e2385babd789d72cf38283fd54d():
             parts.append(f"encryption_control={self.encryption_control!r}")
             parts.append(f"tags={self.tags!r}")
             parts.append(f"block_public_access_states={self.block_public_access_states!r}")
+            parts.append(f"network_firewall_associations={self.network_firewall_associations!r}")
             parts.append(f"vpc_id={self.vpc_id!r}")
             parts.append(f"state={self.state!r}")
             parts.append(f"cidr_block={self.cidr_block!r}")

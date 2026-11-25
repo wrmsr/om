@@ -211,6 +211,20 @@ class EphemeralNvmeSupport(_base.Enum):
     REQUIRED = 'required'
 
 
+FirewallArn = _ta.NewType('FirewallArn', str)
+
+
+class FirewallMode(_base.Enum):
+    MONITOR = 'monitor'
+    ENFORCE = 'enforce'
+
+
+class FirewallOnboardingStatus(_base.Enum):
+    PENDING = 'pending'
+    ACTIVE = 'active'
+    DISABLING = 'disabling'
+
+
 class FlexibleEnaQueuesSupport(_base.Enum):
     UNSUPPORTED = 'unsupported'
     SUPPORTED = 'supported'
@@ -1917,6 +1931,14 @@ class NetworkCardInterfaceType(_base.Enum):
     SECONDARY = 'secondary'
 
 
+class NetworkFirewallConnectivityType(_base.Enum):
+    FLEXIBLE = 'flexible'
+    OUTBOUND_ONLY = 'outbound-only'
+    BIDIRECTIONAL = 'bidirectional'
+    EXCLUDE = 'exclude'
+    AZ_UNSUPPORTED = 'az-unsupported'
+
+
 NetworkInterfaceId = _ta.NewType('NetworkInterfaceId', str)
 
 
@@ -2197,6 +2219,8 @@ class ServiceManaged(_base.Enum):
     NLB = 'nlb'
     RNAT = 'rnat'
     RDS = 'rds'
+    LAMBDA_NETWORK_CONNECTOR = 'lambda-network-connector'
+    IGW_FIREWALL = 'igw-firewall'
 
 
 class SeverityLabel(_base.Enum):
@@ -3361,6 +3385,24 @@ class IamInstanceProfileSpecification(
     ))
 
 
+@_dc.dataclass(frozen=True, kw_only=True)
+class IgwFirewall(
+    _base.Shape,
+    shape_name='IgwFirewall',
+):
+    firewall_arn: FirewallArn | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='FirewallArn',
+        serialization_name='firewallArn',
+        shape_name='FirewallArn',
+    ))
+
+    status: FirewallOnboardingStatus | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='Status',
+        serialization_name='status',
+        shape_name='FirewallOnboardingStatus',
+    ))
+
+
 ImageIdStringList: _ta.TypeAlias = _ta.Sequence[ImageId]
 
 
@@ -3957,6 +3999,30 @@ NetworkCardInterfaceTypeList: _ta.TypeAlias = _ta.Sequence[NetworkCardInterfaceT
 
 
 @_dc.dataclass(frozen=True, kw_only=True)
+class NetworkFirewallAssociation(
+    _base.Shape,
+    shape_name='NetworkFirewallAssociation',
+):
+    firewall_arn: FirewallArn | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='FirewallArn',
+        serialization_name='firewallArn',
+        shape_name='FirewallArn',
+    ))
+
+    firewall_onboarding_status: FirewallOnboardingStatus | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='FirewallOnboardingStatus',
+        serialization_name='firewallOnboardingStatus',
+        shape_name='FirewallOnboardingStatus',
+    ))
+
+    firewall_mode: FirewallMode | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='FirewallMode',
+        serialization_name='firewallMode',
+        shape_name='FirewallMode',
+    ))
+
+
+@_dc.dataclass(frozen=True, kw_only=True)
 class NetworkInterfaceAssociation(
     _base.Shape,
     shape_name='NetworkInterfaceAssociation',
@@ -4341,120 +4407,6 @@ PublicIpStringList: _ta.TypeAlias = _ta.Sequence[str]
 RequestInstanceTypeList: _ta.TypeAlias = _ta.Sequence[InstanceType]
 
 RootDeviceTypeList: _ta.TypeAlias = _ta.Sequence[RootDeviceType]
-
-
-@_dc.dataclass(frozen=True, kw_only=True)
-class Route(
-    _base.Shape,
-    shape_name='Route',
-):
-    destination_cidr_block: str | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='DestinationCidrBlock',
-        serialization_name='destinationCidrBlock',
-        shape_name='String',
-    ))
-
-    destination_ipv6_cidr_block: str | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='DestinationIpv6CidrBlock',
-        serialization_name='destinationIpv6CidrBlock',
-        shape_name='String',
-    ))
-
-    destination_prefix_list_id: str | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='DestinationPrefixListId',
-        serialization_name='destinationPrefixListId',
-        shape_name='String',
-    ))
-
-    egress_only_internet_gateway_id: str | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='EgressOnlyInternetGatewayId',
-        serialization_name='egressOnlyInternetGatewayId',
-        shape_name='String',
-    ))
-
-    gateway_id: str | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='GatewayId',
-        serialization_name='gatewayId',
-        shape_name='String',
-    ))
-
-    instance_id: str | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='InstanceId',
-        serialization_name='instanceId',
-        shape_name='String',
-    ))
-
-    instance_owner_id: str | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='InstanceOwnerId',
-        serialization_name='instanceOwnerId',
-        shape_name='String',
-    ))
-
-    nat_gateway_id: str | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='NatGatewayId',
-        serialization_name='natGatewayId',
-        shape_name='String',
-    ))
-
-    transit_gateway_id: str | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='TransitGatewayId',
-        serialization_name='transitGatewayId',
-        shape_name='String',
-    ))
-
-    local_gateway_id: str | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='LocalGatewayId',
-        serialization_name='localGatewayId',
-        shape_name='String',
-    ))
-
-    carrier_gateway_id: CarrierGatewayId | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='CarrierGatewayId',
-        serialization_name='carrierGatewayId',
-        shape_name='CarrierGatewayId',
-    ))
-
-    network_interface_id: str | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='NetworkInterfaceId',
-        serialization_name='networkInterfaceId',
-        shape_name='String',
-    ))
-
-    origin: RouteOrigin | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='Origin',
-        serialization_name='origin',
-        shape_name='RouteOrigin',
-    ))
-
-    state: RouteState | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='State',
-        serialization_name='state',
-        shape_name='RouteState',
-    ))
-
-    vpc_peering_connection_id: str | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='VpcPeeringConnectionId',
-        serialization_name='vpcPeeringConnectionId',
-        shape_name='String',
-    ))
-
-    core_network_arn: CoreNetworkArn | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='CoreNetworkArn',
-        serialization_name='coreNetworkArn',
-        shape_name='CoreNetworkArn',
-    ))
-
-    odb_network_arn: OdbNetworkArn | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='OdbNetworkArn',
-        serialization_name='odbNetworkArn',
-        shape_name='OdbNetworkArn',
-    ))
-
-    ip_address: str | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='IpAddress',
-        serialization_name='ipAddress',
-        shape_name='String',
-    ))
 
 
 @_dc.dataclass(frozen=True, kw_only=True)
@@ -5263,6 +5215,8 @@ class NetworkCardInfo(
     ))
 
 
+NetworkFirewallAssociationSet: _ta.TypeAlias = _ta.Sequence[NetworkFirewallAssociation]
+
 NetworkInterfaceIpv6AddressesList: _ta.TypeAlias = _ta.Sequence[NetworkInterfaceIpv6Address]
 
 
@@ -5418,7 +5372,124 @@ class RebootInstancesRequest(
     ))
 
 
-RouteList: _ta.TypeAlias = _ta.Sequence[Route]
+@_dc.dataclass(frozen=True, kw_only=True)
+class Route(
+    _base.Shape,
+    shape_name='Route',
+):
+    destination_cidr_block: str | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='DestinationCidrBlock',
+        serialization_name='destinationCidrBlock',
+        shape_name='String',
+    ))
+
+    destination_ipv6_cidr_block: str | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='DestinationIpv6CidrBlock',
+        serialization_name='destinationIpv6CidrBlock',
+        shape_name='String',
+    ))
+
+    destination_prefix_list_id: str | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='DestinationPrefixListId',
+        serialization_name='destinationPrefixListId',
+        shape_name='String',
+    ))
+
+    egress_only_internet_gateway_id: str | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='EgressOnlyInternetGatewayId',
+        serialization_name='egressOnlyInternetGatewayId',
+        shape_name='String',
+    ))
+
+    gateway_id: str | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='GatewayId',
+        serialization_name='gatewayId',
+        shape_name='String',
+    ))
+
+    instance_id: str | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='InstanceId',
+        serialization_name='instanceId',
+        shape_name='String',
+    ))
+
+    instance_owner_id: str | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='InstanceOwnerId',
+        serialization_name='instanceOwnerId',
+        shape_name='String',
+    ))
+
+    nat_gateway_id: str | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='NatGatewayId',
+        serialization_name='natGatewayId',
+        shape_name='String',
+    ))
+
+    transit_gateway_id: str | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='TransitGatewayId',
+        serialization_name='transitGatewayId',
+        shape_name='String',
+    ))
+
+    local_gateway_id: str | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='LocalGatewayId',
+        serialization_name='localGatewayId',
+        shape_name='String',
+    ))
+
+    carrier_gateway_id: CarrierGatewayId | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='CarrierGatewayId',
+        serialization_name='carrierGatewayId',
+        shape_name='CarrierGatewayId',
+    ))
+
+    network_interface_id: str | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='NetworkInterfaceId',
+        serialization_name='networkInterfaceId',
+        shape_name='String',
+    ))
+
+    origin: RouteOrigin | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='Origin',
+        serialization_name='origin',
+        shape_name='RouteOrigin',
+    ))
+
+    state: RouteState | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='State',
+        serialization_name='state',
+        shape_name='RouteState',
+    ))
+
+    vpc_peering_connection_id: str | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='VpcPeeringConnectionId',
+        serialization_name='vpcPeeringConnectionId',
+        shape_name='String',
+    ))
+
+    core_network_arn: CoreNetworkArn | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='CoreNetworkArn',
+        serialization_name='coreNetworkArn',
+        shape_name='CoreNetworkArn',
+    ))
+
+    odb_network_arn: OdbNetworkArn | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='OdbNetworkArn',
+        serialization_name='odbNetworkArn',
+        shape_name='OdbNetworkArn',
+    ))
+
+    ip_address: str | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='IpAddress',
+        serialization_name='ipAddress',
+        shape_name='String',
+    ))
+
+    igw_firewall: IgwFirewall | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='IgwFirewall',
+        serialization_name='igwFirewall',
+        shape_name='IgwFirewall',
+    ))
 
 
 @_dc.dataclass(frozen=True, kw_only=True)
@@ -6523,6 +6594,8 @@ class NetworkInterfaceAttachment(
 NetworkInterfacePrivateIpAddressList: _ta.TypeAlias = _ta.Sequence[NetworkInterfacePrivateIpAddress]
 
 NeuronDeviceInfoList: _ta.TypeAlias = _ta.Sequence[NeuronDeviceInfo]
+
+RouteList: _ta.TypeAlias = _ta.Sequence[Route]
 
 RouteTableAssociationList: _ta.TypeAlias = _ta.Sequence[RouteTableAssociation]
 
@@ -8080,6 +8153,12 @@ class Subnet(
         shape_name='String',
     ))
 
+    network_firewall_connectivity_type: NetworkFirewallConnectivityType | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='NetworkFirewallConnectivityType',
+        serialization_name='networkFirewallConnectivityType',
+        shape_name='NetworkFirewallConnectivityType',
+    ))
+
     subnet_id: str | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='SubnetId',
         serialization_name='subnetId',
@@ -8200,6 +8279,14 @@ class Vpc(
         member_name='BlockPublicAccessStates',
         serialization_name='blockPublicAccessStates',
         shape_name='BlockPublicAccessStates',
+    ))
+
+    network_firewall_associations: NetworkFirewallAssociationSet | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='NetworkFirewallAssociations',
+        serialization_name='networkFirewallAssociationSet',
+        list_member_name='item',
+        value_type=_base.ListValueType(NetworkFirewallAssociation),
+        shape_name='NetworkFirewallAssociationSet',
     ))
 
     vpc_id: str | None = _dc.field(default=None, metadata=_base.field_metadata(
@@ -9492,6 +9579,7 @@ ALL_SHAPES: frozenset[type[_base.Shape]] = frozenset([
     HibernationOptionsRequest,
     IamInstanceProfile,
     IamInstanceProfileSpecification,
+    IgwFirewall,
     Image,
     ImageWatermark,
     InferenceAcceleratorInfo,
@@ -9546,6 +9634,7 @@ ALL_SHAPES: frozenset[type[_base.Shape]] = frozenset([
     MemoryInfo,
     Monitoring,
     NetworkCardInfo,
+    NetworkFirewallAssociation,
     NetworkInfo,
     NetworkInterface,
     NetworkInterfaceAssociation,

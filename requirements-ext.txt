@@ -46,20 +46,20 @@ gguf==0.19.0
 jedi==0.20.1
 # jedi-language-server==0.46.0
 
-watchdog==7.1.0
+watchdog==7.1.1
 
 pyright[nodejs]==1.1.414
 basedpyright==1.40.2
 
 blobfile==3.3.0
 
-pydantic-monty==1.6.0
+pydantic-monty==1.7.0
 
 
 ##
 # runtimes
 
-wasmtime==50.0.1
+wasmtime==51.0.0
 
 
 ##
